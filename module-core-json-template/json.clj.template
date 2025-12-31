@@ -1,0 +1,21 @@
+(ns plumcp.core.util.json
+  "{{nsdoc}}"
+  (:require {{nsrequire}}))
+
+
+(defn json-parse
+  "Parse JSON string as data with keywordized keys."
+  [json-str]
+  {{jsonparse}})
+
+
+(defn json-parse-str
+  "Parse JSON string as data with string (unchanged) keys."
+  [json-str]
+  {{jsonparsestr}})
+
+
+(defn json-write
+  "Write Clojure data as string."
+  [clj-data]
+  {{jsonwrite}})

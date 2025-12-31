@@ -1,0 +1,29 @@
+{:deps
+ {module/core      {:local/root "module-core"}
+  module/core-dev  {:local/root "module-core-dev"}
+  module/core-auth {:local/root "module-core-auth"}
+  ;; --- Java JSON dependency (uncomment ONLY one) ---
+  module/json-charred   {:local/root "module-core-json-template/out/charred"}
+  ;module/json-cheshire  {:local/root "module-core-json-template/out/cheshire"}
+  ;module/json-data-json {:local/root "module-core-json-template/out/data-json"}
+  ;module/json-jsonista  {:local/root "module-core-json-template/out/jsonista"}
+  ;; --- runtime/dev dependencies for module-core ---
+  ;; Clojure
+  org.clojure/clojure {:mvn/version "1.12.4"}
+  ;; ClojureScript
+  thheller/shadow-cljs {:mvn/version "3.2.1"}  ; adds CLJS 1.12.42
+  }
+ :aliases
+ {;; ------------------
+  ;; Start nREPL server: clj -M:cider-nrepl
+  ;; ------------------
+  :cider-nrepl
+  {:extra-deps {cider/cider-nrepl {:mvn/version "0.58.0"},
+                djblue/portal {:mvn/version "0.62.0"},
+                mx.cider/tools.deps.enrich-classpath {:mvn/version "1.19.3"},
+                nrepl/nrepl {:mvn/version "1.5.0"},
+                refactor-nrepl/refactor-nrepl {:mvn/version "3.11.0"}}
+   :main-opts ["-m" "nrepl.cmdline"
+               "--middleware" "[\"cider.nrepl/cider-middleware\"]"]}
+  ;;
+  }}
