@@ -1,0 +1,15 @@
+/.calva
+/.clj-kondo/.cache
+/.clj-kondo/imports
+/.cljs_node_repl
+/.cpcache
+/.lsp
+/.nrepl-port
+/.shadow-cljs
+/.vscode
+/cljs-test-runner-out
+**/node_modules
+**/package-lock.json
+**/bun.lock
+**/out
+
