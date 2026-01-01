@@ -45,3 +45,15 @@ pedantic-abort:
 nrepl:
 	@# Help: Start Cider nREPL server
 	clj -M:cider-nrepl
+
+clj-test:
+	@# Help: Run CLJ tests
+	clj -M:clj-test
+
+cljs-test:
+	@# Help: Run CLJS tests
+	clj -M:cljs-test
+
+lint:
+	@# Help: Run linter
+	clojure-lsp diagnostics

@@ -1,4 +1,7 @@
-{:deps
+{:paths ["src/apps"
+         "src/main"
+         "src/test"]
+ :deps
  {module/core      {:local/root "module-core"}
   module/core-dev  {:local/root "module-core-dev"}
   module/core-auth {:local/root "module-core-auth"}
@@ -25,5 +28,38 @@
                 refactor-nrepl/refactor-nrepl {:mvn/version "3.11.0"}}
    :main-opts ["-m" "nrepl.cmdline"
                "--middleware" "[\"cider.nrepl/cider-middleware\"]"]}
+  ;;***********
+  ;;
+  ;;  Testing
+  ;;
+  ;;***********
+  ;; -------------
+  ;; Run CLJ tests: clj -M:clj-test
+  ;; -------------
+  :clj-test
+  {:extra-deps {io.github.cognitect-labs/test-runner {:git/sha "dfb30dd"
+                                                      :git/tag "v0.5.1"}
+                org.clojure/test.check {:mvn/version "1.1.1"}}
+   :jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+               "-Dclojure.main.report=stderr"]
+   :main-opts ["-m" "cognitect.test-runner"
+               "-d" "src/test"
+               ;"-r" "plumcp.core.test.entity-gen-test"  ; regex
+               ;"-n" "plumcp.core.test.entity-gen-test"  ; namespace
+               ;"plumcp.core.test.entity-gen-test"       ; namespace
+               #_"--help"]}
+  ;; --------------
+  ;; Run CLJS tests: clj -M:cljs-test
+  ;; --------------
+  :cljs-test
+  {:extra-deps {olical/cljs-test-runner {:mvn/version "3.8.1"}}
+   :jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+               "-Dclojure.main.report=stderr"]
+   :main-opts ["-m" "cljs-test-runner.main"
+               "-d" "src/test"
+               ;"-r" "plumcp.core.test.entity-gen-test"  ; regex
+               ;"-n" "plumcp.core.test.entity-gen-test"  ; namespace
+               ;"plumcp.core.test.entity-gen-test"       ; namespace
+               #_"--help"]}
   ;;
   }}
