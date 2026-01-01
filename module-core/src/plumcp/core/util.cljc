@@ -33,7 +33,7 @@
 
 (defn repeat-str
   "Repeat given string N times, returning a single string."
-  [n token]
+  [^long n token]
   (if (pos? n)
     (-> (repeat n token)
         str/join)
@@ -182,10 +182,10 @@
 
 (defn now-millis
   "Return the current time since Epoch (or specified TS) in milliseconds."
-  ([]
+  (^long []
    #?(:clj (System/currentTimeMillis)
       :cljs (.getTime (js/Date.))))
-  ([^long since-millis]
+  (^long [^long since-millis]
    (- (now-millis) since-millis)))
 
 
@@ -214,14 +214,15 @@
    Ref: https://gist.github.com/fabiolimace/c725349dd34aedc7b69867dabec59c08
    See: https://gist.github.com/fabiolimace/c0c11c5ea013d4ec54cf6b0d43d366c6"
   []
-  (let [random (fn [bits] (let [bits (min 52 bits)]
-                            #?(:cljs (-> (js/Math.random)
-                                         (* (js/Math.pow 2 bits))
-                                         js/Math.floor)
-                               :clj (-> (Math/random)
-                                        (* (Math/pow 2 bits))
-                                        Math/floor  ; returns double
-                                        long))))
+  (let [random (fn [^long bits]
+                 (let [bits (min 52 bits)]
+                   #?(:cljs (-> (js/Math.random)
+                                (* (js/Math.pow 2 bits))
+                                js/Math.floor)
+                      :clj (-> (Math/random)
+                               (* (Math/pow 2 bits))
+                               Math/floor  ; returns double
+                               long))))
         millis (now-millis)
         time0x (hex-str millis 12)
         rawstr (str (subs time0x 0 8)
