@@ -143,9 +143,9 @@
         "Must conform to schema"))
   ;;
   (testing "Initialize request"
-    (let [impl (eg/make-implementation "ZooMCP"
+    (let [impl (eg/make-implementation "PluMCP"
                                        "0.1.1"
-                                       {:title "ZooMCP 0.1.1"})]
+                                       {:title "PluMCP 0.1.1"})]
       (is (mc/validate sd/Implementation impl)
           "Should be valid implementation")
       (is (mc/validate sd/InitializeResult
