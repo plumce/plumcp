@@ -275,3 +275,24 @@
     (bytes? x) (bytes->base64-string x)
     :else (expected! x (str x-name
                             " to be a Base64 string or byte-array"))))
+
+
+;; --- URI-template handling ---
+
+
+(defn uri-template->variable-names
+  "Given a string URI-template with {param} e.g. `/foo/{id}/bar/{subId}`
+   return a vector of arg names, e.g. `[\"id\" \"subId\"]`."
+  [uri-template]
+  (->> uri-template
+       (re-seq #"\{([a-zA-Z0-9_]+)\}")
+       (mapv second)))
+
+
+(defn uri-template->matching-regex
+  "Given a string URI-template with {param} e.g. /foo/{id}/bar/{subId}
+   return `(fn [uri]) -> match-result`."
+  [uri-template]
+  (-> uri-template
+      (str/replace #"\{([a-zA-Z0-9_]+)\}" "([a-zA-Z0-9_]+)")
+      re-pattern))

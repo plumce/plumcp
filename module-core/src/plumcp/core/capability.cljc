@@ -1,0 +1,427 @@
+(ns plumcp.core.capability
+  "MCP Capability definitions for client and server."
+  (:require
+   [clojure.set :as set]
+   [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.protocols :as p]
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.util :as u]))
+
+
+;; ----- Utility -----
+
+
+(defn change-listening-mutable
+  "Create protocol/IMutable instance that sends changes to the
+   `on-change` change listener."
+  [init-val on-change]
+  (let [holder (atom init-val)]
+    (reify
+      p/IMutable
+      (get-val [_] @holder)
+      (reset-val! [_ data] (-> (reset! holder data)
+                               (doto on-change)))
+      (swap-val! [_ f] (-> (swap! holder f)
+                           (doto on-change))))))
+
+
+(defn immutable
+  [init-val]
+  (reify
+    p/IMutable
+    (get-val [_] init-val)
+    (reset-val! [_ _] (u/throw! "Unsupported operation"))
+    (swap-val! [_ _] (u/throw! "Unsupported operation"))))
+
+
+;; ----- List capability -----
+
+
+(defn find-named-handler
+  "Find handler fn from the matching list-item - all list items must be
+   maps containing `:name` and `:handler` keys."
+  [items-list item-name]
+  (->> items-list
+       (some #(when (= item-name (:name %))
+                {:handler (:handler %)}))))
+
+
+(defn find-uri-handler
+  "Find handler fn from the matching list-item - all list items must be
+   maps containing `:uri` (and optional `:matcher`) and `:handler` keys."
+  [items-list uri]
+  (->> items-list
+       (some (fn [item]
+               (when-let [params (or (= uri (:uri item))
+                                     (when-let [matcher (:matcher item)]
+                                       (matcher uri)))]
+                 (if (map? params)
+                   {:params params
+                    :handler (:handler item)}
+                   {:handler (:handler item)}))))))
+
+
+(defn call-named-handler [handler [_name args]]
+  (handler args))
+
+
+(defn make-mutable-list-capability
+  "Given a map of `{method-name mutable-list}` and options, create a
+   capability of items list. The default `:find-handler` option expects
+   every list-item to be a map with `{:handler (fn [args])}`. The map is
+   stripped of `:handler` and `:matcher` keys in the `obtain-list` call.
+
+   See: `find-named-handler`, `find-uri-handler`"
+  [mutable-list-map {:keys [declaration
+                            find-handler]
+                     :or {declaration {:listChanged true}
+                          find-handler find-named-handler}}]
+  (reify
+    p/IMcpCapability
+    (get-capability-declaration [_] declaration)
+    p/IMcpListedCapability
+    (obtain-list [_ method-name] (as-> mutable-list-map $
+                                   (get $ method-name)
+                                   (p/get-val $)
+                                   (mapv #(dissoc % :handler :matcher)
+                                         $)))
+    p/IMcpInvokableCapability
+    (find-handler [_ args] (as-> mutable-list-map $
+                             (vals $)
+                             (map p/get-val $)
+                             (apply concat $)
+                             (find-handler $ args)))))
+
+
+;; --- Fixed-list based capability utility functions ---
+
+
+(defn make-fixed-list-capability
+  [coll-map opts]
+  (-> coll-map
+      (update-vals immutable)
+      (make-mutable-list-capability opts)))
+
+
+(defn make-fixed-roots-capability
+  "Make a fixed (list of) roots capability."
+  [^{:see eg/make-root} roots-coll]
+  (make-fixed-list-capability {sd/method-roots-list roots-coll}
+                              {}))
+
+
+(defn make-fixed-prompts-capability
+  "Make a fixed (list of) prompts capability."
+  [^{:see eg/make-prompt} prompts-coll]
+  (make-fixed-list-capability {sd/method-prompts-list prompts-coll}
+                              {}))
+
+
+(defn make-fixed-resources-capability
+  "Make a fixed (list of) resources/templates capability."
+  [^{:see eg/make-resource} resources-coll
+   ^{:see eg/make-resource-template} resource-templates-coll
+   & {:keys [declaration]
+      :or {declaration {:listChanged true
+                        :subscribe true}}}]
+  (make-fixed-list-capability
+   {sd/method-resources-list resources-coll
+    sd/method-resources-templates-list resource-templates-coll}
+   {:declaration declaration
+    :find-handler find-uri-handler}))
+
+
+(defn make-fixed-tools-capability
+  "Make a fixed (list of) tools capability."
+  [^{:see eg/make-tool} tools-coll]
+  (make-fixed-list-capability {sd/method-tools-list tools-coll} {}))
+
+
+;; --- Client capability ---
+
+
+(defn ^{:see [make-fixed-roots-capability]} make-roots-capability-item
+  "Make a roots capability item. A collection of such items may be used
+   to build roots capability."
+  [^{:see [eg/make-root]} root-definition]
+  root-definition)
+
+
+(defn make-sampling-capability
+  "Given function `(fn [create-message-request])->create-message-result`
+   make sampling capability."
+  [^{:see [eg/make-create-message-request
+           eg/make-create-message-result]} f]
+  (reify
+    p/IMcpCapability
+    (get-capability-declaration [_] {})
+    p/IMcpSampling
+    (get-sampling-response [_ request] (f request))))
+
+
+(defn make-elicitation-capability
+  "Given function `(fn [elicit-request])->elicit-result` make elicitation
+   capability"
+  [^{:see [eg/make-elicit-request
+           eg/make-elicit-result]} f]
+  (reify
+    p/IMcpCapability
+    (get-capability-declaration [_] {})
+    p/IMcpElicitation
+    (get-elicitation-response [_ request] (f request))))
+
+
+;; --- Server capability ---
+
+
+(def logging-capability
+  (reify
+    p/IMcpCapability
+    (get-capability-declaration [_] {})))
+
+
+(defn ^{:see [make-fixed-prompts-capability]} make-prompts-capability-item
+  "Make a prompts capability item. A collection of such items may be used
+   to build prompts capability. The capability item is made by associating
+   `(fn get-prompt-handler [kwargs-map])->get-prompt-result` with a prompt
+   definition."
+  [^{:see [eg/make-prompt]} prompt-definition
+   ^{:see [eg/make-get-prompt-request
+           eg/make-get-prompt-result]} get-prompt-handler]
+  (-> prompt-definition
+      (assoc :handler get-prompt-handler)))
+
+
+(defn ^{:see [make-fixed-resources-capability]}
+  make-resources-capability-resource-item
+  "Make a resources capability (resource) item. A collection of such items
+   may be used to build resources capability. The capability item is made by
+   associating `(fn read-resource-handler [kwargs-map])->read-resource-result`
+   with a resource definition."
+  [^{:see [eg/make-resource]} resource-definition
+   ^{:see [eg/make-read-resource-request
+           eg/make-read-resource-result]} read-resource-handler]
+  (-> resource-definition
+      (assoc :handler read-resource-handler)))
+
+
+(defn add-uri-template-matcher
+  "Add a URI-template matcher that returns a map of {param-keyword param-val}"
+  [m]
+  (u/expected! (:uriTemplate m) string?
+               ":uriTemplate value in map to be a string")
+  (letfn [(make-matcher [ut]
+            (let [param-names (u/uri-template->variable-names ut)
+                  param-regex (u/uri-template->matching-regex ut)]
+              (fn uri-template-matcher [uri]
+                (when-let [[_ & param-vals] (re-matches param-regex uri)]
+                  (-> (map keyword param-names)
+                      (zipmap param-vals))))))]
+    (let [ut (:uriTemplate m)]
+      (update m :matcher (fn [old]
+                           (or old
+                               (make-matcher ut)))))))
+
+
+(defn ^{:see [make-fixed-resources-capability]}
+  make-resources-capability-resource-template-item
+  "Make a resources capability (resource template) item. A collection of such
+   items may be used to build resources capability. The capability item is made
+   by associating `(fn read-resource-handler [kwargs-map])->read-resource-result`
+   with a resource definition."
+  [^{:see [eg/make-resource-template]} resource-template-definition
+   ^{:see [eg/make-read-resource-request
+           eg/make-read-resource-result]} read-resource-handler]
+  (-> resource-template-definition
+      (assoc :handler read-resource-handler)
+      (set/rename-keys {:uri :uriTemplate})
+      (add-uri-template-matcher)))
+
+
+(defn ^{:see [make-fixed-tools-capability]} make-tools-capability-item
+  "Make a tools capability item. A collection of such items may be
+   used to build tools capability. The capability item is made by
+   associating `(fn call-tool-handler [kwargs-map])->call-tool-result`
+   with a tool definition."
+  [^{:see [eg/make-tool]} tool-definition
+   ^{:see [eg/make-call-tool-request
+           eg/make-call-tool-result]} call-tool-handler]
+  (-> tool-definition
+      (assoc :handler call-tool-handler)))
+
+
+(defn make-completions-capability
+  [prompt-refs resource-and-template-refs
+   prompt-completion-f resource-completion-f]
+  (reify
+    p/IMcpCapability
+    (get-capability-declaration [_] {})
+    p/IMcpCompletion
+    (completion-complete [_ complete-ref complete-arg]
+      (case (:type ^{:see [sd/CompleteRequest
+                           sd/CompleteResult]} complete-ref)
+        "ref/prompt" (as-> (:name complete-ref) $
+                       (get prompt-refs $)
+                       (prompt-completion-f $ complete-arg))
+        "ref/resource" (as-> (:uri complete-ref) $
+                         (get resource-and-template-refs $)
+                         (resource-completion-f $ complete-arg))
+        (u/expected! complete-ref "prompt or resource reference")))))
+
+
+;; --- Client/Server capabilities ---
+
+
+(def default-client-capabilities {:experimental nil
+                                  :roots        nil
+                                  :sampling     nil
+                                  :elicitation  nil})
+
+
+(def default-server-capabilities {:experimental nil
+                                  :logging      logging-capability
+                                  :completions  nil
+                                  :prompts      nil
+                                  :resources    nil
+                                  :tools        nil})
+
+
+;; ~~ Reads ~~
+
+;; Client
+
+(defn get-capability-roots       [capabilities] (get capabilities :roots))
+(defn get-capability-sampling    [capabilities] (get capabilities :sampling))
+(defn get-capability-elicitation [capabilities] (get capabilities :elicitation))
+
+
+;; Server
+
+(defn get-capability-logging     [capabilities] (get capabilities :logging))
+(defn get-capability-completions [capabilities] (get capabilities :completions))
+(defn get-capability-prompts     [capabilities] (get capabilities :prompts))
+(defn get-capability-resources   [capabilities] (get capabilities :resources))
+(defn get-capability-tools       [capabilities] (get capabilities :tools))
+
+;; Client & Server
+
+(defn get-capability-experimental [capabilities] (get capabilities
+                                                      :experimental))
+
+;; ~~ Updates ~~
+
+(defn- update-capability
+  [capabilities type capability]
+  (if (contains? capabilities type)
+    (assoc capabilities type capability)
+    capabilities))
+
+
+;; Client
+
+
+(defn update-roots-capability
+  [capabilities capability]
+  (update-capability capabilities :roots capability))
+
+
+(defn update-sampling-capability
+  [capabilities capability]
+  (update-capability capabilities :sampling capability))
+
+
+(defn update-elicitation-capability
+  [capabilities capability]
+  (update-capability capabilities :elicitation capability))
+
+
+;; Server
+
+
+(defn update-logging-capability
+  [capabilities capability]
+  (update-capability capabilities :logging capability))
+
+
+(defn update-completions-capability
+  [capabilities capability]
+  (update-capability capabilities :completions capability))
+
+
+(defn update-prompts-capability
+  [capabilities capability]
+  (update-capability capabilities :prompts capability))
+
+
+(defn update-resources-capability
+  [capabilities capability]
+  (update-capability capabilities :resources capability))
+
+
+(defn update-tools-capability
+  [capabilities capability]
+  (update-capability capabilities :tools capability))
+
+
+;; Client & Server
+
+
+(defn update-experimental-capability
+  [capabilities capability]
+  (update-capability capabilities :experimental capability))
+
+
+;; --- Client/Server capability declaration ---
+
+
+(defn capability->declaration [capability]
+  (and capability
+       (p/get-capability-declaration capability)))
+
+
+(defn get-client-capability-declaration
+  "Get capability properties from corresponding client capabilities map
+   structured as {<kw-name> <capability>}. The `kw-name` is either of:
+   ```
+   :experimental
+   :roots
+   :sampling
+   :elicitation
+   ```"
+  [client-capabilities]
+  (let [{:keys [experimental
+                roots
+                sampling
+                elicitation]} client-capabilities]
+    (u/assoc-some {}
+                  :experimental (capability->declaration experimental)
+                  :roots        (capability->declaration roots)
+                  :sampling     (capability->declaration sampling)
+                  :elicitation  (capability->declaration elicitation))))
+
+
+(defn get-server-capability-declaration
+  "Get capability properties from corresponding server capabilities map
+   structured as {<kw-name> <capability>}. The `kw-name` is either of:
+   ```
+   :experimental
+   :logging
+   :completions
+   :prompts
+   :resources
+   :tools
+   ```"
+  [server-capabilities]
+  (let [{:keys [experimental
+                logging
+                completions
+                prompts
+                resources
+                tools]} server-capabilities]
+    (u/assoc-some {}
+                  :experimental (capability->declaration experimental)
+                  :logging      (capability->declaration logging)
+                  :completions  (capability->declaration completions)
+                  :prompts      (capability->declaration prompts)
+                  :resources    (capability->declaration resources)
+                  :tools        (capability->declaration tools))))
