@@ -1,0 +1,4 @@
+out
+cljs-test-runner-out
+node_modules
+module-core-json-template/out
