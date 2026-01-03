@@ -1,14 +1,22 @@
 (ns plumcp.core.util
   "Common (CLJ, CLJS) utility functions and macros"
   (:require
+   #?(:cljs [goog.string :as gstring])
+   #?(:cljs [goog.string.format])
    [clojure.string :as str])
-  #?(:clj (:import
+  #?(:cljs (:require-macros [plumcp.core.util])
+     :clj (:import
            [clojure.lang ExceptionInfo]
            [java.text SimpleDateFormat]
            [java.util Base64 Date TimeZone])))
 
 
 ;; --- Backfill ---
+
+
+#?(:cljs
+   (defn format [fstr & args]
+     (apply gstring/format fstr args)))
 
 
 #?(:cljs
@@ -175,6 +183,23 @@
              (str "value to be either of " (if (map? enum-set-or-map)
                                              (keys enum-set-or-map)
                                              enum-set-or-map))))
+
+
+;; --- Function invocation ---
+
+
+(def nop "Do nothing at all, returning nil."
+  (constantly nil))
+
+
+(defn invoke
+  "Invoke given function. May be useful with `->` threading macro usage."
+  ([f]
+   (f))
+  ([f arg]
+   (f arg))
+  ([f arg & more]
+   (apply f arg more)))
 
 
 ;; --- Time tracking ---

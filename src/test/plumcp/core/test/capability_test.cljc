@@ -195,6 +195,25 @@
       (is (= 30 (handler {:a 10 :b 20})) "tool handler works"))))
 
 
+(deftest completion-capability-test
+  (let [prompt-ref-item (cap/make-completions-reference-item
+                         (eg/make-prompt-reference "test-prompt-ref")
+                         (fn [{:keys [ref argument]}]
+                           [:prompt argument]))
+        resource-ref-item (cap/make-completions-reference-item
+                           (eg/make-resource-template-reference "res://test")
+                           (fn [{:keys [ref argument]}]
+                             [:resource argument]))
+        cap (cap/make-completions-capability [prompt-ref-item]
+                                             [resource-ref-item])]
+    (is (= {}
+           (p/get-capability-declaration cap)))
+    (is (= [:prompt :foo]
+           (p/completion-complete cap prompt-ref-item :foo)))
+    (is (= [:resource :foo]
+           (p/completion-complete cap resource-ref-item :foo)))))
+
+
 (deftest server-capabilities-test
   (testing "default capabilities"
     (let [default-caps cap/default-server-capabilities]

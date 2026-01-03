@@ -5,7 +5,8 @@
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.protocols :as p]
    [plumcp.core.schema.schema-defs :as sd]
-   [plumcp.core.util :as u]))
+   [plumcp.core.schema.json-rpc :as jr]
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 
 
 ;; ----- Utility -----
@@ -37,13 +38,26 @@
 ;; ----- List capability -----
 
 
+(defn find-named-item
+  "Find matching item from given list-item - all list items must be
+   maps containing `:name` (or `name-key` argument) key."
+  ([items-list item-name name-key]
+   (->> items-list
+        (some (fn [item]
+                (when (= item-name (get item name-key))
+                  item)))))
+  ([items-list item-name]
+   (find-named-item items-list item-name :name)))
+
+
 (defn find-named-handler
   "Find handler fn from the matching list-item - all list items must be
-   maps containing `:name` and `:handler` keys."
-  [items-list item-name]
-  (->> items-list
-       (some #(when (= item-name (:name %))
-                {:handler (:handler %)}))))
+   maps containing `:name` (or `name-key` argument) and `:handler` keys."
+  ([items-list item-name name-key]
+   (when-let [item (find-named-item items-list item-name name-key)]
+     {:handler (:handler item)}))
+  ([items-list item-name]
+   (find-named-handler items-list item-name :name)))
 
 
 (defn find-uri-handler
@@ -161,7 +175,7 @@
 
 (defn make-elicitation-capability
   "Given function `(fn [elicit-request])->elicit-result` make elicitation
-   capability"
+   capability."
   [^{:see [eg/make-elicit-request
            eg/make-elicit-result]} f]
   (reify
@@ -250,23 +264,73 @@
       (assoc :handler call-tool-handler)))
 
 
+(defn make-completions-reference-item
+  "Make a completions capability reference item. A collection of such items
+   may be used to build completions capability. The capability item is made
+   by associating `(fn completion-handler [kwargs-map])->completion-result`
+   with a reference definition."
+  [^{:see [eg/make-prompt-reference
+           eg/make-resource-template-reference]} reference-definition
+   ^{:see [eg/make-complete-request
+           eg/make-complete-result]} completion-handler]
+  (-> reference-definition
+      (assoc :handler completion-handler)))
+
+
 (defn make-completions-capability
-  [prompt-refs resource-and-template-refs
-   prompt-completion-f resource-completion-f]
-  (reify
-    p/IMcpCapability
-    (get-capability-declaration [_] {})
-    p/IMcpCompletion
-    (completion-complete [_ complete-ref complete-arg]
-      (case (:type ^{:see [sd/CompleteRequest
-                           sd/CompleteResult]} complete-ref)
-        "ref/prompt" (as-> (:name complete-ref) $
-                       (get prompt-refs $)
-                       (prompt-completion-f $ complete-arg))
-        "ref/resource" (as-> (:uri complete-ref) $
-                         (get resource-and-template-refs $)
-                         (resource-completion-f $ complete-arg))
-        (u/expected! complete-ref "prompt or resource reference")))))
+  "Make completion capability from given prompt/resource refs/factory-fns
+   and respective completion handlers `(fn [ref arg])->completion-result`."
+  [^{:see [sd/PromptReference
+           eg/make-prompt-reference]} get-prompt-refs
+   ^{:see [sd/ResourceTemplateReference
+           eg/make-resource-template-reference]} get-resource-refs
+   & {:keys [find-prompt-item
+             find-resource-item]
+      :or {find-prompt-item find-named-item
+           find-resource-item (fn [items-list item-uri]
+                                (find-named-item items-list item-uri
+                                                 :uri))}}]
+  (let [err-format "'%s' to be a (fn []) or a collection"
+        coll->fn (fn [arg arg-name]
+                   (condp u/invoke arg
+                     fn?   arg
+                     coll? (constantly arg)
+                     (u/expected! arg (format err-format arg-name))))
+        get-prompt-refs (coll->fn get-prompt-refs "get-prompt-refs")
+        get-resource-refs (coll->fn get-resource-refs "get-resource-refs")]
+    (reify
+      p/IMcpCapability
+      (get-capability-declaration [_] {})
+      p/IMcpCompletion
+      (completion-complete [_ complete-ref complete-arg]
+        (case (:type ^{:see [sd/CompleteRequest
+                             sd/CompleteResult]} complete-ref)
+          ;; -- prompt refs --
+          "ref/prompt"
+          (let [prompt-refs (get-prompt-refs)]
+            (if-let [prompt-ref (find-prompt-item prompt-refs
+                                                  (:name complete-ref))]
+              (-> (:handler prompt-ref)
+                  (u/invoke {:ref prompt-ref
+                             :argument complete-arg}))
+              (jr/jsonrpc-failure
+               sd/error-code-invalid-params
+               "Invalid or unsupported ref/prompt name"
+               {:valid (mapv :name prompt-refs)})))
+          ;; -- resource refs --
+          "ref/resource"
+          (let [resource-refs (get-resource-refs)]
+            (if-let [resource-ref (find-resource-item resource-refs
+                                                      (:uri complete-ref))]
+              (-> (:handler resource-ref)
+                  (u/invoke {:ref resource-ref
+                             :argument complete-arg}))
+              (jr/jsonrpc-failure
+               sd/error-code-invalid-params
+               "Invalid or unsupported ref/resource URI/template"
+               {:valid (mapv :uri resource-refs)})))
+          (u/expected! complete-ref
+                       "prompt or resource reference under :type"))))))
 
 
 ;; --- Client/Server capabilities ---
