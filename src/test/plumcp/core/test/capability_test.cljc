@@ -39,13 +39,17 @@
 (deftest sampling-capability-test
   (let [sampling-cap (cap/make-sampling-capability identity)]
     (is (= {}
-           (p/get-capability-declaration sampling-cap)))))
+           (p/get-capability-declaration sampling-cap)))
+    (is (= :foo
+           (p/get-sampling-response sampling-cap :foo)))))
 
 
 (deftest elicitation-capability-test
   (let [elicitation-cap (cap/make-elicitation-capability identity)]
     (is (= {}
-           (p/get-capability-declaration elicitation-cap)))))
+           (p/get-capability-declaration elicitation-cap)))
+    (is (= :foo
+           (p/get-elicitation-response elicitation-cap :foo)))))
 
 
 (deftest client-capabilities-test
