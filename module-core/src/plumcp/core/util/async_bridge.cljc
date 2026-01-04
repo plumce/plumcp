@@ -62,7 +62,7 @@
          (.then (fn [~binding-sym]
                   ~(if (seq more)
                      `(let-await [~@more]
-                                 ~@body)
+                        ~@body)
                      `(do ~@body)))))
     `(let [~binding-sym ~val-or-prom
            ~@more]
@@ -82,12 +82,12 @@
              (.then (fn [~binding-sym]
                       ~(if (seq more)
                          `(may-await [~@more]
-                                     ~@body)
+                            ~@body)
                          `(do ~@body)))))
          (let [~binding-sym vop#]
            ~(if (seq more)
               `(may-await [~@more]
-                          ~@body)
+                 ~@body)
               `(do ~@body)))))
     `(let [~binding-sym ~val-or-prom
            ~@more]
@@ -121,11 +121,11 @@
            on-done# (:on-done ~options u/nop)
            walk# (fn thisfn# []
                    (may-await [result# (.next iterator#)]
-                              (if (aget result# "done")
-                                (on-done#)
-                                (let [~each-elem (aget result# "value")]
-                                  ~@body
-                                  (thisfn#)))))]
+                     (if (aget result# "done")
+                       (on-done#)
+                       (let [~each-elem (aget result# "value")]
+                         ~@body
+                         (thisfn#)))))]
        (walk#))
     `(let [on-done# (:on-done ~options u/nop)]
        (doseq [~each-elem (iterator-seq ~iterator)]
@@ -148,8 +148,8 @@
                            (if (awaitable? nval)
                              (js/Promise. (fn [return reject]
                                             (let-await [result nval]
-                                                       (-> (process result)
-                                                           (return)))))
+                                              (-> (process result)
+                                                  (return)))))
                              (process nval))))})
      :clj (cond
             ;; Java iterator
@@ -202,7 +202,7 @@
     `(may-await [~result-sym ~expr
                  ~@(interleave (repeat result-sym)
                                (map expand-form forms))]
-                ~result-sym)))
+       ~result-sym)))
 
 
 (defmacro await->>
@@ -219,7 +219,7 @@
     `(may-await [~result-sym ~expr
                  ~@(interleave (repeat result-sym)
                                (map expand-form forms))]
-                ~result-sym)))
+       ~result-sym)))
 
 
 (defmacro await-as->
@@ -227,4 +227,4 @@
   [expr name & forms]
   `(may-await [~name ~expr
                ~@(interleave (repeat name) forms)]
-              ~name))
+     ~name))
