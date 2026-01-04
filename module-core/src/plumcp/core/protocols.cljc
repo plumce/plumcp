@@ -2,15 +2,6 @@
   "All protocols in one place")
 
 
-;; ----- Mutable -----
-
-
-(defprotocol IMutable
-  (get-val [this])
-  (reset-val! [this data])
-  (swap-val! [this f]))
-
-
 ;; ----- Capability -----
 
 

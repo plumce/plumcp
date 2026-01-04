@@ -9,33 +9,7 @@
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 
 
-;; ----- Utility -----
-
-
-(defn change-listening-mutable
-  "Create protocol/IMutable instance that sends changes to the
-   `on-change` change listener."
-  [init-val on-change]
-  (let [holder (atom init-val)]
-    (reify
-      p/IMutable
-      (get-val [_] @holder)
-      (reset-val! [_ data] (-> (reset! holder data)
-                               (doto on-change)))
-      (swap-val! [_ f] (-> (swap! holder f)
-                           (doto on-change))))))
-
-
-(defn immutable
-  [init-val]
-  (reify
-    p/IMutable
-    (get-val [_] init-val)
-    (reset-val! [_ _] (u/throw! "Unsupported operation"))
-    (swap-val! [_ _] (u/throw! "Unsupported operation"))))
-
-
-;; ----- List capability -----
+;; ----- List capability helpers -----
 
 
 (defn find-named-item
@@ -79,86 +53,58 @@
   (handler args))
 
 
-(defn make-mutable-list-capability
-  "Given a map of `{method-name mutable-list}` and options, create a
-   capability of items list. The default `:find-handler` option expects
-   every list-item to be a map with `{:handler (fn [args])}`. The map is
-   stripped of `:handler` and `:matcher` keys in the `obtain-list` call.
+(defn make-listed-capability
+  "Given arity-0 fn `(fn get-items-list-map [])->{method-name items-list}`
+   and options, create an items list capability. The default `:find-handler`
+   option expects every list-item to be a map with `{:handler (fn [args])}`.
+   The map is stripped of `:handler` and `:matcher` keys in `obtain-list`.
 
    See: `find-named-handler`, `find-uri-handler`"
-  [mutable-list-map {:keys [declaration
-                            find-handler]
-                     :or {declaration {:listChanged true}
-                          find-handler find-named-handler}}]
+  [get-items-list-map & {:keys [declaration
+                                find-handler]
+                         :or {declaration {:listChanged true}
+                              find-handler find-named-handler}}]
   (reify
     p/IMcpCapability
     (get-capability-declaration [_] declaration)
     p/IMcpListedCapability
-    (obtain-list [_ method-name] (as-> mutable-list-map $
+    (obtain-list [_ method-name] (as-> (get-items-list-map) $
                                    (get $ method-name)
-                                   (p/get-val $)
                                    (mapv #(dissoc % :handler :matcher)
                                          $)))
     p/IMcpInvokableCapability
-    (find-handler [_ args] (as-> mutable-list-map $
+    (find-handler [_ args] (as-> (get-items-list-map) $
                              (vals $)
-                             (map p/get-val $)
                              (apply concat $)
                              (find-handler $ args)))))
-
-
-;; --- Fixed-list based capability utility functions ---
-
-
-(defn make-fixed-list-capability
-  [coll-map opts]
-  (-> coll-map
-      (update-vals immutable)
-      (make-mutable-list-capability opts)))
-
-
-(defn make-fixed-roots-capability
-  "Make a fixed (list of) roots capability."
-  [^{:see eg/make-root} roots-coll]
-  (make-fixed-list-capability {sd/method-roots-list roots-coll}
-                              {}))
-
-
-(defn make-fixed-prompts-capability
-  "Make a fixed (list of) prompts capability."
-  [^{:see eg/make-prompt} prompts-coll]
-  (make-fixed-list-capability {sd/method-prompts-list prompts-coll}
-                              {}))
-
-
-(defn make-fixed-resources-capability
-  "Make a fixed (list of) resources/templates capability."
-  [^{:see eg/make-resource} resources-coll
-   ^{:see eg/make-resource-template} resource-templates-coll
-   & {:keys [declaration]
-      :or {declaration {:listChanged true
-                        :subscribe true}}}]
-  (make-fixed-list-capability
-   {sd/method-resources-list resources-coll
-    sd/method-resources-templates-list resource-templates-coll}
-   {:declaration declaration
-    :find-handler find-uri-handler}))
-
-
-(defn make-fixed-tools-capability
-  "Make a fixed (list of) tools capability."
-  [^{:see eg/make-tool} tools-coll]
-  (make-fixed-list-capability {sd/method-tools-list tools-coll} {}))
 
 
 ;; --- Client capability ---
 
 
-(defn ^{:see [make-fixed-roots-capability]} make-roots-capability-item
+(declare make-roots-capability)
+
+
+(defn ^{:see [make-roots-capability]} make-roots-capability-item
   "Make a roots capability item. A collection of such items may be used
    to build roots capability."
   [^{:see [eg/make-root]} root-definition]
   root-definition)
+
+
+(defn make-roots-capability
+  "Make roots capability from given `(fn [])->roots-capability-items`."
+  [^{:see [make-roots-capability-item]} get-roots-capability-items]
+  (make-listed-capability (fn [] {sd/method-roots-list
+                                  (get-roots-capability-items)})))
+
+
+(defn make-fixed-roots-capability
+  "Make a fixed (list of) roots capability."
+  [^{:see [make-roots-capability-item]} roots-capability-items]
+  (-> roots-capability-items
+      constantly
+      make-roots-capability))
 
 
 (defn make-sampling-capability
@@ -194,7 +140,10 @@
     (get-capability-declaration [_] {})))
 
 
-(defn ^{:see [make-fixed-prompts-capability]} make-prompts-capability-item
+(declare make-prompts-capability)
+
+
+(defn ^{:see [make-prompts-capability]} make-prompts-capability-item
   "Make a prompts capability item. A collection of such items may be used
    to build prompts capability. The capability item is made by associating
    `(fn get-prompt-handler [kwargs-map])->get-prompt-result` with a prompt
@@ -206,8 +155,25 @@
       (assoc :handler get-prompt-handler)))
 
 
-(defn ^{:see [make-fixed-resources-capability]}
-  make-resources-capability-resource-item
+(defn make-prompts-capability
+  "Make prompts capability from given `(fn [])->prompts-capability-items`."
+  [^{:see [make-prompts-capability-item]} get-prompts-capability-items]
+  (make-listed-capability (fn [] {sd/method-prompts-list
+                                  (get-prompts-capability-items)})))
+
+
+(defn make-fixed-prompts-capability
+  "Make a fixed (list of) prompts capability."
+  [^{:see [make-prompts-capability-item]} prompts-capability-items]
+  (-> prompts-capability-items
+      constantly
+      make-prompts-capability))
+
+
+(declare make-resources-capability)
+
+
+(defn ^{:see make-resources-capability} make-resources-capability-resource-item
   "Make a resources capability (resource) item. A collection of such items
    may be used to build resources capability. The capability item is made by
    associating `(fn read-resource-handler [kwargs-map])->read-resource-result`
@@ -237,7 +203,7 @@
                                (make-matcher ut)))))))
 
 
-(defn ^{:see [make-fixed-resources-capability]}
+(defn ^{:see [make-resources-capability]}
   make-resources-capability-resource-template-item
   "Make a resources capability (resource template) item. A collection of such
    items may be used to build resources capability. The capability item is made
@@ -252,7 +218,48 @@
       (add-uri-template-matcher)))
 
 
-(defn ^{:see [make-fixed-tools-capability]} make-tools-capability-item
+(defn make-resources-capability
+  "Make resources capability from the given args:
+   - `(fn [])->resources-capability-resource-items` and
+   - `(fn [])->resources-capability-resource-template-items`"
+  [^{:see [make-resources-capability-resource-item]}
+   get-resources-capability-resource-items
+   ^{:see [make-resources-capability-resource-template-item]}
+   get-resources-capability-resource-template-items
+   & {:keys [declaration
+             find-handler]
+      :or {declaration {:listChanged true
+                        :subscribe true}
+           find-handler find-uri-handler}}]
+  (-> (fn [] {sd/method-resources-list
+              (get-resources-capability-resource-items)
+              sd/method-resources-templates-list
+              (get-resources-capability-resource-template-items)})
+      (make-listed-capability {:declaration declaration
+                               :find-handler find-handler})))
+
+
+(defn make-fixed-resources-capability
+  "Make a fixed (list of) resources/templates capability."
+  [^{:see make-resources-capability-resource-item}
+   resources-capability-resource-items
+   ^{:see make-resources-capability-resource-template-item}
+   resources-capability-resource-template-items
+   & {:keys [declaration]
+      :or {declaration {:listChanged true
+                        :subscribe true}}}]
+  (let [r-items (constantly resources-capability-resource-items)
+        rt-items (constantly resources-capability-resource-template-items)]
+    (make-resources-capability r-items
+                               rt-items
+                               {:declaration declaration
+                                :find-handler find-uri-handler})))
+
+
+(declare make-tools-capability)
+
+
+(defn ^{:see [make-tools-capability]} make-tools-capability-item
   "Make a tools capability item. A collection of such items may be
    used to build tools capability. The capability item is made by
    associating `(fn call-tool-handler [kwargs-map])->call-tool-result`
@@ -262,6 +269,22 @@
            eg/make-call-tool-result]} call-tool-handler]
   (-> tool-definition
       (assoc :handler call-tool-handler)))
+
+
+(defn make-tools-capability
+  "Make tools capability from `(fn [])->tools-capability-items`."
+  [^{:see [make-tools-capability-item]} get-tools-capability-items]
+  (-> (fn [] {sd/method-tools-list
+              (get-tools-capability-items)})
+      (make-listed-capability {})))
+
+
+(defn make-fixed-tools-capability
+  "Make a fixed (list of) tools capability."
+  [^{:see [make-tools-capability-item]} tools-capability-items]
+  (-> tools-capability-items
+      constantly
+      make-tools-capability))
 
 
 (defn make-completions-reference-item
