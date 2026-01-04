@@ -1,4 +1,4 @@
-(ns plumcp.core.capability
+(ns plumcp.core.impl.capability
   "MCP Capability definitions for client and server."
   (:require
    [clojure.set :as set]
