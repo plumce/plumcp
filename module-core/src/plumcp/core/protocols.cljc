@@ -53,3 +53,77 @@
   (log-mcp-notification [this notification])
   (log-mcpcall-failure [this error])
   (log-mcp-sse-message [this message]))
+
+
+;; --- Server ---
+
+
+(defprotocol IServerSessionStore
+  (get-server-session [this session-id] "Return IServerSession or nil")
+  (make-server-streams [this] "Make a new server-streams instance")
+  (init-server-session [this session-id
+                        server-streams
+                        msg-receiver] "Initialize idempotent session by ID")
+  (remove-server-session [this session-id] "Remove session by ID")
+  (update-server-sessions [this updater] "Update all sessions w/ updater"))
+
+
+(defprotocol IServerSession
+  ;;
+  ;; Cancellation
+  ;;
+  (cancel-requested? [this request-id] "True if cancellation requested")
+  (remove-cancellation [this request-id] "Remove cancellation request")
+  (request-cancellation [this request-id] "Add cancellation request tracker")
+  ;;
+  ;; Initialization
+  ;;
+  (get-init-ts [this] "Get init timestamp if initialized, else nil")
+  (set-init-ts [this] "Set init timestamp if un-initialized")
+  ;;
+  ;; Messages to the client
+  ;;
+  (send-message-to-client [this context message] "Send a JSONRPC message")
+  ;;
+  ;; Log level
+  ;;
+  (get-log-level [this] "Get the current log level")
+  (set-log-level [this level] "Set the current log level")
+  (can-log-level? [this level] "Return true if can log at specified level")
+  ;;
+  ;; Progress tracking
+  ;;
+  (get-progress [this progress-token] "Get progress status")
+  (update-progress [this progress-token f] "Update progress")
+  (remove-progress [this progress-token] "Remove progress tracking")
+  ;;
+  ;; Server requests
+  ;;
+  (extract-pending-request [this req-id] "Remove/return pending request")
+  (clear-pending-requests [this req-ids] "Clear pending server-requests")
+  (append-pending-requests [this req-map] "Append pending server-requests")
+  ;;
+  ;; Subscription
+  ;;
+  (remove-subscription [this uri] "Remove subscription on given URI")
+  (enable-subscription [this uri] "Enable subscription on given URI")
+  ;;
+  )
+
+
+(defprotocol IServerStreams
+  ;;
+  ;; Stream handling
+  ;;
+  (append-to-stream [this stream-id message] "Append message to stream")
+  (make-stream-seq [this stream-id] "Get lazy sequence of stream events")
+  (get-default-stream [this] "Get [default-stream-id default-stream-atom]")
+  ;;
+  )
+
+
+(def nop-server-streams
+  (reify IServerStreams
+    (append-to-stream [_ _ _])
+    (make-stream-seq [_ _])
+    (get-default-stream [_])))
