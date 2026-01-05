@@ -3,6 +3,8 @@
   (:require
    #?(:cljs [goog.string :as gstring])
    #?(:cljs [goog.string.format])
+   #?(:cljs [plumcp.core.util-cljs :as us])
+   [clojure.pprint :as pp]
    [clojure.string :as str])
   #?(:cljs (:require-macros [plumcp.core.util])
      :clj (:import
@@ -200,6 +202,74 @@
    (f arg))
   ([f arg & more]
    (apply f arg more)))
+
+
+(defn only-when
+  "Return argument only when `(pred x)` returns truthy, `nil` otherwise."
+  [pred x]
+  (when (pred x)
+    x))
+
+
+;; --- Printing ---
+
+
+(defn pprint-str
+  "Return pretty-printed data as a string."
+  [data]
+  (if (string? data)
+    data
+    (with-out-str (pp/pprint data))))
+
+
+(defn err
+  "Print to (STD)ERR using the printer fn and args."
+  [printer-f & args]
+  (let [s (with-out-str (apply printer-f args))]
+    #?(:cljs (if us/env-node-js?
+               (.write js/process.stderr s) ; print no extra newline
+               (js/console.error s))
+       :clj (binding [*out* *err*]
+              (print s)
+              (flush)))))
+
+
+(defn eprn
+  "Like `prn`, but to STDERR."
+  [& args]
+  (apply err prn args))
+
+
+(defn eprintln
+  "Like `println`, but to STDERR."
+  [& args]
+  (apply err println args))
+
+
+(defn epprint
+  "Like clojure.pprint/pprint, but to STDERR."
+  [arg]
+  (err pp/pprint arg))
+
+
+(defn dprint
+  "Pretty-print for debugging."
+  [header data]
+  (let [h-line (repeat-str (count header) "-")
+        e-line (repeat-str (count header) "~")]
+    (eprintln h-line)
+    (eprintln header)
+    (eprintln h-line)
+    (epprint data)
+    (eprintln e-line)
+    (eprintln)))
+
+
+(defn print-stack-trace
+  [e]
+  (eprintln e)
+  #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
+     :clj (.printStackTrace ^Throwable e)))
 
 
 ;; --- Time tracking ---
