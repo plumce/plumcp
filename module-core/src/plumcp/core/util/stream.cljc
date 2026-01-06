@@ -61,7 +61,7 @@
    return a result as follows:
    CLJS: Async iterator of all elements
    CLJ: Lazy seq of all elements"
-  [stream-atom idle-millis]
+  [stream-atom ^long idle-millis]
   (let [extract! (fn [] (-> stream-atom
                             (swap-vals! (fn [stream]
                                           (if (seq (:buffer stream))

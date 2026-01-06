@@ -71,9 +71,10 @@
         s-update!    (fn [f & args]   (apply swap! state f args))
         s-conj!      (fn [k v]        (update! state k conj v))
         s-disj!      (fn [k sub-k]    (update! state k disj sub-k))
-        s-canlog?    (fn [index]      (<= index
-                                          (get @state
-                                               k-log-level-index)))]
+        s-canlog?    (fn [^long indx] (<= indx
+                                          (-> @state
+                                              (get k-log-level-index)
+                                              long)))]
     (reify
       p/IServerSession
       ;;
