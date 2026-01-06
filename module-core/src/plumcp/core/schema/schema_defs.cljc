@@ -27,16 +27,16 @@
 
 
 ;; as per JSON-RPC spec
-(def error-code-parse-error -32700)
-(def error-code-invalid-request -32600)
-(def error-code-method-not-found -32601)
-(def error-code-invalid-params -32602)
-(def error-code-internal-error -32603)
+(def ^:const error-code-parse-error "Error code -32700" -32700)
+(def ^:const error-code-invalid-request "Error code -32600" -32600)
+(def ^:const error-code-method-not-found "Error code -32601" -32601)
+(def ^:const error-code-invalid-params "Error code -32602" -32602)
+(def ^:const error-code-internal-error "Error code -32603" -32603)
 ;; -32000 to -32099: Reserved for implementation-defined server-errors.
 
 ;; MCP-specific
-(def error-code-request-timed-out -32001)
-(def error-code-resource-not-found -32002)
+(def ^:const error-code-request-timed-out "Error code -32001" -32001)
+(def ^:const error-code-resource-not-found "Error code -32002" -32002)
 
 
 ;; ----- HTTP headers -----
