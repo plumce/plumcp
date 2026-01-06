@@ -217,7 +217,7 @@
         (make-result $)))))
 
 
-;; --- Server non-capability utility ---
+;; --- Server capabilities ---
 
 
 (defn ^{:see [sd/CompleteRequest
@@ -238,9 +238,6 @@
         {:result (u/assoc-some {:values values}
                                :total   (when (nil? other) (count values))
                                :hasMore (when (some? other) true))}))))
-
-
-;; --- Server capabilities ---
 
 
 (defn ^{:see [sd/ListPromptsRequest
