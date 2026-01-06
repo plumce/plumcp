@@ -3,6 +3,7 @@
   (:require
    [clojure.set :as set]
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
@@ -339,9 +340,7 @@
           as-call-tool-result)
       (catch #?(:cljs js/Error
                 :clj Exception) ex
-        ;; TODO/FIXME: allow to log failure (uncomment/edit below)
-        ;; (let [runtime (du/get-runtime kwargs)]
-        ;;   (drt/log-mcpcall-failure runtime ex))
+        (rs/log-mcpcall-failure kwargs ex)
         (make-call-tool-result [] true)))))
 
 
@@ -418,9 +417,7 @@
       (f kwargs)
       (catch #?(:cljs js/Error
                 :clj Exception) ex
-        ;; TODO/FIXME: allow to log failure (uncomment/edit below)
-        ;; (let [runtime (du/get-runtime kwargs)]
-        ;;   (drt/log-mcpcall-failure runtime ex))
+        (rs/log-mcpcall-failure kwargs ex)
         (jr/jsonrpc-failure sd/error-code-internal-error
                             (ex-message ex) (ex-data ex))))))
 
@@ -458,9 +455,7 @@
       (f kwargs)
       (catch #?(:cljs js/Error
                 :clj Exception) ex
-        ;; TODO/FIXME: allow to log failure (uncomment/edit below)
-        ;; (let [runtime (du/get-runtime kwargs)]
-        ;;   (drt/log-mcpcall-failure runtime ex))
+        (rs/log-mcpcall-failure kwargs ex)
         (jr/jsonrpc-failure sd/error-code-internal-error
                             (ex-message ex) (ex-data ex))))))
 
