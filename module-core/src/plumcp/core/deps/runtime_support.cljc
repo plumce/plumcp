@@ -8,12 +8,91 @@
    [plumcp.core.util :as u]))
 
 
+;; ----- Session store -----
+
+
+(defn get-server-session [context session-id]
+  (let [store (rt/?session-store context)]
+    (p/get-server-session store session-id)))
+
+
+(defn make-server-streams [context]
+  (let [store (rt/?session-store context)]
+    (p/make-server-streams store)))
+
+
+(defn set-server-session
+  ([context session-id server-streams push-msg-receiver]
+   (let [store (rt/?session-store context)]
+     (p/init-server-session store session-id
+                            server-streams push-msg-receiver)))
+  ([runtime session-id push-msg-receiver]
+   (set-server-session runtime session-id
+                       p/nop-server-streams push-msg-receiver)))
+
+
+(defn remove-server-session [context session-id]
+  (let [store (rt/?session-store context)]
+    (p/remove-server-session store session-id)))
+
+
 ;; --- Traffic Logger ---
+
+
+(defn log-http-request [request]
+  (-> (rt/?traffic-logger request)
+      (p/log-http-request (rt/dissoc-runtime request))))
+
+
+(defn log-http-response [context response]
+  (-> (rt/?traffic-logger context)
+      (p/log-http-response response)))
+
+
+(defn log-http-failure [context failure]
+  (-> (rt/?traffic-logger context)
+      (p/log-http-failure failure)))
+
+
+(defn log-incoming-jsonrpc-request [jsonrpc-request]
+  (-> (rt/?traffic-logger jsonrpc-request)
+      (p/log-incoming-jsonrpc-request (rt/dissoc-runtime jsonrpc-request))))
+
+
+(defn log-outgoing-jsonrpc-request [context jsonrpc-request]
+  (-> (rt/?traffic-logger context)
+      (p/log-outgoing-jsonrpc-request jsonrpc-request)))
+
+
+(defn log-incoming-jsonrpc-notification [jsonrpc-notification]
+  (-> (rt/?traffic-logger jsonrpc-notification)
+      (p/log-mcp-notification (rt/dissoc-runtime jsonrpc-notification))))
+
+
+(defn log-incoming-jsonrpc-response [context m]
+  (let [logger (rt/?traffic-logger context)]
+    (if-let [result (get m :result)]
+      (p/log-incoming-jsonrpc-success logger (:id m) result)
+      (when-let [error (get m :error)]
+        (p/log-incoming-jsonrpc-failure logger (:id m) error)))))
+
+
+(defn log-outgoing-jsonrpc-response [context m]
+  (let [logger (rt/?traffic-logger context)]
+    (if-let [result (get m :result)]
+      (p/log-outgoing-jsonrpc-success logger (:id m) result)
+      (when-let [error (get m :error)]
+        (p/log-outgoing-jsonrpc-failure logger (:id m) error)))))
 
 
 (defn log-mcpcall-failure [context error]
   (-> (rt/?traffic-logger context)
       (p/log-mcpcall-failure error)))
+
+
+(defn log-mcp-sse-message [context message]
+  (-> (rt/?traffic-logger context)
+      (p/log-mcp-sse-message message)))
 
 
 ;; --- MCP Logger ---

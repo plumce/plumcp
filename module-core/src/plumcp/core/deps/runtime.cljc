@@ -125,15 +125,41 @@
    `(defkey ~fn-name ~(assoc options :doc doc))))
 
 
+;; --- Lookup keys ---
+
+
+(def session-key :plumcp.core/?session)
+
+
+;; --- Middleware ---
+
+
+(defn wrap-runtime
+  "Wrap given dependencies onto the request before the handler function
+   `(fn handler [request])` can process it."
+  [handler dependencies]
+  (fn dependencies-attaching-handler [request]
+    (-> (upsert-runtime request dependencies)
+        (handler))))
+
+
+(defn wrap-session-required
+  "Wrap given handler `(fn [request-map]) -> response-map` needing a
+   session with session-check, so that the wrapped function returns
+   `session-missing-response` if request doesn't contain a session."
+  [handler session-missing-response]
+  (fn session-key-checker [request]
+    (if (has-dep? request session-key)
+      (handler request)
+      session-missing-response)))
+
+
 ;; --- Key definitions ---
 
 
 ;; We ?-prefix all key definition var names to identify them visually
 ;; (?foo container) --> looks up and returns an item
 ;; (?foo container val) --> updates item/val and returns container
-
-
-(def session-key :plumcp.core/?session)
 
 
 ;; Keys with default values

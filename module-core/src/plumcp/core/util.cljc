@@ -211,6 +211,20 @@
     x))
 
 
+;; --- Evaluate body of code ---
+
+
+(defn dotee
+  "An alternative to `clojure.core/doto` that behaves like the `tee`
+   Unix command by invoking `(f x & args)` before returning `x`."
+  ([x f]
+   (f x)
+   x)
+  ([x f & args]
+   (apply f x args)
+   x))
+
+
 ;; --- Printing ---
 
 
