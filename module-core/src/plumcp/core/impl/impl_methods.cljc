@@ -24,10 +24,13 @@
                                 jsonrpc-request))))
 
 
-(defn make-result [result]
-  (uab/may-await [result result]
-    (or (u/only-when jr/jsonrpc-response? result)
-        {:result result})))
+(defn make-result
+  ([result f]
+   (uab/may-await [result result]
+     (or (u/only-when jr/jsonrpc-response? result)
+         (f result))))
+  ([result]
+   (make-result result #(do {:result %}))))
 
 
 (defn with-capability
@@ -232,12 +235,14 @@
       (let [{params-ref :ref
              params-argument :argument} params
             coll (p/completion-complete completions-capability
-                                        params-ref params-argument)
-            values (->> coll (take 100) vec)
-            other  (->> coll (drop 100) seq)]
-        {:result (u/assoc-some {:values values}
-                               :total   (when (nil? other) (count values))
-                               :hasMore (when (some? other) true))}))))
+                                        params-ref params-argument)]
+        (->> (fn [coll]
+               (let [values (->> coll (take 100) vec)
+                     other  (->> coll (drop 100) seq)]
+                 {:result (u/assoc-some {:values values}
+                                        :total   (when (nil? other) (count values))
+                                        :hasMore (when (some? other) true))}))
+             (make-result coll))))))
 
 
 (defn ^{:see [sd/ListPromptsRequest
