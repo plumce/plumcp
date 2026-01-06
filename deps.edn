@@ -15,6 +15,9 @@
   org.clojure/clojure {:mvn/version "1.12.4"}
   ;; ClojureScript
   thheller/shadow-cljs {:mvn/version "3.2.1"}  ; adds CLJS 1.12.42
+  ;; --- Debugging ---
+  io.github.tonsky/clojure-plus {:mvn/version "1.7.0"}
+  ;;
   }
  :aliases
  {;; ------------------

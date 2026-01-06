@@ -10,3 +10,7 @@
 (alter-var-root #'*assert* (constantly true))
 (alter-var-root #'*unchecked-math* (constantly :warn-on-boxed))
 
+;; Enable #p for debugging
+(require '[clojure+.hashp])
+(clojure+.hashp/install!)
+
