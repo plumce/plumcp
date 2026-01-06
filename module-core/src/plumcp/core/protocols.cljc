@@ -127,3 +127,14 @@
     (append-to-stream [_ _ _])
     (make-stream-seq [_ _])
     (get-default-stream [_])))
+
+
+;; --- MCP Client ---
+
+
+(defprotocol IClientTransport
+  (get-client-transport-id [_] "Return :stdio or :http or :zero")
+  (start-client-transport [_ on-message] "Start the transport - idempotent")
+  (stop-client-transport! [_ force?]  "Stop/disconnect transport - idempotent")
+  (send-message-to-server [_ message] "Send given message to the server")
+  (upon-handshake-success [_ success] "Triggered upon handshake success"))
