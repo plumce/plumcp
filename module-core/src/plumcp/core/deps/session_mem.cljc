@@ -187,19 +187,22 @@
 
 (defn make-in-memory-server-session-store
   []
-  (let [store (atom {})]
+  (let [store-atom (atom {})]
     (reify p/IServerSessionStore
-      (get-server-session [_ session-id] (get @store session-id))
+      (get-server-session [_ session-id] (get @store-atom session-id))
       (make-server-streams [_] (make-in-memory-server-streams))
-      (init-server-session [_ session-id
-                            server-streams
-                            msg-receiver] (->> (make-in-memory-server-session
-                                                session-id server-streams
-                                                msg-receiver)
-                                               (swap! store
-                                                      u/assoc-missing
-                                                      session-id)))
-      (remove-server-session [_ session-id] (swap! store
+      (init-server-session
+        [_ session-id server-streams msg-receiver]
+        (-> store-atom
+            (swap! (fn [store]
+                     (if (contains? store session-id)
+                       store
+                       (assoc store
+                              session-id (make-in-memory-server-session
+                                          session-id server-streams
+                                          msg-receiver)))))
+            (get session-id)))
+      (remove-server-session [_ session-id] (swap! store-atom
                                                    dissoc session-id))
-      (update-server-sessions [_ updater] (swap! store
+      (update-server-sessions [_ updater] (swap! store-atom
                                                  update-vals updater)))))
