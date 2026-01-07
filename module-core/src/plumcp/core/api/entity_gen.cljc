@@ -840,9 +840,11 @@
 
 (defn ^{:see [sd/ElicitRequest
               sd/Request]} make-elicit-request
-  [message schema-properties & {:keys [schema-required
-                                       _meta]
-                                :as opts}]
+  [^String message
+   schema-properties  ; a map
+   & {:keys [schema-required
+             _meta]
+      :as opts}]
   (let [sr (when schema-required
              (vec schema-required))]
     (-> (make-request sd/method-elicitation-create
