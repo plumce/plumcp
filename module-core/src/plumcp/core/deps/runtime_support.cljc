@@ -26,8 +26,8 @@
    (let [store (rt/?session-store context)]
      (p/init-server-session store session-id
                             server-streams push-msg-receiver)))
-  ([runtime session-id push-msg-receiver]
-   (set-server-session runtime session-id
+  ([context session-id push-msg-receiver]
+   (set-server-session context session-id
                        p/nop-server-streams push-msg-receiver)))
 
 
