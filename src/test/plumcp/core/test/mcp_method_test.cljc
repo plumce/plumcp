@@ -2,23 +2,13 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.impl.impl-methods :as im]
-   [plumcp.core.impl.impl-support :as is]
-   [plumcp.core.util :as u]
-   [plumcp.core.deps.runtime :as rt]
    [plumcp.core.schema.schema-defs :as sd])
-  #?(:clj (:import [clojure.lang ExceptionInfo])))
-
-
-(def server-handler
-  (let [req-handler (-> is/mcp-server-methods
-                        is/make-dispatching-jsonrpc-request-handler)
-        not-handler (-> is/server-received-notification-handlers
-                        (is/make-dispatching-jsonrpc-notification-handler
-                         u/nop))]
-    (is/make-jsonrpc-message-handler req-handler not-handler)))
+  #?(:clj (:import
+           [clojure.lang ExceptionInfo])))
 
 
 (def runtime-empty {})
