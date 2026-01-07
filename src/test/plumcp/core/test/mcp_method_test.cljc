@@ -103,14 +103,12 @@
 
 (def runtime-server-session
   (let [context {}
-        session-store (rs/set-server-session context :test-session-id
-                                             (fn [context message]
-                                               #_(u/eprintln "->Client:"
-                                                             message)))
-        server-session (get session-store :test-session-id)
+        server-session (rs/set-server-session context :test-session-id
+                                              (fn [context message]
+                                                #_(u/eprintln "->Client:"
+                                                              message)))
         context (-> context
                     (rt/upsert-runtime runtime-server-caps)
-                    (rt/?session-store session-store)
                     (rt/?session server-session))]
     (rs/set-initialized-timestamp context)
     (rt/get-runtime context)))
