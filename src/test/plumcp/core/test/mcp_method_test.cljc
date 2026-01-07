@@ -15,13 +15,39 @@
 (def server-handler
   (let [req-handler (-> is/mcp-server-methods
                         is/make-dispatching-jsonrpc-request-handler)
-        not-handler (-> is/server-notification-handlers
+        not-handler (-> is/server-received-notification-handlers
                         (is/make-dispatching-jsonrpc-notification-handler
                          u/nop))]
     (is/make-jsonrpc-message-handler req-handler not-handler)))
 
 
 (def runtime-empty {})
+
+
+(def runtime-client-caps
+  (let [roots-cap (-> (eg/make-root "dir://a")
+                      cap/make-roots-capability-item
+                      vector
+                      cap/make-fixed-roots-capability)
+        sampling-cap (-> (fn [{messages :messages
+                               max-tokens :maxTokens
+                               :as kwargs}]
+                           {:messages messages
+                            :max-tokens max-tokens})
+                         cap/make-sampling-capability)
+        elicitation-cap (-> (fn [{message :message
+                                  requested-schema :requestedSchema
+                                  :as kwargs}]
+                              {:message message
+                               :requested-schema requested-schema})
+                            cap/make-elicitation-capability)
+        client-caps (-> cap/default-client-capabilities
+                        (cap/update-roots-capability roots-cap)
+                        (cap/update-sampling-capability sampling-cap)
+                        (cap/update-elicitation-capability elicitation-cap))
+        context (-> {}
+                    (rt/?client-capabilities client-caps))]
+    (rt/get-runtime context)))
 
 
 (def missing-ref-item (cap/make-completions-reference-item
@@ -98,15 +124,6 @@
                     (rt/?session server-session))]
     (rs/set-initialized-timestamp context)
     (rt/get-runtime context)))
-
-
-(deftest ping-test
-  (testing "ping"
-    (is (= {:result {}}
-           (im/ping (eg/make-ping-request))) "session-less")
-    (is (= {:result {}}
-           (im/ping (-> (eg/make-ping-request)
-                        (rt/upsert-runtime runtime-server-session)))) "with-session")))
 
 
 ;; --- Server tests ---
@@ -308,16 +325,134 @@
 ;; --- Client tests ---
 
 
-(deftest roots-test)
+(deftest roots-test
+  (testing sd/method-roots-list
+    (is (= {:jsonrpc "2.0"
+            :error {:code -32601
+                    :message "Capability 'roots' not supported"
+                    :data {}}}
+           (-> (eg/make-list-roots-request)
+               (rt/upsert-runtime runtime-empty)
+               im/roots-list)))
+    (is (= {:result {:roots [{:uri "dir://a"}]}}
+           (-> (eg/make-list-roots-request)
+               (rt/upsert-runtime runtime-client-caps)
+               im/roots-list)))))
 
 
-(deftest sampling-test)
+(deftest sampling-test
+  (testing sd/method-sampling-createMessage
+    (is (= {:jsonrpc "2.0"
+            :error {:code -32601
+                    :message "Capability 'sampling' not supported"
+                    :data {}}}
+           (-> (eg/make-sampling-message sd/role-user
+                                         (eg/make-text-content "test"))
+               vector
+               (eg/make-create-message-request 100)
+               (rt/upsert-runtime runtime-empty)
+               im/sampling-createMessage)))
+    (is (= {:result {:messages [{:role "user"
+                                 :content {:type "text", :text "test"}}]
+                     :max-tokens 100}}
+           (-> (eg/make-sampling-message sd/role-user
+                                         (eg/make-text-content "test"))
+               vector
+               (eg/make-create-message-request 100)
+               (rt/upsert-runtime runtime-client-caps)
+               im/sampling-createMessage)))))
 
 
-(deftest elicitation-test)
+(deftest elicitation-test
+  (testing sd/method-elicitation-create
+    (is (= {:jsonrpc "2.0"
+            :error {:code -32601
+                    :message "Capability 'elicitation' not supported"
+                    :data {}}}
+           (-> "elicitation-message"
+               (eg/make-elicit-request {})
+               (rt/upsert-runtime runtime-empty)
+               im/elicitation-create)))
+    (is (= {:result {:message "elicitation-message"
+                     :requested-schema {:type "object", :properties {}}}}
+           (-> "elicitation-message"
+               (eg/make-elicit-request {})
+               (rt/upsert-runtime runtime-client-caps)
+               im/elicitation-create)))))
 
 
 ;; --- Other tests ---
 
 
-(deftest notification-test)
+(deftest ping-test
+  (testing "ping"
+    (is (= {:result {}}
+           (-> (eg/make-ping-request)
+               im/ping)) "session-less")
+    (is (= {:result {}}
+           (-> (eg/make-ping-request)
+               (rt/upsert-runtime runtime-server-session)
+               im/ping)) "with-session")))
+
+
+(deftest notification-test
+  (testing "server-only notification handlers"
+    (is (= {:result {}}
+           (-> sd/method-notifications-initialized
+               eg/make-notification
+               (rt/upsert-runtime runtime-server-session)
+               im/notifications-initialized)))
+    (is (= {:result {}}
+           (-> sd/method-notifications-roots-list_changed
+               eg/make-notification
+               (rt/upsert-runtime runtime-client-caps)
+               im/notifications-roots-list_changed))))
+  (testing "client-only notification handlers"
+    (is (= {:result {}}
+           (-> sd/method-notifications-resources-list_changed
+               eg/make-notification
+               (rt/upsert-runtime runtime-server-session)
+               im/notifications-resources-list_changed)))
+    (is (= {:result {}}
+           (-> sd/method-notifications-resources-updated
+               eg/make-notification
+               (rt/upsert-runtime runtime-server-session)
+               im/notifications-resources-updated)))
+    (is (= {:result {}}
+           (-> sd/method-notifications-prompts-list_changed
+               eg/make-notification
+               (rt/upsert-runtime runtime-server-session)
+               im/notifications-prompts-list_changed)))
+    (is (= {:result {}}
+           (-> sd/method-notifications-tools-list_changed
+               eg/make-notification
+               (rt/upsert-runtime runtime-server-session)
+               im/notifications-tools-list_changed)))
+    (is (= {:result {}}
+           (-> sd/method-notifications-message
+               eg/make-notification
+               (rt/upsert-runtime runtime-server-session)
+               im/notifications-message)) "log message"))
+  (testing "client/server notification handlers"
+    (testing sd/method-notifications-cancelled
+      (is (= {:result {}}
+             (-> sd/method-notifications-cancelled
+                 eg/make-notification
+                 (rt/upsert-runtime runtime-client-caps)
+                 im/notifications-cancelled)) "client-received")
+      (is (= {:result {}}
+             (-> sd/method-notifications-cancelled
+                 eg/make-notification
+                 (rt/upsert-runtime runtime-server-session)
+                 im/notifications-cancelled)) "server-received"))
+    (testing sd/method-notifications-progress
+      (is (= {:result {}}
+             (-> sd/method-notifications-progress
+                 eg/make-notification
+                 (rt/upsert-runtime runtime-client-caps)
+                 im/notifications-progress)) "client-received")
+      (is (= {:result {}}
+             (-> sd/method-notifications-progress
+                 eg/make-notification
+                 (rt/upsert-runtime runtime-server-session)
+                 im/notifications-progress)) "server-received"))))

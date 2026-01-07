@@ -18,10 +18,17 @@
    sd/method-notifications-progress  im/notifications-progress})
 
 
-(def server-notification-handlers
+(def server-received-notification-handlers
   (-> {;; post-initialization notification
        sd/method-notifications-initialized im/notifications-initialized
-       ;; resources
+       ;; roots-list changes
+       sd/method-notifications-roots-list_changed
+       im/notifications-roots-list_changed}
+      (merge common-bidirectional-notification-handlers)))
+
+
+(def client-received-notification-handlers
+  (-> {;; resources
        sd/method-notifications-resources-list_changed
        im/notifications-resources-list_changed
        sd/method-notifications-resources-updated
@@ -34,13 +41,6 @@
        im/notifications-tools-list_changed
        ;; log messages
        sd/method-notifications-message im/notifications-message}
-      (merge common-bidirectional-notification-handlers)))
-
-
-(def client-notification-handlers
-  (-> {;; roots-list changes
-       sd/method-notifications-roots-list_changed
-       im/notifications-roots-list_changed}
       (merge common-bidirectional-notification-handlers)))
 
 
@@ -70,7 +70,7 @@
        sd/method-logging-setLevel          im/logging-setLevel
        sd/method-resources-templates-list  im/resources-templates-list
        sd/method-tools-call                im/tools-call}
-      (merge server-notification-handlers)
+      (merge server-received-notification-handlers)
       ;; wrap the method impls with session check/propagation
       (update-vals (fn [handler]
                      (->> "Session is missing"
@@ -93,7 +93,7 @@
        sd/method-roots-list im/roots-list
        sd/method-sampling-createMessage im/sampling-createMessage
        sd/method-elicitation-create im/elicitation-create}
-      (merge client-notification-handlers)))
+      (merge client-received-notification-handlers)))
 
 
 ;; ----- JSON-RPC message handling -----

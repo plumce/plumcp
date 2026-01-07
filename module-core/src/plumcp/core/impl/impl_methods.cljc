@@ -431,11 +431,12 @@
     :as jsonrpc-notification}]
   (let [request-id (:requestId params)
         reason (:reason params)]
-    (rs/request-cancellation jsonrpc-notification request-id)
-    (rs/log-7-debug jsonrpc-notification
-                    (-> {:message "Cancel requested for task"
-                         :request-id request-id}
-                        (u/assoc-some :reason reason)))
+    (when (rt/has-session? jsonrpc-notification)  ; this is true on server
+      (rs/request-cancellation jsonrpc-notification request-id)
+      (rs/log-7-debug jsonrpc-notification
+                      (-> {:message "Cancel requested for task"
+                           :request-id request-id}
+                          (u/assoc-some :reason reason))))
     (call-notification-listener jsonrpc-notification
                                 sd/method-notifications-cancelled params))
   {:result {}})
