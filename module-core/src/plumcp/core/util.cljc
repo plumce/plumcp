@@ -4,6 +4,7 @@
    #?(:cljs [goog.string :as gstring])
    #?(:cljs [goog.string.format])
    #?(:cljs [plumcp.core.util-cljs :as us])
+   #?(:clj [plumcp.core.util.json :as json])
    [clojure.pprint :as pp]
    [clojure.string :as str])
   #?(:cljs (:require-macros [plumcp.core.util])
@@ -384,6 +385,35 @@
     (bytes? x) (bytes->base64-string x)
     :else (expected! x (str x-name
                             " to be a Base64 string or byte-array"))))
+
+
+;; --- JSON codec ---
+
+
+(defn json-parse
+  "Parse JSON string as data. Map keys are converted into keywords.
+   See: json-parse-str"
+  [json-str]
+  #?(:cljs (-> (.parse js/JSON json-str)
+               (js->clj :keywordize-keys true))
+     :clj  (json/json-parse json-str)))
+
+
+(defn json-parse-str
+  "Parse JSON string as data.
+   See: json-parse"
+  [json-str]
+  #?(:cljs (-> (.parse js/JSON json-str)
+               (js->clj))
+     :clj  (json/json-parse-str json-str)))
+
+
+(defn json-write
+  "Emit JSON string from given data."
+  [data]
+  #?(:cljs (.stringify js/JSON
+                       (clj->js data))
+     :clj  (json/json-write data)))
 
 
 ;; --- URI-template handling ---
