@@ -38,10 +38,11 @@
   (if (some? capability)
     ;; until initialized, only logging and ping is allowed
     (if (or (contains? #{"roots" "sampling" "elicitation"}
-                       capability-name)
+                       capability-name)  ; client capability?
+            (and (= "logging" capability-name)
+                 (rt/has-session? context))  ; before initialized notification
             (and (contains? #{"completions" "prompts" "resources" "tools"}
-                            capability-name)
-                 (not= "logging" capability-name)
+                            capability-name) ; after initialized notification
                  (rs/get-initialized-timestamp context)))
       (try
         (f capability)
@@ -59,8 +60,11 @@
               (rs/log-3-error context (str ex))
               (jr/jsonrpc-failure sd/error-code-internal-error
                                   (str ex))))))
-      (jr/jsonrpc-failure sd/error-code-invalid-request
-                          "Initialization not done yet"))
+      (if (rt/has-session? context)
+        (jr/jsonrpc-failure sd/error-code-invalid-request
+                            "Initialization notification not received yet")
+        (jr/jsonrpc-failure sd/error-code-invalid-request
+                            "Initialization not done yet")))
     (jr/jsonrpc-failure sd/error-code-method-not-found
                         (format "Capability '%s' not supported"
                                 capability-name))))
@@ -90,7 +94,10 @@
 ;; --- Server capabilities ---
 
 
-;; Logging (server) capability is always implied
+(defn with-logging-capability [request f]
+  (let [logging-capability (-> (rt/?server-capabilities request)
+                               (cap/get-capability-completions))]
+    (with-capability request "logging" logging-capability f)))
 
 
 (defn with-completions-capability [request f]
@@ -391,9 +398,12 @@
               eg/make-logging-message-notification]} logging-setLevel
   [{params :params
     :as jsonrpc-request}]
-  (let [level (:level params)]
-    (rs/set-log-level jsonrpc-request level)
-    {:result {}}))
+  (with-logging-capability
+    jsonrpc-request
+    (fn [logging-capability]
+      (let [level (:level params)]
+        (rs/set-log-level jsonrpc-request level)
+        {:result {}}))))
 
 
 ;; --- Notifications ---

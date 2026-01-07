@@ -8,7 +8,8 @@
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.util :as u]
    [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.schema.schema-defs :as sd]))
+   [plumcp.core.schema.schema-defs :as sd])
+  #?(:clj (:import [clojure.lang ExceptionInfo])))
 
 
 (def server-handler
@@ -109,6 +110,39 @@
 
 
 ;; --- Server tests ---
+
+
+(deftest logging-test
+  (testing "logging"
+    (is (thrown-with-msg?
+         ExceptionInfo #"Expected container-map to have path.+"
+         (-> (rt/upsert-runtime {} runtime-empty)
+             (rs/log-0-emergency "test-log"))))
+    (is (= nil
+           (-> (rt/upsert-runtime {} runtime-server-session)
+               (rs/log-0-emergency "test-log")))))
+  (testing "setLevel (logging)"
+    (is (= {:jsonrpc "2.0"
+            :error {:code -32601
+                    :message "Capability 'logging' not supported"
+                    :data {}}}
+           (-> (eg/make-logging-level "debug")
+               eg/make-set-level-request
+               (rt/upsert-runtime runtime-empty)
+               im/logging-setLevel)))
+    (is (= {:jsonrpc "2.0"
+            :error {:code -32600
+                    :message "Initialization not done yet"
+                    :data {}}}
+           (-> (eg/make-logging-level "debug")
+               eg/make-set-level-request
+               (rt/upsert-runtime runtime-server-caps)
+               im/logging-setLevel)))
+    (is (= {:result {}}
+           (-> (eg/make-logging-level "debug")
+               eg/make-set-level-request
+               (rt/upsert-runtime runtime-server-session)
+               im/logging-setLevel)))))
 
 
 (deftest completions-test
@@ -274,10 +308,16 @@
 ;; --- Client tests ---
 
 
-;; TODO/FIXME
+(deftest roots-test)
+
+
+(deftest sampling-test)
+
+
+(deftest elicitation-test)
 
 
 ;; --- Other tests ---
 
 
-;; TODO/FIXME
+(deftest notification-test)
