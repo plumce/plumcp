@@ -162,7 +162,6 @@
   ([request-handler
     notification-handler]
    (->> (fn default-jsonrpc-response-handler [jsonrpc-response]
-          (-> jsonrpc-response
-              (rs/log-incoming-jsonrpc-response jsonrpc-response)))
+          (rs/log-incoming-jsonrpc-response jsonrpc-response))
         (make-jsonrpc-message-handler request-handler
                                       notification-handler))))

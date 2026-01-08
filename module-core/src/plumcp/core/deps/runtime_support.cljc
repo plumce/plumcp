@@ -69,12 +69,12 @@
       (p/log-mcp-notification (rt/dissoc-runtime jsonrpc-notification))))
 
 
-(defn log-incoming-jsonrpc-response [context m]
-  (let [logger (rt/?traffic-logger context)]
-    (if-let [result (get m :result)]
-      (p/log-incoming-jsonrpc-success logger (:id m) result)
-      (when-let [error (get m :error)]
-        (p/log-incoming-jsonrpc-failure logger (:id m) error)))))
+(defn log-incoming-jsonrpc-response [jsonrpc-response]
+  (let [logger (rt/?traffic-logger jsonrpc-response)]
+    (if-let [result (get jsonrpc-response :result)]
+      (p/log-incoming-jsonrpc-success logger (:id jsonrpc-response) result)
+      (when-let [error (get jsonrpc-response :error)]
+        (p/log-incoming-jsonrpc-failure logger (:id jsonrpc-response) error)))))
 
 
 (defn log-outgoing-jsonrpc-response [context m]
