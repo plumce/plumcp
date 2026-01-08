@@ -557,7 +557,7 @@
              annotations
              _meta]}]
   (-> {:name tool-name
-       :input-schema input-schema}
+       :inputSchema input-schema}
       (u/assoc-some :description description
                     :title title
                     :outputSchema output-schema

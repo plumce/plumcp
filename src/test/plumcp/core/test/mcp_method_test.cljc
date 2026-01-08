@@ -281,10 +281,10 @@
                (rt/upsert-runtime runtime-empty)
                im/tools-list)) "no-caps, session-less")
     (is (= {:result {:tools [{:name "tool1"
-                              :input-schema {:type "object",
-                                             :properties {"a" {:type "number", :description "first number"},
-                                                          "b" {:type "number", :description "second number"}},
-                                             :required ["a" "b"]}}]}}
+                              :inputSchema {:type "object",
+                                            :properties {"a" {:type "number", :description "first number"},
+                                                         "b" {:type "number", :description "second number"}},
+                                            :required ["a" "b"]}}]}}
            (-> (eg/make-list-tools-request)
                (rt/upsert-runtime runtime-server-session)
                im/tools-list)) "with-session"))

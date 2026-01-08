@@ -14,6 +14,19 @@
   {})
 
 
+(deftest test-definition
+  (testing "tool"
+    (is (mc/validate sd/Tool
+                     (eg/make-tool "add"
+                                   (eg/make-tool-input-output-schema
+                                    {"a" {:type "number" :description "first number"}
+                                     "b" {:type "number" :description "second number"}}
+                                    ["a" "b"])))
+        "Simple tool definition"))
+  ;; FIXME: add tests for all other component definitions
+  )
+
+
 (deftest test-request
   (testing "Generic request"
     (is (mc/validate sd/Request
