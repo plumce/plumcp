@@ -29,7 +29,15 @@
      (instance? js/Uint8Array x)))
 
 
-;; --- Type coercion ---
+;; --- Coercion/transformation ---
+
+
+(defn as-vec [x]
+  (if (or (counted? x)
+          (list? x)
+          (set? x))
+    (vec x)
+    [x]))
 
 
 (defn as-str
@@ -82,6 +90,30 @@
     (subs s 0 (- (count s)
                  (count token)))
     s))
+
+
+;; --- common predicates ---
+
+
+(defn non-empty-string?
+  "Return true if argument is a non-empty string, false otherwise."
+  [s]
+  (and (string? s)
+       (seq s)))
+
+
+(defn non-empty-map?
+  "Return true if argument is a non-empty map, false otherwise."
+  [m]
+  (and (map? m)
+       (seq m)))
+
+
+(defn non-empty-vector?
+  "Return true if argument is a non-empty vector, false otherwise."
+  [v]
+  (and (vector? v)
+       (seq v)))
 
 
 ;; --- Map manipulation ---
@@ -435,3 +467,39 @@
   (-> uri-template
       (str/replace #"\{([a-zA-Z0-9_]+)\}" "([a-zA-Z0-9_]+)")
       re-pattern))
+
+
+;; --- Var discovery ---
+
+
+;; Adapted from:
+;; https://ask.clojure.org/index.php/10965/how-do-you-access-namespace-values-in-a-macro?show=10979#a10979
+#?(:clj
+   (defmacro find-vars
+     "Find vars from given (or current) namespace or namespace symbol.
+      Caution: Being a macro, it finds vars at the call-site - take
+               care when calling this macro within a function."
+     ([ns-or-sym]
+      (let [syms (if (:ns &env) ;; :ns only exists in CLJS
+                   ;; cljs.env require at ns-level needs CLJS dependency
+                   ;; undesirable for CLJ apps, so use requiring-resolve
+                   (let [ns-sym (if (symbol? ns-or-sym)
+                                  ns-or-sym
+                                  (ns-name ns-or-sym))]
+                     (-> (requiring-resolve 'cljs.env/*compiler*)
+                         deref deref  ; deref var, then deref atom
+                         (get-in [:cljs.analyzer/namespaces
+                                  ns-sym
+                                  :defs])
+                         keys
+                         (->> (mapv #(symbol (str ns-sym "/" %))))))
+                   (mapv symbol (-> (if (symbol? ns-or-sym)
+                                      (the-ns ns-or-sym)
+                                      ns-or-sym)
+                                    ns-publics
+                                    vals)))
+            form (->> syms
+                      (mapv #(list 'var %)))]
+        `[~@form]))
+     ([]
+      `(find-vars ~*ns*))))
