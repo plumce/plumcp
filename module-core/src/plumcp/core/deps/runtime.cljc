@@ -197,6 +197,7 @@
 
 (defkey ?session-id {})
 (defkey ?session {:key session-key})
+(defkey ?request-context {})
 (defkey ?request-id {})
 (defkey ?request-params-meta {})
 

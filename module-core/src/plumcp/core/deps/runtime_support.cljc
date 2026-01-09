@@ -175,6 +175,39 @@
       (p/set-log-level log-level)))
 
 
+;; Server-sent requests to client
+
+
+(defn send-request-to-client
+  [context new-request callback-context]
+  (let [session (rt/?session context)]
+    ;; install the request-context first (to facilitate callback)
+    (u/expected! (:id new-request) some? "request-ID to be a valid request ID")
+    (p/append-pending-requests session (-> (:id new-request)
+                                           (array-map callback-context)))
+    ;; send out the server request
+    (p/send-message-to-client session context new-request)
+    new-request))
+
+
+;; Server-sent notifications
+
+
+(defn send-notification-to-client
+  [context notification]
+  (-> (rt/?session context)
+      (p/send-message-to-client context notification)))
+
+
+;; Server request tracking
+
+
+(defn extract-pending-request-context
+  [context request-id]
+  (-> (rt/?session context)
+      (p/extract-pending-request request-id)))
+
+
 ;; Progress tracking
 
 
