@@ -101,26 +101,34 @@
 
 
 (defmacro defkey
-  "Define a key fn for looking up corresponding value."
+  "Define a key fn for looking up corresponding value. Option map may
+   have the following keys:
+   | Keyword  | Default   | Description                                |
+   |----------|-----------|--------------------------------------------|
+   | :doc     | Inferred  | Docstring for the key-lookup fn            |
+   | :key     | Inferred  | Key used for lookup                        |
+   | :default |    --     | Default value if no lookup value available |"
   ([fn-name options]
    (assert (symbol? fn-name) "Fn name should be a symbol")
    (assert (nil? (namespace fn-name)) "Fn name symbol should have no namespace")
    (assert (map? options) "Options must be a map")
    (let [has-default? (contains? options :default)
+         context-map-sym (gensym "context-map")
+         default-sym (gensym "default")
+         default (:default options)
          default-key (keyword "plumcp.core" (str fn-name))
-         {:keys [doc
-                 key
-                 default]
+         {:keys [doc key]
           :or {doc (str "Dependency/runtime key lookup for " default-key)
                key default-key}} options]
-     `(defn ~fn-name
-        ~doc
-        ([container-map#]
-         (if ~has-default?
-           (get-dep container-map# ~key ~default)
-           (get-dep container-map# ~key)))
-        ([container-map# new-val#]
-         (assoc-dep container-map# ~key new-val#)))))
+     `(let [~default-sym ~default]
+        (defn ~fn-name
+          ~doc
+          ([~context-map-sym]
+           ~(if has-default?
+              `(get-dep ~context-map-sym ~key ~default-sym)
+              `(get-dep ~context-map-sym ~key)))
+          ([~context-map-sym new-val#]
+           (assoc-dep ~context-map-sym ~key new-val#))))))
   ([fn-name doc options]
    `(defkey ~fn-name ~(assoc options :doc doc))))
 
