@@ -139,7 +139,7 @@
   {:protocolVersion supported-protocol-version
    :capabilities (-> server-capabilities
                      (cap/get-server-capability-declaration))
-   :serverInfo {:name "ZooMCPServer",
+   :serverInfo {:name "PluMCPServer",
                 :version "1.0.0"},
    :instructions "Optional instructions for the client"})
 
