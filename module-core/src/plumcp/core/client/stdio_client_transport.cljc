@@ -24,6 +24,7 @@
   (u/expected! on-server-exit fn? ":on-server-exit to be a function")
   (u/expected! on-stdout-line fn? ":on-stdout-line to be a function")
   (u/expected! on-stderr-text fn? ":on-stderr-text to be a function")
-  (stdio/run-command {:on-server-exit on-server-exit
+  (stdio/run-command {:command-tokens command-tokens
+                      :on-server-exit on-server-exit
                       :on-stdout-line on-stdout-line
                       :on-stderr-text on-stderr-text}))
