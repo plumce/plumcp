@@ -46,7 +46,7 @@
 
 (def server-options (-> {:primitives
                          #_greet-primitives
-                         weather-primitives
-                         #_everything-primitives}
+                         #_weather-primitives
+                         everything-primitives}
                         (merge dev/server-options)
                         ss/make-server-options))
