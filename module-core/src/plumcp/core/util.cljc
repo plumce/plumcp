@@ -10,6 +10,8 @@
   #?(:cljs (:require-macros [plumcp.core.util])
      :clj (:import
            [clojure.lang ExceptionInfo]
+           [java.net URLDecoder URLEncoder]
+           [java.nio.charset StandardCharsets]
            [java.text SimpleDateFormat]
            [java.util Base64 Date TimeZone])))
 
@@ -417,6 +419,85 @@
     (bytes? x) (bytes->base64-string x)
     :else (expected! x (str x-name
                             " to be a Base64 string or byte-array"))))
+
+
+;; --- URL codec ---
+
+
+(defn url-encode
+  "Encode given token in URL-safe manner. Map/Collection tokens are
+   treated as follows:
+   Map: Token is treated as URL name/value parameters, delimited with '&'
+   Coll: Token is considered URL name=value parameters, delimited with '&'"
+  [token]
+  (cond
+    (map? token) (->> (seq token)
+                      (map (fn [[k v]]
+                             (str (url-encode k)
+                                  "="
+                                  (url-encode v))))
+                      (str/join "&"))
+    (coll? token) (->> (seq token)
+                       (map (fn [item]
+                              (let [[n v] (str/split item #"=" 2)]
+                                (str (url-encode (str n))
+                                     "="
+                                     (url-encode (str v))))))
+                       (str/join "&"))
+    :else (let [stoken (str token)]
+            #?(:cljs (js/encodeURIComponent stoken)
+               :clj (->> (.toString StandardCharsets/UTF_8)
+                         (URLEncoder/encode stoken))))))
+
+
+(defn url-decode
+  "URL-decode a string token, assuming the token is part of a URL."
+  [stoken]
+  #?(:cljs (js/decodeURIComponent stoken)
+     :clj (->> (.toString StandardCharsets/UTF_8)
+               (URLDecoder/decode stoken))))
+
+
+(defn url-query-string
+  "Extract the query string from given URL, and decode it."
+  [url-string]
+  (-> url-string
+      (str/split #"\?" 2)
+      second
+      (or "")
+      url-decode))
+
+
+(defn url-query-params
+  [decoded-query-string]
+  (->> (str/split decoded-query-string #"\&")
+       (map #(str/split % #"="))
+       (reduce (fn [m [k v]]
+                 (assoc m k v))
+               {})))
+
+
+(defn split-web-url
+  "Split given (http/https) URL returning [base uri] for a valid URL,
+   nil otherwise."
+  [web-url]
+  (when-let [[_ base
+              uri] (-> #"(http[s]?\://[\w0-9\-\.]+(?:\:\d+)?)(.*)"
+                       (re-matches web-url))]
+    [base (if (empty? uri)
+            "/"
+            uri)]))
+
+
+(defn inject-uri-prefix
+  "Given a web URL, prefix the URI with specified token (if absent) and
+   return the re-constructed URL."
+  [orig-url uri-prefix]
+  (when-let [[base uri] (split-web-url orig-url)]
+    (if (str/starts-with? uri uri-prefix)
+      orig-url
+      (str base uri-prefix (when (not= "/" uri)
+                             uri)))))
 
 
 ;; --- JSON codec ---
