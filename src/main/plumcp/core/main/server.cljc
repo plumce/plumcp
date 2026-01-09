@@ -2,6 +2,7 @@
   (:require
    [plumcp.core.apps.everything :as ev]
    [plumcp.core.apps.greet :as greet]
+   [plumcp.core.apps.weather :as we]
    [plumcp.core.dev.api :as dev]
    [plumcp.core.server.server-support :as ss]))
 
@@ -31,21 +32,21 @@
     greet/mcp-primitives))
 
 
-;; (def weather-primitives
-;;   (do
-;;     #_{:clj-kondo/ignore [:unused-value]}
-;;     ;; either
-;;     {:prompts []
-;;      :resources []
-;;      :resource-templates []
-;;      :tools we/tools}
-;;     ;; or
-;;     we/mcp-primitives))
+(def weather-primitives
+  (do
+    #_{:clj-kondo/ignore [:unused-value]}
+    ;; either
+    {:prompts []
+     :resources []
+     :resource-templates []
+     :tools we/tools}
+    ;; or
+    we/mcp-primitives))
 
 
 (def server-options (-> {:primitives
                          #_greet-primitives
-                         #_weather-primitives
-                         everything-primitives}
+                         weather-primitives
+                         #_everything-primitives}
                         (merge dev/server-options)
                         ss/make-server-options))
