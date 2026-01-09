@@ -57,3 +57,29 @@ cljs-test:
 lint:
 	@# Help: Run linter
 	clojure-lsp diagnostics
+
+
+## ----- STDIO Server -----
+
+
+run-server-stdio-jvm: #pedantic-abort
+	@# Help: Run Dev MCP STDIO server
+	@clj -M:run-dev-stdio-server
+
+run-server-stdio-node: #pedantic-abort
+	@# Help: Run Dev MCP STDIO server using Node.js
+	@npx shadow-cljs compile :node-stdio-server 1>&2
+	@node out/node-stdio-server.js
+
+
+## ----- STDIO Client -----
+
+
+run-client-stdio-jvm: #pedantic-abort
+	@# Help: Run Dev MCP STDIO server
+	clj -M:run-dev-stdio-client
+
+run-client-http-node: #pedantic-abort
+	@# Help: Run Dev MCP STDIO client using Node.js
+	npx shadow-cljs compile :node-client
+	node out/node-client.js http://localhost:3000/mcp

@@ -1,0 +1,4 @@
+{:deps true
+ :builds {:node-stdio-server {:target :node-script
+                              :main plumcp.core.main.main-stdio-server/main
+                              :output-to "out/node-stdio-server.js"}}}

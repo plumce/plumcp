@@ -65,4 +65,45 @@
                ;"plumcp.core.test.entity-gen-test"       ; namespace
                #_"--help"]}
   ;;
+  ;;**********************
+  ;;
+  ;;  Running MCP server
+  ;;
+  ;;**********************
+  ;; -----------------------
+  ;; Run Dev MCP HTTP server: clj -M:run-dev-http
+  ;; -----------------------
+  ;;   :run-dev-http-server
+  ;;   {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+  ;;                "-Dclojure.main.report=stderr"]
+  ;;    :main-opts ["-m" "plumcp.core.main.main-http-server"]}
+  ;; ------------------------
+  ;; Run Dev MCP STDIO server: clj -M:run-dev-stdio
+  ;; ------------------------
+  :run-dev-stdio-server
+  {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+               "-Dclojure.main.report=stderr"]
+   :main-opts ["-m" "plumcp.core.main.main-stdio-server"]}
+  ;;**********************
+  ;;
+  ;;  Running MCP Client
+  ;;
+  ;;**********************
+  ;; ---------------------------------------
+  ;; Run Dev MCP Client with Streamable HTTP transport
+  ;; ---------------------------------------
+  ;;   :run-dev-http-client
+  ;;   {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+  ;;                "-Dclojure.main.report=stderr"]
+  ;;    :main-opts ["-m" "plumcp.core.main.main-client"
+  ;;                "http://localhost:3000/mcp"]}
+  ;; -----------------------------
+  ;; Run Dev MCP Client with STDIO transport
+  ;; -----------------------------
+  :run-dev-stdio-client
+  {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+               "-Dclojure.main.report=stderr"]
+   :main-opts ["-m" "plumcp.core.main.main-client"
+               "make" "run-server-stdio-jvm"]}
+  ;;
   }}

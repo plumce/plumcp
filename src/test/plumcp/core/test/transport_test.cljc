@@ -2,6 +2,7 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [plumcp.core.api.mcp-client :as mc]
+   [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.capability :as cap]
@@ -22,6 +23,18 @@
                         (rt/get-runtime)))
 
 
+(def command-tokens ["make" #?(:cljs "run-server-stdio-node"
+                               :clj "run-server-stdio-jvm")])
+
+
+(defn make-stdio-transport
+  [command-tokens]
+  (sct/run-command {:command-tokens command-tokens
+                    :on-server-exit (partial u/eprintln "[Server Exit]")
+                    :on-stdout-line println #_(partial u/eprintln "[Server-OUT]")
+                    :on-stderr-text u/eprintln #_(partial u/eprintln "[Server-ERR]")}))
+
+
 (defn make-zero-transport
   [{:keys [runtime
            jsonrpc-handler]
@@ -32,7 +45,7 @@
 
 
 (def transport-makers
-  [#_{:tname "STDIO transport" :maker #(make-stdio-transport command-tokens)}
+  [{:tname "STDIO transport" :maker #(make-stdio-transport command-tokens)}
    #_{:tname "Streamable HTTP transport" :maker #(make-http-transport endpoint-uri)}
    {:tname "Zero transport" :maker #(make-zero-transport server/server-options)}])
 
