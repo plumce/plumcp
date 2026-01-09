@@ -200,6 +200,8 @@
 (defkey ?request-id {})
 (defkey ?request-params-meta {})
 
+(defkey ?client-context {})
+
 
 ;; --- Meta utility functions ---
 
