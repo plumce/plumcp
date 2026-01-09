@@ -469,6 +469,43 @@
       re-pattern))
 
 
+;; --- SSE utility fns ---
+
+
+(defn chunkify-string-lines
+  "Given a sequence of string lines, return a sequence of chunks of
+   non-empty string lines. Every chunk is a collection of non-empty
+   string lines."
+  [string-lines]
+  (let [splitter (comp boolean seq)]
+    (->> string-lines
+         (partition-by splitter)
+         (filter #(-> % first seq)))))
+
+
+(defn parse-sse-event-lines
+  "Match the given lines-of-string against the following pattern:
+   ```
+   event: message
+   id: <id> (optional)
+   data: <string>
+   ```
+   Return the data-string if found, nil otherwise."
+  [event-lines]
+  (when (= "event: message" (first event-lines))
+    (when-some [data-line (some #(when (str/starts-with? % "data:") %)
+                                event-lines)]
+      (-> (subs data-line 5)
+          str/trim))))
+
+
+(defn make-sse-event-string
+  "Generate SSE event string from given `event-id` and `data-string`."
+  [event-id data]
+  (str "event: message\nid: " event-id
+       "\ndata: " (json-write data) "\n\n"))
+
+
 ;; --- Var discovery ---
 
 

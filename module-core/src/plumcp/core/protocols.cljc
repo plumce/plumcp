@@ -129,7 +129,21 @@
     (get-default-stream [_])))
 
 
+;; ----- Server and client -----
+
+
+(defprotocol IStoppable
+  (stop! [this] "Stop the stoppable"))
+
+
 ;; --- MCP Client ---
+
+
+(defprotocol IHttpClient
+  (http-call [this ring-request]
+    "Send HTTP/Ring request, get HTTP/Ring response with two extra keys
+     `{:on-sse (fn [on-message]) :on-msg (fn [on-message])}`. Impl may
+     employ JSON-encode/decode or authentication as appropriate."))
 
 
 (defprotocol IClientTransport
