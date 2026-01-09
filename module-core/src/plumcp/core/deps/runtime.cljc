@@ -143,11 +143,11 @@
 
 
 (defn wrap-runtime
-  "Wrap given dependencies onto the request before the handler function
+  "Wrap given runtime onto the request before the handler function
    `(fn handler [request])` can process it."
-  [handler dependencies]
-  (fn dependencies-attaching-handler [request]
-    (-> (upsert-runtime request dependencies)
+  [handler runtime]
+  (fn runtime-attaching-handler [request]
+    (-> (upsert-runtime request runtime)
         (handler))))
 
 
