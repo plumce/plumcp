@@ -152,3 +152,13 @@
   (stop-client-transport! [_ force?]  "Stop/disconnect transport - idempotent")
   (send-message-to-server [_ message] "Send given message to the server")
   (upon-handshake-success [_ success] "Triggered upon handshake success"))
+
+
+(defprotocol ITokenCache
+  (clear-cache! [_ mcp-server])
+  (read-tokens  [_ mcp-server])
+  (read-server  [_ mcp-server])
+  (read-client  [_ mcp-server])
+  (write-tokens! [_ mcp-server data])
+  (write-server! [_ mcp-server data])
+  (write-client! [_ mcp-server data]))

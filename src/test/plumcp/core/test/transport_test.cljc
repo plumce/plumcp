@@ -5,11 +5,12 @@
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.impl.capability :as cap]
-   [plumcp.core.protocols :as p]
    [plumcp.core.dev.bling-logger :as blogger]
-   [plumcp.core.server.zero-server :as zs]
+   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.main.client :as client]
    [plumcp.core.main.server :as server]
+   [plumcp.core.protocols :as p]
+   [plumcp.core.server.zero-server :as zs]
    [plumcp.core.test.test-util :as tu]
    [plumcp.core.util :as u]))
 
@@ -35,6 +36,14 @@
                     :on-stderr-text u/eprintln #_(partial u/eprintln "[Server-ERR]")}))
 
 
+(def endpoint-uri "http://localhost:3000/mcp")
+
+
+(defn make-http-transport
+  [endpoint-uri]
+  (client/make-http-transport endpoint-uri))
+
+
 (defn make-zero-transport
   [{:keys [runtime
            jsonrpc-handler]
@@ -46,7 +55,7 @@
 
 (def transport-makers
   [{:tname "STDIO transport" :maker #(make-stdio-transport command-tokens)}
-   #_{:tname "Streamable HTTP transport" :maker #(make-http-transport endpoint-uri)}
+   {:tname "Streamable HTTP transport" :maker #(make-http-transport endpoint-uri)}
    {:tname "Zero transport" :maker #(make-zero-transport server/server-options)}])
 
 

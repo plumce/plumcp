@@ -92,11 +92,11 @@
   ;; ---------------------------------------
   ;; Run Dev MCP Client with Streamable HTTP transport
   ;; ---------------------------------------
-  ;;   :run-dev-http-client
-  ;;   {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
-  ;;                "-Dclojure.main.report=stderr"]
-  ;;    :main-opts ["-m" "plumcp.core.main.main-client"
-  ;;                "http://localhost:3000/mcp"]}
+  :run-dev-http-client
+  {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+               "-Dclojure.main.report=stderr"]
+   :main-opts ["-m" "plumcp.core.main.main-client"
+               "http://localhost:3000/mcp"]}
   ;; -----------------------------
   ;; Run Dev MCP Client with STDIO transport
   ;; -----------------------------

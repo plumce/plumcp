@@ -79,6 +79,34 @@ run-client-stdio-jvm: #pedantic-abort
 	@# Help: Run Dev MCP STDIO server
 	clj -M:run-dev-stdio-client
 
+
+run-client-stdio-node: #pedantic-abort
+	@# Help: Run Dev MCP STDIO client using Node.js
+	npx shadow-cljs compile :node-client
+	node out/node-client.js make run-server-stdio-node
+
+
+## ----- Streaming HTTP Server -----
+
+
+run-server-http-java: #pedantic-abort
+	@# Help: Run Dev MCP STDIO server
+	@clj -M:run-dev-http-server
+
+run-server-http-node: #pedantic-abort
+	@# Help: Run Dev MCP STDIO server using Node.js
+	@npx shadow-cljs compile :node-http-server 1>&2
+	@node out/node-http-server.js
+
+
+## ----- Streaming HTTP Client -----
+
+
+run-client-http-java: #pedantic-abort
+	@# Help: Run Dev MCP Streaming HTTP server
+	clj -M:run-dev-http-client
+
+
 run-client-http-node: #pedantic-abort
 	@# Help: Run Dev MCP STDIO client using Node.js
 	npx shadow-cljs compile :node-client
