@@ -128,8 +128,8 @@
                (rs/log-0-emergency "test-log")))))
   (testing "setLevel (logging)"
     (is (= {:jsonrpc "2.0"
-            :error {:code -32601
-                    :message "Capability 'logging' not supported"
+            :error {:code sd/error-code-invalid-request
+                    :message "Initialization not done yet"
                     :data {}}}
            (-> (eg/make-logging-level "debug")
                eg/make-set-level-request
