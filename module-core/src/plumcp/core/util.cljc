@@ -452,7 +452,7 @@
 
 (defn url-decode
   "URL-decode a string token, assuming the token is part of a URL."
-  [stoken]
+  [^String stoken]
   #?(:cljs (js/decodeURIComponent stoken)
      :clj (->> (.toString StandardCharsets/UTF_8)
                (URLDecoder/decode stoken))))

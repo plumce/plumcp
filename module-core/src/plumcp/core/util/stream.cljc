@@ -28,6 +28,7 @@
 
 (defn stream-nadded
   "Return the number of items added so far to the stream."
+  ^long
   [stream-atom]
   (:nadded (deref stream-atom)))
 

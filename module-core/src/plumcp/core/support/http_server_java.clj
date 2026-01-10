@@ -69,7 +69,7 @@
       (cond
         ;; String
         (string? body)
-        (let [^bytes bs (.getBytes body StandardCharsets/UTF_8)]
+        (let [^bytes bs (.getBytes ^String body StandardCharsets/UTF_8)]
           (send-status! (alength bs))
           (send-bytes! bs))
         ;; ISeq (stream)
@@ -93,13 +93,13 @@
         ;; byte array
         (bytes? body)
         (do
-          (send-status! (alength body))
+          (send-status! (alength ^bytes body))
           (send-bytes! body))
         ;; file
         (instance? File body)
         (do
           (send-status! (.length ^File body))
-          (.transferTo (FileInputStream. body) out))
+          (.transferTo (FileInputStream. ^File body) out))
         :else
         (do
           (u/eprintln "Unexpected body" body)
