@@ -5,7 +5,9 @@
    [clojure.java.process :as proc]
    [plumcp.core.protocols :as p]
    [plumcp.core.util :as u]
-   [plumcp.core.util-java :as uj]))
+   [plumcp.core.util-java :as uj])
+  (:import
+   [java.lang Process]))
 
 
 (defn run-server!
@@ -14,7 +16,8 @@
    on-stdout-line
    on-stderr-text
    json-reader]
-  (let [server-proc (->> (cons {} command-tokens)
+  (let [^Process
+        server-proc (->> (cons {} command-tokens)
                          (apply proc/start))
         server-stdin (-> server-proc
                          proc/stdin
