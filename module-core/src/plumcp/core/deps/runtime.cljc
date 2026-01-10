@@ -137,6 +137,7 @@
 
 
 (def session-key :plumcp.core/?session)
+(def response-stream-key :plumcp.core/?response-stream)
 
 
 ;; --- Middleware ---
@@ -200,6 +201,7 @@
 (defkey ?request-context {})
 (defkey ?request-id {})
 (defkey ?request-params-meta {})
+(defkey ?response-stream {:key response-stream-key})
 
 (defkey ?client-context {})
 
@@ -210,3 +212,8 @@
 (defn has-session?
   [context]
   (has-dep? context session-key))
+
+
+(defn has-response-stream?
+  [context]
+  (has-dep? context response-stream-key))

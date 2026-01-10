@@ -3,7 +3,8 @@
   (:require
    #?(:cljs [goog.string :as gstring])
    #?(:cljs [goog.string.format])
-   #?(:cljs [plumcp.core.util-cljs :as us])
+   #?(:cljs [plumcp.core.util-cljs :as us]
+      :clj [plumcp.core.util-java :as uj])
    #?(:clj [plumcp.core.util.json :as json])
    [clojure.pprint :as pp]
    [clojure.string :as str])
@@ -246,7 +247,32 @@
     x))
 
 
+(defn tee
+  "Return a function that acts like `clojure.core/identity`, except that
+   it also calls specified fn `(f <value>)` before returning the value."
+  [f]
+  (fn tee-wrapped [x]
+    (f x)
+    x))
+
+
 ;; --- Evaluate body of code ---
+
+
+(defmacro background
+  "Evaluate given body of code in the background, without interrupting
+   current flow. Options:
+   :delay-millis - (long) delay in milliseconds before evaluating body"
+  [options & body]
+  (if (:ns &env) ;; :ns only exists in CLJS
+    `(let [delay-millis# (:delay-millis ~options 0)]
+       (js/setTimeout (fn []
+                        ~@body)
+                      delay-millis#))
+    `(let [delay-millis# (:delay-millis ~options 0)]
+       (uj/background-exec
+        (Thread/sleep (long delay-millis#))
+        ~@body))))
 
 
 (defn dotee

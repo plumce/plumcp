@@ -1,5 +1,6 @@
 (ns plumcp.core.api.mcp-server
   (:require
+   [plumcp.core.server.http-ring :as http-ring]
    [plumcp.core.server.server-support :as ss]
    [plumcp.core.server.stdio-server :as stdio-server]
    [plumcp.core.support.banner-print :as bp]
@@ -32,22 +33,21 @@
                                   (stdio-server/make-stdio-handler
                                    runtime
                                    jsonrpc-handler)))
-          ;;   get-ring-handler  (fn []
-          ;;                       (or ring-handler
-          ;;                           (http-ring/make-ring-handler
-          ;;                            runtime
-          ;;                            jsonrpc-handler
-          ;;                            options)))
-          ]
+          get-ring-handler  (fn []
+                              (or ring-handler
+                                  (http-ring/make-ring-handler
+                                   runtime
+                                   jsonrpc-handler
+                                   options)))]
       (case (u/as-str transport)
         "stdio" (uab/may-await [stdio-handler (get-stdio-handler)]
                   (when print-banner? (bp/print-banner options))
                   (stdio-handler))
-        ;; "http"  (uab/may-await [ring-handler (get-ring-handler)
-        ;;                         ring-server (http-ring/run-ring-server
-        ;;                                      ring-handler options)]
-        ;;           (when print-banner? (bp/print-banner options))
-        ;;           ring-server)
+        "http"  (uab/may-await [ring-handler (get-ring-handler)
+                                ring-server (http-ring/run-ring-server
+                                             ring-handler options)]
+                  (when print-banner? (bp/print-banner options))
+                  ring-server)
         (u/expected! transport "transport to be :stdio or :http")))))
 
 

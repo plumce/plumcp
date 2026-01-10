@@ -73,10 +73,10 @@
   ;; -----------------------
   ;; Run Dev MCP HTTP server: clj -M:run-dev-http
   ;; -----------------------
-  ;;   :run-dev-http-server
-  ;;   {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
-  ;;                "-Dclojure.main.report=stderr"]
-  ;;    :main-opts ["-m" "plumcp.core.main.main-http-server"]}
+  :run-dev-http-server
+  {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+               "-Dclojure.main.report=stderr"]
+   :main-opts ["-m" "plumcp.core.main.main-http-server"]}
   ;; ------------------------
   ;; Run Dev MCP STDIO server: clj -M:run-dev-stdio
   ;; ------------------------

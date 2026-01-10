@@ -1,4 +1,7 @@
 {:deps true
- :builds {:node-stdio-server {:target :node-script
+ :builds {:node-http-server {:target :node-script
+                             :main plumcp.core.main.main-http-server/main
+                             :output-to "out/node-http-server.js"}
+          :node-stdio-server {:target :node-script
                               :main plumcp.core.main.main-stdio-server/main
                               :output-to "out/node-stdio-server.js"}}}

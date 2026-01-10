@@ -199,6 +199,15 @@
       (p/send-message-to-client context notification)))
 
 
+;; Server-sent messages
+
+
+(defn send-message-to-client
+  [context message]
+  (-> (rt/?session context)
+      (p/send-message-to-client context message)))
+
+
 ;; Server request tracking
 
 
