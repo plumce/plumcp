@@ -96,7 +96,7 @@
 
 (defn with-logging-capability [request f]
   (let [logging-capability (-> (rt/?server-capabilities request)
-                               (cap/get-capability-completions))]
+                               (cap/get-capability-logging))]
     (with-capability request "logging" logging-capability f)))
 
 
