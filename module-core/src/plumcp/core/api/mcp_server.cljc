@@ -16,7 +16,7 @@
   [server-options]
   (let [{:keys [runtime
                 jsonrpc-handler
-                ring-handler   ; only for Streaming-HTTP transport
+                ring-handler   ; only for Streamable-HTTP transport
                 stdio-handler  ; only for STDIO transport
                 transport
                 print-banner?]

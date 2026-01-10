@@ -86,7 +86,7 @@ run-client-stdio-node: #pedantic-abort
 	node out/node-client.js make run-server-stdio-node
 
 
-## ----- Streaming HTTP Server -----
+## ----- Streamable HTTP Server -----
 
 
 run-server-http-java: #pedantic-abort
@@ -99,11 +99,11 @@ run-server-http-node: #pedantic-abort
 	@node out/node-http-server.js
 
 
-## ----- Streaming HTTP Client -----
+## ----- Streamable HTTP Client -----
 
 
 run-client-http-java: #pedantic-abort
-	@# Help: Run Dev MCP Streaming HTTP server
+	@# Help: Run Dev MCP Streamable HTTP server
 	clj -M:run-dev-http-client
 
 

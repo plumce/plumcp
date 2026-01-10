@@ -44,13 +44,13 @@
 
 (defn #?(:clj -main
          :cljs main) [& _]
-  (u/eprintln "Starting Streaming-HTTP server")
+  (u/eprintln "Starting Streamable-HTTP server")
   (try (uab/may-await
          [_ (-> {:auth-options nil #_(auth-auth0) #_(auth-scalekit) #_(auth-workos)
                  :transport :http}
                 (merge server/server-options)
                 ms/run-mcp-server)]
-         (u/eprintln "Streaming-HTTP server started"))
+         (u/eprintln "Streamable-HTTP server started"))
        (catch #?(:clj Exception
                  :cljs js/Error) e
          (u/print-stack-trace e))))

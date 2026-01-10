@@ -1,5 +1,5 @@
 (ns plumcp.core.server.http-ring-transport
-  "Server implementation for Streaming HTTP transport."
+  "Server implementation for Streamable HTTP transport."
   (:require
    [clojure.pprint :as pp]
    [clojure.string :as str]

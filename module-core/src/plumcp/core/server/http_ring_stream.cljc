@@ -1,5 +1,5 @@
 (ns plumcp.core.server.http-ring-stream
-  "Server-sent Events (SSE) streaming support for Ring server transport"
+  "Server-sent Events (SSE) streamable support for Ring server transport"
   (:require
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.protocols :as p]
