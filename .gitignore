@@ -12,4 +12,4 @@
 **/package-lock.json
 **/bun.lock
 **/out
-
+/test-config.edn
