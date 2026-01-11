@@ -62,6 +62,10 @@
          (str/join \newline))))
 
 
+(def transport-names {:http "Streamable HTTP"
+                      :stdio "STDIO"})
+
+
 (defn make-banner-string
   [{:keys [role
            transport
@@ -89,7 +93,8 @@
 Transport: %s
 MCP %s %s"
         (format const/version
-                (-> transport u/as-str str/upper-case)
+                (or (get transport-names transport)
+                    (-> transport u/as-str str/upper-case))
                 (-> role u/as-str str/capitalize)
                 details))))
 
