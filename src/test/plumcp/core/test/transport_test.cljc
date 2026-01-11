@@ -25,7 +25,7 @@
 
 
 (def command-tokens ["make" #?(:cljs "run-server-stdio-node"
-                               :clj "run-server-stdio-jvm")])
+                               :clj "run-server-stdio-java")])
 
 
 (defn make-stdio-transport
