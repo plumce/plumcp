@@ -8,21 +8,25 @@
 
 
 (defn file-exists?
+  "Return true if specified filename exists, false otherwise."
   [filename]
   (.existsSync fs filename))
 
 
-(defn slurp
+(defn slurp-file
+  "Read a file from the filesystem synchronously."
   [filename]
   (.readFileSync fs filename "utf8"))
 
 
 (defn spit
+  "Write out the file with specified content synchronously."
   [filename content]
   (.writeFileSync fs filename content))
 
 
 (defn delete-file
+  "Delete given file name synchronously."
   [filename]
   (.unlinkSync fs filename))
 

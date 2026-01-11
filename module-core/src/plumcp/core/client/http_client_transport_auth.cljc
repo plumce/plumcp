@@ -490,7 +490,7 @@
         file-reader #?(:cljs (fn [filename]
                                (cond
                                  us/env-node-js?
-                                 (un/slurp filename)
+                                 (un/slurp-file filename)
                                  us/env-browser?
                                  (.getItem js/localStorage filename)
                                  :else
