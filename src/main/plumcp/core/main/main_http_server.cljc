@@ -6,6 +6,7 @@
    [plumcp.core.auth.util :as au]
    [plumcp.core.main.server :as server]
    [plumcp.core.server.http-ring-auth :as hra]
+   [plumcp.core.test.test-util :as tu]
    [plumcp.core.util :as u]
    [plumcp.core.util.async-bridge :as uab]))
 
@@ -16,7 +17,7 @@
   []
   (let [server-runtime (:runtime server/server-options)]
     (->> {:jwt->claims au/validate-jwt
-          :authorization-servers ["https://dev-jxrwwoyejipmivtp.us.auth0.com/"]
+          :authorization-servers [(:auth0-authz-server tu/test-config)]
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 
@@ -28,7 +29,7 @@
   []
   (let [server-runtime (:runtime server/server-options)]
     (->> {:jwt->claims au/validate-jwt
-          :authorization-servers ["https://self.scalekit.dev/resources/res_90791782157125635"]
+          :authorization-servers [(:scalekit-authz-server tu/test-config)]
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 
@@ -39,7 +40,7 @@
   []
   (let [server-runtime (:runtime server/server-options)]
     (->> {:jwt->claims au/validate-jwt
-          :authorization-servers ["https://soothing-postcard-01-staging.authkit.app"]
+          :authorization-servers [(:workos-authz-server tu/test-config)]
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 

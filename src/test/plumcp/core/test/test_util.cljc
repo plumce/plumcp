@@ -1,6 +1,11 @@
 (ns plumcp.core.test.test-util
-  #?(:cljs (:require ["wait-sync" :as wait-sync]))
-  #?(:cljs (:require-macros [plumcp.core.test.test-util])))
+  #?(:cljs (:require ["wait-sync" :as wait-sync])
+     :clj (:require
+           [clojure.edn :as edn]
+           [plumcp.core.util :as u]
+           [plumcp.core.util-java :as uj]))
+  #?(:cljs (:require-macros [plumcp.core.test.test-util
+                             :refer [read-edn-file]])))
 
 
 (defn sleep-millis
@@ -20,3 +25,19 @@
      ~@body
      (while (not @toggle#)
        (sleep-millis ~idle-millis))))
+
+
+#?(:clj
+   (defmacro read-edn-file
+     "Read specified EDN filename if it exists, return nil otherwise."
+     [edn-filename]
+     (if (uj/file-exists? edn-filename)
+       (-> edn-filename
+           slurp
+           edn/read-string)
+       (u/eprintln
+        "WARNING: Cannot find file test-config.edn
+         Copy test-config.template.edn as test-config.edn and edit suitably"))))
+
+
+(def test-config "Test config" (read-edn-file "test-config.edn"))

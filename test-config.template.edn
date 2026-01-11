@@ -1,0 +1,4 @@
+;; Test config - copy this file as test-config.edn and edit
+{:auth0-authz-server "FIXME"
+ :scalekit-authz-server "FIXME"
+ :workos-authz-server "FIXME"}
