@@ -327,6 +327,10 @@
       vector?              (make-call-tool-result x)
       string?              (-> [(eg/make-text-content x {})]
                                make-call-tool-result)
+      number?              (-> [(eg/make-text-content (str x) {})]
+                               make-call-tool-result)
+      boolean?             (-> [(eg/make-text-content (str x) {})]
+                               make-call-tool-result)
       (u/expected!
        x
        "argument to be either of call-tool-result/content-vector/string"))))
