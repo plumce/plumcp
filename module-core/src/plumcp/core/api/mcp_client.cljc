@@ -7,6 +7,7 @@
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.protocols :as p]
+   [plumcp.core.constant :as const]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.banner-print :as bp]
@@ -84,9 +85,9 @@
 
 
 (def client-implementation
-  (eg/make-implementation "ZooMCP"
-                          "0.1.1"
-                          {:title "ZooMCP 0.1.1"}))
+  (eg/make-implementation "PluMCP Client"
+                          const/version
+                          {:title (str "PluMCP Client " const/version)}))
 
 
 ;; --- initilization / de-initialization / handshake ---

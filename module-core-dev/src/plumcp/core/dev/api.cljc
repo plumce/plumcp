@@ -15,8 +15,8 @@
 
 (def client-options
   "MCP-client development support options for use with:
-   zoomcp.core.public.mcp-client/make-mcp-client
-   zoomcp.core.public.mcp-client/make-client"
+   plumcp.core.public.mcp-client/make-mcp-client
+   plumcp.core.public.mcp-client/make-client"
   {:mcp-methods-wrapper update-schemas
    :var-handler sm/wrap-var-kwargs-schema-check
    :traffic-logger blogger/client-logger})
@@ -24,8 +24,8 @@
 
 (def server-options
   "MCP-server development support options for use with:
-   zoomcp.core.public.mcp-server/run-mcp-server
-   zoomcp.core.public.mcp-server/run-server"
+   plumcp.core.public.mcp-server/run-mcp-server
+   plumcp.core.public.mcp-server/run-server"
   {:mcp-methods-wrapper update-schemas
    :var-handler sm/wrap-var-kwargs-schema-check
    :traffic-logger blogger/server-logger})

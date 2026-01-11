@@ -21,7 +21,7 @@
         auth-options (-> {:http-client http-client
                           :on-error    u/eprintln
                           :redirect-uris ["http://localhost:6277/"]
-                          :client-name "ZooMCP test client"
+                          :client-name "PluMCP Test client"
                           :mcp-server "http://localhost:3000"
                           :callback-redirect-uri "http://localhost:6277/"
                           :callback-start-server #(hs/run-http-server % {:port 6277})
