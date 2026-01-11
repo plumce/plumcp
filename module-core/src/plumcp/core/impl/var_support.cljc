@@ -114,15 +114,16 @@
 
 (defn ^{:see [sd/GetPromptResult
               eg/make-get-prompt-result]} as-get-prompt-result
-  [x]
-  (condp u/invoke x
-    jr/jsonrpc-response? x
-    get-prompt-result?   x
-    vector?              (eg/make-get-prompt-result x {})
-    prompt-message?      (eg/make-get-prompt-result [x] {})
-    (u/expected!
-     x
-     "argument to be either of get-prompt-result/prompt-message-vector")))
+  [sora-retval]  ; SORA: Sync-OR-Async
+  (uab/may-await [x sora-retval]
+    (condp u/invoke x
+      jr/jsonrpc-response? x
+      get-prompt-result?   x
+      vector?              (eg/make-get-prompt-result x {})
+      prompt-message?      (eg/make-get-prompt-result [x] {})
+      (u/expected!
+       x
+       "argument to be either of get-prompt-result/prompt-message-vector"))))
 
 
 (defn make-get-prompt-handler
@@ -188,14 +189,15 @@
 
 
 (defn ^{:see sd/ReadResourceResult} as-read-resource-result
-  [x]
-  (condp u/invoke x
-    jr/jsonrpc-response?  x
-    read-resource-result? x
-    vector?               (eg/make-read-resource-result x {})
-    (u/expected!
-     x
-     "argument to be either of read-resource-result/content-vector")))
+  [sora-retval]  ; SORA: Sync-OR-Async
+  (uab/may-await [x sora-retval]
+    (condp u/invoke x
+      jr/jsonrpc-response?  x
+      read-resource-result? x
+      vector?               (eg/make-read-resource-result x {})
+      (u/expected!
+       x
+       "argument to be either of read-resource-result/content-vector"))))
 
 
 (defn make-read-resource-handler
