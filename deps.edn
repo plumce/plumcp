@@ -104,6 +104,6 @@
   {:jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
                "-Dclojure.main.report=stderr"]
    :main-opts ["-m" "plumcp.core.main.main-client"
-               "make" "run-server-stdio-jvm"]}
+               "make" "run-server-stdio-java"]}
   ;;
   }}

@@ -62,7 +62,7 @@ lint:
 ## ----- STDIO Server -----
 
 
-run-server-stdio-jvm: #pedantic-abort
+run-server-stdio-java: #pedantic-abort
 	@# Help: Run Dev MCP STDIO server
 	@clj -M:run-dev-stdio-server
 
