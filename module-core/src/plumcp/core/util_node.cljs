@@ -43,6 +43,12 @@
                             (.close rl))))))
 
 
+(defn env-val
+  "Return the environment variable value if defined, nil otherwise."
+  [env-var-name]
+  (us/pget (.-env js/process) (str env-var-name)))
+
+
 (def platform-opener
   "Platform-specific command or executable name to open a file/URL."
   (let [platform (.-platform js/process)]
@@ -56,7 +62,7 @@
   "Open given URL in browser, returning Node.js ChildProcess object.
    See: https://stackoverflow.com/a/49013356"
   ([url]
-   (browse-url url (or (us/pget (.-env js/process) "PLUMCP_BROWSER")
+   (browse-url url (or (env-val "PLUMCP_BROWSER")
                        platform-opener)))
   ([url browser-executable-name]
    (.exec cp (str browser-executable-name " '" url "'"))))

@@ -69,6 +69,12 @@
       nil)))
 
 
+(defn env-val
+  "Return the environment variable value if defined, nil otherwise."
+  [env-var-name]
+  (System/getenv (str env-var-name)))
+
+
 (def platform-opener
   "Platform-specific command or executable name to open a file/URL."
   (let [platform (-> (System/getProperty "os.name")
@@ -85,7 +91,7 @@
    ;; clojure.java.browse/browse-url doesn't return java.lang.Process,
    ;; which is required to close the browser, so use platform-opener
    ;; when env var YUMCP_BROWSER is not defined
-   (let [browser (or (System/getenv "ZOOMCP_BROWSER")
+   (let [browser (or (env-val "PLUMCP_BROWSER")
                      platform-opener)]
      (browse-url url browser)))
   ([url browser-executable-name]
