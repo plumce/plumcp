@@ -75,8 +75,8 @@ run-server-stdio-node: #pedantic-abort
 ## ----- STDIO Client -----
 
 
-run-client-stdio-jvm: #pedantic-abort
-	@# Help: Run Dev MCP STDIO server
+run-client-stdio-java: #pedantic-abort
+	@# Help: Run Dev MCP STDIO client app
 	clj -M:run-dev-stdio-client
 
 
@@ -103,7 +103,7 @@ run-server-http-node: #pedantic-abort
 
 
 run-client-http-java: #pedantic-abort
-	@# Help: Run Dev MCP Streamable HTTP server
+	@# Help: Run Dev MCP Streamable HTTP client app
 	clj -M:run-dev-http-client
 
 
