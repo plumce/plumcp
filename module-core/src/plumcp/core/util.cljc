@@ -3,6 +3,7 @@
   (:require
    #?(:cljs [goog.string :as gstring])
    #?(:cljs [goog.string.format])
+   #?(:cljs [plumcp.core.util-node :as un])
    #?(:cljs [plumcp.core.util-cljs :as us]
       :clj [plumcp.core.util-java :as uj])
    #?(:clj [plumcp.core.util.json :as json])
@@ -30,6 +31,34 @@
      "Return true if x is a byte array."
      [x]
      (instance? js/Uint8Array x)))
+
+
+#?(:cljs
+   (defn slurp
+     "Read from given file-name (Node.js only) or URL string. Returns a
+      js/Promise."
+     [src]
+     (when (string? src)
+       (let [read-file (fn [file-name]
+                         (if us/env-node-js?
+                           (js/Promise.resolve (un/slurp-file file-name))
+                           (throw (ex-info "Reading file is unsupported"
+                                           {:file-name file-name}))))
+             fetch-url (fn [url]
+                         (-> (js/fetch url)
+                             (.then (fn [response]
+                                      (.text response)))))]
+         ;; test URL
+         (cond
+           ;; file?
+           (str/starts-with? src "file://")
+           (read-file (subs src 6))
+           ;; URL?
+           (str/includes? src "://")
+           (fetch-url src)
+           ;; filename
+           :else
+           (read-file src))))))
 
 
 ;; --- Coercion/transformation ---
@@ -223,6 +252,29 @@
                                              enum-set-or-map))))
 
 
+;; --- Time tracking ---
+
+
+(defn now-millis
+  "Return the current time since Epoch (or specified TS) in milliseconds."
+  (^long []
+   #?(:clj (System/currentTimeMillis)
+      :cljs (.getTime (js/Date.))))
+  (^long [^long since-millis]
+   (- (now-millis) since-millis)))
+
+
+(defn now-iso8601-utc
+  "Return the current time in UTC timezone as ISO 8601 string."
+  []
+  #?(:clj (let [tz (TimeZone/getTimeZone "UTC")
+                df (SimpleDateFormat. "yyyy-MM-dd'T'HH:mm'Z'")]
+            (.setTimeZone df tz)
+            (.format df (Date.)))
+     :cljs (-> (js/Date.)
+               (.toISOString))))
+
+
 ;; --- Function invocation ---
 
 
@@ -254,6 +306,27 @@
   (fn tee-wrapped [x]
     (f x)
     x))
+
+
+(defn fcached
+  "Memoize `f` for given `millis` duration."
+  [f ^long millis]
+  (expected! millis int? "millis to be an integer (0 or higher)")
+  (if (pos-int? millis)
+    (let [mem (atom {})
+          xec (fn [args]
+                (let [v (apply f args)]
+                  (swap! mem assoc args [v (now-millis)])
+                  v))]
+      (fn [& args]
+        (let [m (deref mem)]
+          (if (contains? m args)
+            (let [[v ts] (get m args)]
+              (if (< (now-millis ts) millis)
+                v
+                (xec args)))
+            (xec args)))))
+    f))
 
 
 ;; --- Evaluate body of code ---
@@ -345,29 +418,6 @@
   (eprintln e)
   #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
      :clj (.printStackTrace ^Throwable e)))
-
-
-;; --- Time tracking ---
-
-
-(defn now-millis
-  "Return the current time since Epoch (or specified TS) in milliseconds."
-  (^long []
-   #?(:clj (System/currentTimeMillis)
-      :cljs (.getTime (js/Date.))))
-  (^long [^long since-millis]
-   (- (now-millis) since-millis)))
-
-
-(defn now-iso8601-utc
-  "Return the current time in UTC timezone as ISO 8601 string."
-  []
-  #?(:clj (let [tz (TimeZone/getTimeZone "UTC")
-                df (SimpleDateFormat. "yyyy-MM-dd'T'HH:mm'Z'")]
-            (.setTimeZone df tz)
-            (.format df (Date.)))
-     :cljs (-> (js/Date.)
-               (.toISOString))))
 
 
 ;; --- UUID generation ---
