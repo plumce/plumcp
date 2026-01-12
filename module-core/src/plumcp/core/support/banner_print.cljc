@@ -98,7 +98,8 @@
                                            (format "http://127.0.0.1:%d%s"
                                                    port uri)))
                   [:http :client] (str "connected to "
-                                       http-url)
+                                       (or http-url
+                                           (get transport-info :default-uri)))
                   [:zero :server] "started"
                   [:zero :client] "connected")]
     (-> "PluMCP %s

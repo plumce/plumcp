@@ -140,6 +140,7 @@
 
 
 (defprotocol IHttpClient
+  (client-info [this] "Return a map {} of client information")
   (http-call [this ring-request]
     "Send HTTP/Ring request, get HTTP/Ring response with two extra keys
      `{:on-sse (fn [on-message]) :on-msg (fn [on-message])}`. Impl may

@@ -26,6 +26,7 @@
                            client-context)]
     (reify
       p/IHttpClient
+      (client-info [_] {:default-uri default-uri})
       (http-call [_ request] (-> request
                                  (u/assoc-missing :uri default-uri)
                                  request-middleware
