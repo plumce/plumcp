@@ -133,7 +133,7 @@
                            (u/eprintln "Exiting GET-stream"))))]
     (reify
       p/IClientTransport
-      (get-client-transport-id [_] :http)
+      (client-transport-info [_] {:id :http})
       (start-client-transport [_ on-message] (vreset! msg-receiver
                                                       on-message))
       (stop-client-transport! [_ _force?] (do

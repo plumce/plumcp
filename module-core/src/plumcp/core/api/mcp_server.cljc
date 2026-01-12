@@ -26,7 +26,9 @@
     (u/expected! runtime map? ":runtime to be a map")
     (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
     (let [options (merge {:role :server
-                          :transport default-transport}
+                          :transport-info (if transport
+                                            {:id transport}
+                                            {:id default-transport})}
                          options)
           get-stdio-handler (fn []
                               (or stdio-handler

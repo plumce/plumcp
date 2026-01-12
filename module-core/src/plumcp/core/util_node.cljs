@@ -3,7 +3,9 @@
   (:require
    ["child_process" :as cp]
    ["fs" :as fs]
+   ["path" :as path]
    ["readline" :as readline]
+   [clojure.string :as str]
    [plumcp.core.util-cljs :as us]))
 
 
@@ -47,6 +49,35 @@
   "Return the environment variable value if defined, nil otherwise."
   [env-var-name]
   (us/pget (.-env js/process) (str env-var-name)))
+
+
+(defn exec-path
+  "For given full command return short command if available in PATH,
+   else return the full command as it is."
+  [command]
+  (let [syspath (env-val "PATH")
+        pathsep (.-sep path)        ; '\' on Windows, '/' on Posix
+        pathdel (.-delimiter path)  ; ';' on Windows, ':' on Posix
+        exename (-> command
+                    (str/split pathsep)
+                    last)]
+    (if (and (seq syspath)
+             (->> (str/split syspath pathdel)
+                  (some (fn [each-path]
+                          (let [exepath (str each-path pathsep exename)]
+                            (and (file-exists? exepath)
+                                 ; realpathSync() subsumes readlinkSync()
+                                 (= (.realpathSync fs exepath)
+                                    command)))))))
+      exename
+      command)))
+
+
+(defn rel-path
+  "Return relative path from CWD for given arg (path)."
+  [arg]
+  (let [cwd (.cwd js/process)]
+    (.relative path cwd arg)))
 
 
 (def platform-opener

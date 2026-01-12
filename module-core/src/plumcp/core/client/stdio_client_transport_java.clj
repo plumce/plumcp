@@ -102,7 +102,7 @@
                                nil)))]
     (reify
       p/IClientTransport
-      (get-client-transport-id [_] :stdio)
+      (client-transport-info [_] {:id :stdio :command-tokens command-tokens})
       (start-client-transport [_ on-message] (server-run! on-message))
       (stop-client-transport! [_ force?] (server-kill force?))
       (send-message-to-server [_ message] (server-send

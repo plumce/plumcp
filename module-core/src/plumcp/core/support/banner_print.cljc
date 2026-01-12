@@ -1,6 +1,7 @@
 (ns plumcp.core.support.banner-print
   "Banner printing utility"
   (:require
+   #?(:cljs [plumcp.core.util-node :as un])
    [clojure.string :as str]
    [plumcp.core.constant :as const]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
@@ -68,7 +69,7 @@
 
 (defn make-banner-string
   [{:keys [role
-           transport
+           transport-info
            stdio-command  ; STDIO client only
            http-url       ; HTTP client or server
            port           ; HTTP server only
@@ -76,11 +77,22 @@
            ]
     :or {port 3000
          uri "/mcp"}}]
-  (let [details (case [transport role]
-                  [:stdio :server] (str "started "
-                                        (vec *command-line-args*))
+  (let [transport-id (:id transport-info)
+        details (case [transport-id role]
+                  [:stdio :server] (str "started: "
+                                        (or (when *command-line-args*
+                                              (vec *command-line-args*))
+                                            #?(:cljs (-> (.-argv js/process)
+                                                         vec
+                                                         (update 0 un/exec-path)
+                                                         (update 1 un/rel-path))
+                                               :clj (->> "sun.java.command"
+                                                         System/getProperty
+                                                         (conj ["java"])))))
                   [:stdio :client] (str "connected to "
-                                        (vec stdio-command))
+                                        (vec (or stdio-command
+                                                 (get transport-info
+                                                      :command-tokens))))
                   [:http :server] (str "started at "
                                        (or http-url
                                            (format "http://127.0.0.1:%d%s"
@@ -93,8 +105,8 @@
 Transport: %s
 MCP %s %s"
         (format const/version
-                (or (get transport-names transport)
-                    (-> transport u/as-str str/upper-case))
+                (or (get transport-names transport-id)
+                    (-> transport-id u/as-str str/upper-case))
                 (-> role u/as-str str/capitalize)
                 details))))
 

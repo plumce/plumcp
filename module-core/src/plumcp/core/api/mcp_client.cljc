@@ -29,8 +29,8 @@
     (u/expected! client-transport #(satisfies? p/IClientTransport %)
                  ":client-transport to be a valid client transport")
     (let [client-options (merge {:role :client
-                                 :transport (p/get-client-transport-id
-                                             client-transport)}
+                                 :transport-info (-> client-transport
+                                                     p/client-transport-info)}
                                 options)
           loaded-context (-> (or client-context
                                  (-> {:jsonrpc-handler jsonrpc-handler}

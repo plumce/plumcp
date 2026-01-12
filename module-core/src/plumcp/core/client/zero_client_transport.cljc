@@ -23,7 +23,7 @@
         session-id (u/uuid-v4)]
     (reify
       p/IClientTransport
-      (get-client-transport-id [_] :zero)
+      (client-transport-info [_] {:id :zero})
       (start-client-transport [_ on-message] (reset-server! on-message))
       (stop-client-transport! [_ _force?] (reset-server!))
       (send-message-to-server [_ message] (if-let [{:keys [handler-fn
