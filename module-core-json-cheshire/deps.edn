@@ -1,0 +1,2 @@
+{:deps {module/core {:local/root "../module-core"}
+        cheshire/cheshire {:mvn/version "6.1.0"}}}

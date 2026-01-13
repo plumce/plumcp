@@ -1,0 +1,2 @@
+{:deps {module/core {:local/root "../module-core"}
+        com.cnuernber/charred {:mvn/version "1.037"}}}

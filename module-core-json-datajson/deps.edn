@@ -1,0 +1,2 @@
+{:deps {module/core {:local/root "../module-core"}
+        org.clojure/data.json {:mvn/version "2.5.1"}}}

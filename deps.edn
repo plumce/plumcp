@@ -6,10 +6,10 @@
   module/core-dev  {:local/root "module-core-dev"}
   module/core-auth {:local/root "module-core-auth"}
   ;; --- Java JSON dependency (uncomment ONLY one) ---
-  module/json-charred   {:local/root "module-core-json-template/out/charred"}
-  ;module/json-cheshire  {:local/root "module-core-json-template/out/cheshire"}
-  ;module/json-data-json {:local/root "module-core-json-template/out/data-json"}
-  ;module/json-jsonista  {:local/root "module-core-json-template/out/jsonista"}
+  module/json-charred   {:local/root "module-core-json-charred"}
+  ;module/json-cheshire  {:local/root "module-core-json-cheshire"}
+  ;module/json-data-json {:local/root "module-core-json-datajson"}
+  ;module/json-jsonista  {:local/root "module-core-json-jsonista"}
   ;; --- runtime/dev dependencies for module-core ---
   ;; Clojure
   org.clojure/clojure {:mvn/version "1.12.4"}

@@ -1,0 +1,2 @@
+{:deps {module/core {:local/root "../module-core"}
+        metosin/jsonista {:mvn/version "0.3.13"}}}
