@@ -7,6 +7,17 @@
 (def module-version "0.1.0-SNAPSHOT")
 
 
+(defn delete-tree
+  [root]
+  (fs/delete-tree root))
+
+
+(defn delete-file
+  [filepath]
+  (when (fs/exists? filepath)
+    (fs/delete filepath)))
+
+
 (defn validate-module-dir-name!
   [module-dir]
   (let [prefix "module-core"]
@@ -33,11 +44,12 @@
     (spit projectclj-path projectclj-text)))
 
 
-(defn erase-project-clj
+(defn clean-module
   [module-dir]
   (validate-module-dir-name! module-dir)
-  (let [projectclj-path (str module-dir "/project.clj")]
-    (fs/delete projectclj-path)))
+  (delete-file (str module-dir "/project.clj"))
+  (delete-file (str module-dir "/pom.xml"))
+  (delete-tree (str module-dir "/target")))
 
 
 (defn list-module-dir-names
@@ -75,7 +87,7 @@
                             (f module-dir)))]
   (case command
     "emit" (invoke-module-dir emit-project-clj)
-    "erase" (invoke-module-dir erase-project-clj)
+    "clean" (invoke-module-dir clean-module)
     "list"  (list-module-dir-names)
     (do
       (eprintln "ERROR: Invalid command:" command)

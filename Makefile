@@ -111,3 +111,50 @@ run-client-http-node: #pedantic-abort
 	@# Help: Run Dev MCP STDIO client using Node.js
 	npx shadow-cljs compile :node-client
 	node out/node-client.js http://localhost:3000/mcp
+
+
+## ----- Module installation -----
+
+
+clean-module:
+	@#Help: Clean the module or generated artifacts
+	rm -rf $(MODULE)/project.clj $(MODULE)/pom.xml $(MODULE)/target
+	@#bb module-project-clj.bb clean $(MODULE)
+
+
+install-module:
+	@#Help: Clean the module or generated artifacts
+	bb module-project-clj.bb emit $(MODULE)
+	cd $(MODULE) && lein install
+	@#rm $(MODULE)/project.clj
+
+
+clean-all-modules:
+	@#Help: Clean all modules or generated artifacts
+	@for a in module-core*; do \
+	  echo "\nCleaning module:" $$a; \
+	  make clean-module MODULE=$$a; \
+	done
+
+
+install-all-modules:
+	@#Help: Clean all modules or generated artifacts
+	@for a in module-core*; do \
+	  echo "\nInstalling module:" $$a; \
+	  make install-module MODULE=$$a; \
+	done
+
+
+## ----- Count lines of code -----
+
+
+cloc:
+	@#Help: Count total lines of code (needs `cloc` installed)
+	@echo "\n===== Lines of code: Modules =====\n"
+	cloc module-core module-core-auth module-core-dev \
+	     module-core-json-charred \
+		 module-core-json-cheshire \
+		 module-core-json-datajson \
+		 module-core-json-jsonista
+	@echo "\n===== Lines of code: Tests/scafolding =====\n"
+	cloc src
