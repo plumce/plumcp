@@ -1,2 +1,3 @@
-{:deps {module/core {:local/root "../module-core"}
+{:paths ["resources" "src"]
+ :deps {module/core {:local/root "../module-core"}
         org.bitbucket.b_c/jose4j {:mvn/version "0.9.6"}}}
