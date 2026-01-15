@@ -1,4 +1,4 @@
-(defproject io.github.plumce/plumcp.core-json-charred "{{version}}"
+(defproject io.github.plumce/plumcp.core-json-cheshire "{{version}}"
   :description "Dev module for PluMCP"
   :url "https://github.com/plumce/plumcp"
   :license {:name "Eclipse Public License 1.0"
