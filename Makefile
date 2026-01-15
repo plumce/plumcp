@@ -25,7 +25,6 @@ clean:
 distclean: clean
 	@# Help: Removed all downloaded and generated files
 	rm -rf node_modules
-	rm -rf module-core-json-template/out
 
 deps-tree:
 	@# Help: Show dependency tree with any conflicts
@@ -35,7 +34,6 @@ deps-tree:
 setup:
 	@# Help: Initialize the project for development work
 	$(PLUMCP_NPM) install
-	cd module-core-json-template && bb generate-json-modules.bb
 
 pedantic-abort:
 	@# Help: Equivalent of Leiningen's `{:pedantic? :abort}`
