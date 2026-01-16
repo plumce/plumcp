@@ -25,7 +25,7 @@ TODO
 
 # License
 
-Copyright © 2025 Shantanu Kumar
+Copyright © 2025-2026 Shantanu Kumar
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 1.0 which is available at
