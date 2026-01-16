@@ -1,5 +1,6 @@
 (ns plumcp.core.test.test-util
-  #?(:cljs (:require ["wait-sync" :as wait-sync])
+  #?(:cljs (:require
+            ["wait-sync" :as wait-sync])
      :clj (:require
            [clojure.edn :as edn]
            [plumcp.core.util :as u]
@@ -41,3 +42,14 @@
 
 
 (def test-config "Test config" (read-edn-file "test-config.edn"))
+
+
+(defmacro pst-rethrow
+  "Evaluate body of code. Catch and print stack trace for any exception
+   thrown and rethrow."
+  [& body]
+  `(try
+     ~@body
+     (catch #?(:cljs :default :clj Exception) e#
+       (u/print-stack-trace e#)
+       (throw e#))))

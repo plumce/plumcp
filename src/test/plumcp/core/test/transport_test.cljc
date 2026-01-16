@@ -1,7 +1,8 @@
 (ns plumcp.core.test.transport-test
   (:require
-   [clojure.test :refer [deftest is testing]]
+   [clojure.test :refer [deftest is testing use-fixtures]]
    [plumcp.core.api.mcp-client :as mc]
+   [plumcp.core.api.mcp-server :as ms]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.deps.runtime :as rt]
@@ -59,6 +60,34 @@
    {:tname "Zero transport" :maker #(make-zero-transport server/server-options)}])
 
 
+(def running-server-atom (atom nil))
+
+
+(defn run-http-server
+  []
+  (tu/pst-rethrow
+   (u/eprintln "Starting HTTP server at port 3000")
+   (as-> server/server-options $
+     (assoc $ :transport :http :port 3000)
+     (ms/run-mcp-server $)
+     (reset! running-server-atom $))))
+
+
+(defn stop-http-server
+  []
+  (tu/pst-rethrow
+   (u/eprintln "Stopping HTTP server at port 3000")
+   (swap! running-server-atom (fn [server] (p/stop! server) nil))))
+
+
+(use-fixtures :once #?(:cljs {:before run-http-server
+                              :after stop-http-server}
+                       :clj (fn [f]
+                              (run-http-server)
+                              (f)
+                              (stop-http-server))))
+
+
 (deftest test-transport
   (doseq [{:keys [tname
                   maker]} transport-makers]
@@ -92,7 +121,7 @@
             (tu/until-done [done! 10]
               (->> (fn [result]
                      (u/dprint "Tools-list result" result)
-                     (tu/sleep-millis 10)  ; allow printing to finish
+                     ;(tu/sleep-millis 10)  ; HANGs this test; commented
                      (is result "Tools list should be obtained")
                      (done!))
                    (mc/list-tools client-context))))
