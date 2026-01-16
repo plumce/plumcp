@@ -256,7 +256,9 @@
   (make-paginated-request sd/method-resources-list opts))
 
 
-(defn ^{:see sd/Role} make-role [x] x)
+(defn ^{:see sd/Role} make-role [x]
+  (-> x
+      (u/expected-enum! #{sd/role-assistant sd/role-user})))
 
 
 (defn ^{:see [sd/Annotations
@@ -628,11 +630,13 @@
 
 (defn ^{:see sd/LoggingLevel} make-logging-level
   [level-string]
-  level-string)
+  (-> level-string
+      (u/expected-enum! sd/log-level-indices)))
 
 
 (defn ^{:see sd/SetLevelRequest} make-set-level-request
-  [level-string & {:keys [_meta] :as opt}]
+  [^{:see [make-logging-level]} level-string
+   & {:keys [_meta] :as opt}]
   (-> (make-request sd/method-logging-setLevel
                     opt)
       (update :params
@@ -653,7 +657,10 @@
 
 
 (defn ^{:see sd/SamplingMessage} make-sampling-message
-  [role content]
+  [^{:see [make-role]} role
+   ^{:see [make-text-content
+           make-audio-content
+           make-image-content]} content]
   {:role role
    :content content})
 
@@ -665,7 +672,7 @@
 
 
 (defn ^{:see sd/ModelPreferences} make-model-preferences
-  [& {:keys [model-hints
+  [& {:keys [model-hints  ; vector of model hint maps
              cost-priority
              speed-priority
              intelligence-priority]}]

@@ -13,7 +13,8 @@
    [clojure.test :refer [deftest is testing]]
    [malli.core :as mc]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.schema.schema-defs :as sd]))
+   [plumcp.core.schema.schema-defs :as sd])
+  #?(:clj (:import [clojure.lang ExceptionInfo])))
 
 
 (def test-capability-declaration
@@ -23,7 +24,21 @@
   {})
 
 
-(deftest test-definition
+;; FIXME: add tests for all other component definitions BEFORE tool 500
+
+
+(deftest test-tool-definition
+  (testing "tool annotations"
+    (is (mc/validate sd/ToolAnnotations
+                     (eg/make-tool-annotations))
+        "Minimal tool annotation")
+    (is (mc/validate sd/ToolAnnotations
+                     (eg/make-tool-annotations {:title "Accounts summary"
+                                                :read-only-hint? false
+                                                :destructive-hint? true
+                                                :idempotent-hint? false
+                                                :open-world-hint? false}))
+        "Maximal tool annotation"))
   (testing "tool"
     (is (mc/validate sd/Tool
                      (eg/make-tool "add"
@@ -31,9 +46,70 @@
                                     {"a" {:type "number" :description "first number"}
                                      "b" {:type "number" :description "second number"}}
                                     ["a" "b"])))
-        "Simple tool definition"))
-  ;; FIXME: add tests for all other component definitions
-  )
+        "Simple tool definition")))
+
+
+(deftest test-logging-definition
+  (testing "logging-level"
+    (is (= "debug"
+           (eg/make-logging-level "debug"))
+        "Correct log level")
+    (is (thrown-with-msg?
+         ExceptionInfo #"Expected value to be either of*"
+         (eg/make-logging-level "debugging"))
+        "Incorrect log level")))
+
+
+(deftest test-sampling-message
+  (testing "make sampling message"
+    (is (mc/validate sd/SamplingMessage
+                     (eg/make-sampling-message sd/role-user
+                                               (eg/make-text-content "foo")))
+        "simple sampling message")
+    (is (mc/validate sd/ModelHint
+                     (eg/make-model-hint "mixtral")))
+    (is (mc/validate sd/ModelPreferences
+                     (eg/make-model-preferences {}))
+        "Minimal model preferences")
+    (is (mc/validate sd/ModelPreferences
+                     (eg/make-model-preferences
+                      {:model-hints [(eg/make-model-hint "mixtral")]
+                       :cost-priority 0.5
+                       :speed-priority 0.7
+                       :intelligence-priority 0.6}))
+        "Maximal model preferences")))
+
+
+(deftest test-autocomplete
+  (is (mc/validate sd/PromptReference
+                   (eg/make-prompt-reference "foo"))
+      "Minimal prompt reference")
+  (is (mc/validate sd/PromptReference
+                   (eg/make-prompt-reference "bar" {:title "Bar prompting"}))
+      "Maximal prompt reference"))
+
+
+(deftest test-root
+  (is (mc/validate sd/Root
+                   (eg/make-root "test://foo"))
+      "Miminal root")
+  (is (mc/validate sd/Root
+                   (eg/make-root "test://bar" :name "Bar root"))))
+
+
+(deftest test-elicitation
+  (is (mc/validate sd/StringSchema
+                   (eg/make-string-schema))
+      "Minimal string-schema")
+  (is (mc/validate sd/StringSchema
+                   (eg/make-string-schema {:title "Some elicitaion"
+                                           :description "Elicitation description"
+                                           :min-length 10
+                                           :max-length 20
+                                           :format "email"}))))
+
+
+;; ----- All requests -----
 
 
 (deftest test-request
@@ -158,6 +234,9 @@
   )
 
 
+;; ----- All results -----
+
+
 (deftest test-result
   (testing "Generic result"
     (is (mc/validate sd/Result
@@ -255,6 +334,9 @@
           "Should be a valid PaginatedResult")))
   ;;
   )
+
+
+;; ----- All notifications -----
 
 
 (deftest test-notification
