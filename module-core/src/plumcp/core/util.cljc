@@ -388,6 +388,12 @@
   (apply err prn args))
 
 
+(defn eprint
+  "Like `print`, but to STDERR."
+  [& args]
+  (apply err print args))
+
+
 (defn eprintln
   "Like `println`, but to STDERR."
   [& args]
