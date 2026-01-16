@@ -99,10 +99,6 @@
                                        (rt/dissoc-runtime request))]))))
 
 
-(defn impl-log-jsonrpc-pending [prefix]
-  (u/eprintln (bling [:orange prefix "JSON-RPC response is PENDING\n"])))
-
-
 (defn impl-log-jsonrpc-success [prefix id response]
   (u/eprintln (bling [(if id :green :bold.error)
                       (pretty-string prefix (str "JSON-RPC success:"
@@ -159,9 +155,6 @@
       [_ request] (as-> stl/role->dir:outgoing-jsonrpc-request $
                     (stl/make-prefix role $)
                     (impl-log-jsonrpc-request $ request)))
-    (log-jsonrpc-pending [_] (as-> stl/role->dir:jsonrpc-pending $
-                               (stl/make-prefix role $)
-                               (impl-log-jsonrpc-pending $)))
     (log-incoming-jsonrpc-success
       [_ id result] (as-> stl/role->dir:incoming-jsonrpc-success $
                       (stl/make-prefix role $)

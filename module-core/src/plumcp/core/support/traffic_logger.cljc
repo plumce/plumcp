@@ -14,7 +14,6 @@
     (log-http-failure [_ _])
     (log-incoming-jsonrpc-request [_ _])
     (log-outgoing-jsonrpc-request [_ _])
-    (log-jsonrpc-pending [_])
     (log-incoming-jsonrpc-success [_ _ _])
     (log-outgoing-jsonrpc-success [_ _ _])
     (log-incoming-jsonrpc-failure [_ _ _])
@@ -63,11 +62,6 @@
                 :else "Unknown")
               (:id jsonrpc-message "#")
               (:method jsonrpc-message))
-      u/eprintln))
-
-
-(defn compact-log-jsonrpc-pending [prefix]
-  (-> (str prefix "  Pending")
       u/eprintln))
 
 
@@ -165,9 +159,6 @@
                        (make-prefix role
                                     role->dir:outgoing-jsonrpc-request)
                        jsonrpc-msg))
-    (log-jsonrpc-pending [_] (compact-log-jsonrpc-pending
-                              (make-prefix role
-                                           role->dir:jsonrpc-pending)))
     (log-incoming-jsonrpc-success
       [_ id jr-result] (compact-log-jsonrpc-success
                         (make-prefix role
