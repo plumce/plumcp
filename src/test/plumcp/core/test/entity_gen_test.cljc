@@ -13,18 +13,145 @@
    [clojure.test :refer [deftest is testing]]
    [malli.core :as mc]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.schema.schema-defs :as sd])
-  #?(:clj (:import [clojure.lang ExceptionInfo])))
+   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.util :as u :refer [#?(:cljs byte-array)]])
+  #?(:clj (:import
+           [clojure.lang ExceptionInfo])))
 
 
 (def test-capability-declaration
-  ;; FIXME: Deduce value from capabilities (see below)
-  #_(-> cap/default-server-capabilities
-        cap/get-server-capability-declaration)
-  {})
+  (-> cap/default-server-capabilities
+      cap/get-server-capability-declaration))
 
 
-;; FIXME: add tests for all other component definitions BEFORE tool 500
+(deftest test-resource
+  (testing "resource"
+    (is (mc/validate sd/Resource
+                     (eg/make-resource "test://foo" "foo-resource"))
+        "Minimal resource")
+    (is (mc/validate sd/Resource
+                     (eg/make-resource "test://foo" "foo-resource"
+                                       {:description "foo docs"
+                                        :title "Foo resource"
+                                        :mime-type "text/html"
+                                        :annotations (eg/make-annotations)
+                                        :size 100 #_bytes}))
+        "Maximal resource")))
+
+
+(deftest test-resource-template
+  (testing "resource template"
+    (is (mc/validate sd/ResourceTemplate
+                     (eg/make-resource-template "test://emp/{id}" "employee"))
+        "Minimal resource template")
+    (is (mc/validate sd/ResourceTemplate
+                     (eg/make-resource-template "test://emp/{id}/pic" "emp-pic"
+                                                {:description "Pic on file"
+                                                 :title "Employee pic"
+                                                 :mime-type "image/png"
+                                                 :annotations (eg/make-annotations)}))
+        "Maximal resource template"))
+  (testing "resource template reference"
+    (is (mc/validate sd/ResourceTemplateReference
+                     (eg/make-resource-template-reference "test://emp/{id}"))
+        "Minimal resource template reference")))
+
+
+(deftest test-prompt
+  (testing "prompt argument"
+    (is (mc/validate sd/PromptArgument
+                     (eg/make-prompt-argument "foo"))
+        "Minimal prompt argument")
+    (is (mc/validate sd/PromptArgument
+                     (eg/make-prompt-argument "foo" {:description "all about foo"
+                                                     :title "Foo mania"
+                                                     :required? true}))
+        "Maximal prompt argument"))
+  (testing "prompt"
+    (is (mc/validate sd/Prompt
+                     (eg/make-prompt "fooprompt"))
+        "Minimal prompt")
+    (is (mc/validate sd/Prompt
+                     (eg/make-prompt "barprompt"
+                                     {:description "Bar-bar"
+                                      :title "Restro Bar"
+                                      :args [(eg/make-prompt-argument "foo")]}))
+        "Maximal prompt")))
+
+
+(deftest test-content
+  (testing "text content"
+    (is (mc/validate sd/TextContent
+                     (eg/make-text-content "foo"))
+        "Minimal text content")
+    (is (mc/validate sd/TextContent
+                     (->> {:audience-roles [(eg/make-role sd/role-assistant)]
+                           :priority 0.5
+                           :last-modified "2025-12-01"}
+                          eg/make-annotations
+                          (array-map :annotations)
+                          (eg/make-text-content "bar")))
+        "Maximal text content"))
+  (testing "image content"
+    (is (mc/validate sd/ImageContent
+                     (-> (byte-array [1 2 3 4])  ; pretend image
+                         (u/bytes->base64-string)
+                         (eg/make-image-content "image/png")))
+        "Minimal image content")
+    (is (mc/validate sd/ImageContent
+                     (-> (byte-array [5 6 7 8])  ; pretend image
+                         (u/bytes->base64-string)
+                         (eg/make-image-content "image/png"
+                                                {:annotations (eg/make-annotations)})))
+        "Maximal image content"))
+  (testing "audio content"
+    (is (mc/validate sd/AudioContent
+                     (-> (byte-array [1 2 3 4])  ; pretend audio
+                         (u/bytes->base64-string)
+                         (eg/make-audio-content "audio/ogg")))
+        "Minimal audio content")
+    (is (mc/validate sd/AudioContent
+                     (-> (byte-array [5 6 7 8])  ; pretend audio
+                         (u/bytes->base64-string)
+                         (eg/make-audio-content "audio/vorbis"
+                                                {:annotations (eg/make-annotations)})))
+        "Maximal audio content"))
+  (testing "embedded resource"
+    (is (mc/validate sd/EmbeddedResource
+                     (-> (eg/make-text-resource-contents "test://foo" "footext")
+                         (eg/make-embedded-resource)))
+        "Minimal embedded text resource")
+    (is (mc/validate sd/EmbeddedResource
+                     (-> (eg/make-text-resource-contents "test://foo" "footext"
+                                                         {:mime-type "text/plain"})
+                         (eg/make-embedded-resource {:annotations (eg/make-annotations)})))
+        "Maximal embedded text resource")
+    (is (mc/validate sd/EmbeddedResource
+                     (-> (eg/make-blob-resource-contents "test://foo"
+                                                         (-> (byte-array [1 2 3 4])
+                                                             (u/bytes->base64-string)))
+                         (eg/make-embedded-resource)))
+        "Minimal embedded blob resource")
+    (is (mc/validate sd/EmbeddedResource
+                     (-> (eg/make-blob-resource-contents "test://foo"
+                                                         (-> (byte-array [5 6 7 8])
+                                                             (u/bytes->base64-string))
+                                                         {:mime-type "text/plain"})
+                         (eg/make-embedded-resource {:annotations (eg/make-annotations)})))
+        "Maximal embedded blob resource"))
+  (testing "resource link"
+    (is (mc/validate sd/ResourceLink
+                     (eg/make-resource-link "test://foo" "foo-resource"))
+        "Minimal resource link")
+    (is (mc/validate sd/ResourceLink
+                     (eg/make-resource-link "test://foo" "foo-resource"
+                                            {:description "foo docs"
+                                             :title "all about foo"
+                                             :mime-type "text/plain"
+                                             :annotations (eg/make-annotations)
+                                             :size 100 #_bytes}))
+        "Maximal resource link")))
 
 
 (deftest test-tool-definition

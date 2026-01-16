@@ -43,6 +43,24 @@
 
 
 #?(:cljs
+   (defn byte-array
+     "Create a byte array."
+     ([size-or-seq]
+      (if (integer? size-or-seq)
+        (js/Uint8Array. size-or-seq)
+        (js/Uint8Array. (clj->js size-or-seq))))
+     ([size init-val-or-seq]
+      (let [arr (js/Uint8Array. size)]
+        (if (integer? init-val-or-seq)
+          (doseq [i (range 0 size)]
+            (aset arr i init-val-or-seq))
+          (doseq [[i x] (->> (seq init-val-or-seq)
+                             (take size)
+                             (map-indexed vector))]
+            (aset arr i x)))))))
+
+
+#?(:cljs
    (defn slurp
      "Read from given file-name (Node.js only) or URL string. Returns a
       js/Promise."

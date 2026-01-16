@@ -451,7 +451,8 @@
 
 
 (defn ^{:see sd/TextContent} make-text-content
-  [text & {:keys [annotations _meta]}]
+  [text & {:keys [^{:see [make-annotations]} annotations
+                  _meta]}]
   (-> {:type "text"
        :text (str text)}
       (u/assoc-some :annotations annotations
@@ -459,7 +460,8 @@
 
 
 (defn ^{:see sd/ImageContent} make-image-content
-  [image mime-type & {:keys [annotations _meta]}]
+  [image mime-type & {:keys [^{:see [make-annotations]} annotations
+                             _meta]}]
   (-> {:type "image"
        :data (u/as-base64-str image "image")
        :mimeType mime-type}
@@ -468,7 +470,8 @@
 
 
 (defn ^{:see sd/AudioContent} make-audio-content
-  [audio mime-type & {:keys [annotations _meta]}]
+  [audio mime-type & {:keys [^{:see [make-annotations]} annotations
+                             _meta]}]
   (-> {:type "audio"
        :data (u/as-base64-str audio "audio")
        :mimeType mime-type}
