@@ -202,6 +202,7 @@
              (repeat u/nop))})
 (defkey ?session-store {:default (sm/make-in-memory-server-session-store)})
 (defkey ?mcp-logger {:default nil})
+(defkey ?server-instructions {:default nil})
 
 
 ;; Keys without default values

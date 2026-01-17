@@ -144,12 +144,19 @@
     :requested client-protocol-version}))
 
 
-(defn get-initialize-result [jsonrpc-request supported-protocol-version]
-  {:protocolVersion supported-protocol-version
-   :capabilities (-> (rt/?server-capabilities jsonrpc-request)
-                     (cap/get-server-capability-declaration))
-   :serverInfo (rt/?server-impl jsonrpc-request)
-   :instructions "Optional instructions for the client"})
+(defn ^{:see [sd/InitializeResult
+              eg/make-initialize-result]} get-initialize-result
+  [jsonrpc-request supported-protocol-version]
+  (let [protocol-version supported-protocol-version
+        server-capabilities (-> (rt/?server-capabilities jsonrpc-request)
+                                (cap/get-server-capability-declaration))
+        server-implementation (rt/?server-impl jsonrpc-request)
+        server-instructions (rt/?server-instructions jsonrpc-request)]
+    (->> (-> {}
+             (u/assoc-some :instructions server-instructions))
+         (eg/make-initialize-result protocol-version
+                                    server-capabilities
+                                    server-implementation))))
 
 
 (defn find-supported-protocol-version
@@ -162,10 +169,8 @@
 
 
 (defn ^{:see [sd/InitializeRequest
-              sd/InitializeResult
-              eg/make-initialize-request
-              eg/make-initialize-result]} initialize [{params :params
-                                                       :as jsonrpc-request}]
+              eg/make-initialize-request]} initialize [{params :params
+                                                        :as jsonrpc-request}]
   (let [{client-protocol-version :protocolVersion
          client-capabilities :capabilities
          client-info :clientInfo} params
