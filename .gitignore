@@ -2,7 +2,7 @@
 /.clj-kondo/.cache
 /.clj-kondo/imports
 /.cljs_node_repl
-/.cpcache
+**/.cpcache
 /.lsp
 /.nrepl-port
 /.shadow-cljs

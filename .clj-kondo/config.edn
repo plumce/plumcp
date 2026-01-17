@@ -1,0 +1,8 @@
+{:lint-as {plumcp.core.util.async-bridge/may-await clojure.core/let
+           plumcp.core.util.async-bridge/let-await clojure.core/let
+           plumcp.core.test.test-util/until-done clojure.core/let
+           plumcp.core.deps.runtime/defkey clojure.core/def
+           plumcp.core.util.async-bridge/as-async clojure.core/fn
+           plumcp.core.support.http-client/with-http-client clojure.core/let
+           plumcp.core.util.async-bridge/do-iterator clojure.core/let
+           plumcp.core.util.http-auth/with-code-verifier-challenge clojure.core/let}}
