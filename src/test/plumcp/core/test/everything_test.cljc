@@ -14,7 +14,7 @@
    [plumcp.core.api.mcp-client :as mc]
    [plumcp.core.apps.everything :as ev]
    [plumcp.core.client.zero-client-transport :as zct]
-   [plumcp.core.dev.api :as dev]
+   [plumcp.core.main.client :as client]
    [plumcp.core.main.server :as server]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.server.zero-server :as zs]
@@ -68,7 +68,7 @@
 
 (defn make-initialized-context []
   (-> {:client-transport (make-zero-transport server/server-options)}
-      (merge dev/client-options)
+      (merge client/client-options)
       mc/make-client
       (doto mc/initialize-and-notify!)))
 

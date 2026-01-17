@@ -169,6 +169,7 @@
                                           vec
                                           make-stdio-transport))
             client-context (-> {:client-transport client-transport}
+                               (merge client/client-options)
                                (mc/make-client))]
         (command-ping client-context)  ; wait until transport initializes
         (run-cli client-context client-transport))

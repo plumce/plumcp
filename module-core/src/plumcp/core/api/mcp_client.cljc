@@ -16,7 +16,6 @@
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.protocols :as p]
-   [plumcp.core.constant :as const]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.banner-print :as bp]
@@ -64,12 +63,13 @@
   "Make MCP client (context map) using given (or deduced) options.
    | Option keyword     | Default | Description                        |
    |--------------------|---------|------------------------------------|
+   |:impl               |         |see p.c.api.entity-support/make-impl|
    |:capabilities       |         |Supplied or made from :primitives   |
    |:primitives         |         |Supplied or made from :vars         |
    |:vars               |         |Supplied/discovered from hinted vars|
    |:ns (read literally)|Caller ns|Supplied/discovered from hinted vars|
    |:traffic-logger     |         |No-op by default                    |
-   |:runtime            |         |Made from :capabilities             |
+   |:runtime            |         |Made from :impl,:capabilities,:tra..|
    |:mcp-methods-wrapper|         |No-op by default                    |
    |:jsonrpc-handler    |         |Impl+made with :schema-check-wrapper|
    |:client-transport   |Required |Protocol p/IClientTransport instance|
@@ -79,7 +79,7 @@
    Dependency map (left/key depends upon the right/vals):
    {:ring-handler    [:runtime :jsonrpc-handler]
     :stdio-handler   [:runtime :jsonrpc-handler]
-    :runtime         [:capabilities :traffic-logger]
+    :runtime         [:impl :capabilities :traffic-logger]
     :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}"
   ([options]
    `(let [default-vars# (or (:vars ~options)
@@ -91,12 +91,6 @@
                               ~options))))
   ([]
    `(make-client {})))
-
-
-(def client-implementation
-  (eg/make-implementation "PluMCP Client"
-                          const/version
-                          {:title (str "PluMCP Client " const/version)}))
 
 
 ;; --- initilization / de-initialization / handshake ---
@@ -112,7 +106,7 @@
                  sd/protocol-version-max
                  (-> (:capabilities client)
                      cap/get-client-capability-declaration)
-                 client-implementation)
+                 (rt/?client-impl client))
         setter (partial cs/set-session-context! client)]
     (cs/send-request-to-server client
                                request

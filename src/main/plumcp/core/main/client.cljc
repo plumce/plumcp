@@ -9,7 +9,7 @@
 
 (ns plumcp.core.main.client
   (:require
-   [plumcp.core.client.client-support :as cs]
+   [plumcp.core.api.entity-support :as es]
    [plumcp.core.client.http-client-transport :as hct]
    [plumcp.core.client.http-client-transport-auth :as hcta]
    [plumcp.core.dev.api :as dev]
@@ -43,6 +43,6 @@
          (hct/make-streamable-http-transport http-client))))
 
 
-(def client-options (-> {}
-                        (merge dev/client-options)
-                        (cs/make-client-options)))
+(def client-options (-> {:impl (es/make-impl "Test client" "0.1.0"
+                                             "Test client v0.1.0")}
+                        (merge dev/client-options)))

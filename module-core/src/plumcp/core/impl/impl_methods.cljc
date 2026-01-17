@@ -144,12 +144,11 @@
     :requested client-protocol-version}))
 
 
-(defn get-initialize-result [server-capabilities supported-protocol-version]
+(defn get-initialize-result [jsonrpc-request supported-protocol-version]
   {:protocolVersion supported-protocol-version
-   :capabilities (-> server-capabilities
+   :capabilities (-> (rt/?server-capabilities jsonrpc-request)
                      (cap/get-server-capability-declaration))
-   :serverInfo {:name "PluMCPServer",
-                :version "1.0.0"},
+   :serverInfo (rt/?server-impl jsonrpc-request)
    :instructions "Optional instructions for the client"})
 
 
@@ -176,7 +175,7 @@
         ]
     (if-some [protocol-version (-> client-protocol-version
                                    (find-supported-protocol-version))]
-      (-> (rt/?server-capabilities jsonrpc-request)
+      (-> jsonrpc-request
           (get-initialize-result protocol-version)
           jr/jsonrpc-success)
       (handshake-error client-protocol-version))))

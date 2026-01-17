@@ -68,12 +68,13 @@
   "Run MCP server using given (or deduced) options.
    | Option keyword           | Default | Description                          |
    |--------------------------|---------|--------------------------------------|
+   |:impl                     |         |see p.c.api.entity-support/make-impl  |
    |:capabilities             |         |Supplied or made from :primitives     |
    |:primitives               |         |Supplied or made from :vars           |
    |:vars                     |         |Supplied/discovered/made from :ns     |
    |:ns (read literally)      |Caller ns|(Vector of) Namespaces to find vars in|
    |:traffic-logger           |         |No-op by default                      |
-   |:runtime                  |         |made from :capabilities/traffic-logger|
+   |:runtime                  |         |made from :impl,:capabilities,:traff..|
    |:mcp-methods-wrapper      |identity |Middleware `(fn [handlers])->handlers`|
    |:jsonrpc-handler          |         |Impl+made with :schema-check-wrapper  |
    |:transport                | :stdio  |Either of :stdio, :http               |
@@ -84,7 +85,7 @@
    Dependency map (left/key depends upon the right/vals):
    {:ring-handler    [:runtime :jsonrpc-handler]
     :stdio-handler   [:runtime :jsonrpc-handler]
-    :runtime         [:capabilities :traffic-logger]
+    :runtime         [:impl :capabilities :traffic-logger]
     :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}"
   ([options]
    `(let [default-vars# (or (:vars ~options)

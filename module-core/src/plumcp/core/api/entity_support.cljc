@@ -13,6 +13,17 @@
    [plumcp.core.api.entity-gen :as eg]))
 
 
+;; --- Initialization ---
+
+
+(defn make-impl
+  "Make (server or client) implementation info."
+  ([name version]
+   (eg/make-implementation name version))
+  ([name version title]
+   (eg/make-implementation name version {:title title})))
+
+
 ;; --- Prompts ---
 
 

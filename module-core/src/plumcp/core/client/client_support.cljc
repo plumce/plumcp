@@ -9,13 +9,14 @@
 
 (ns plumcp.core.client.client-support
   (:require
-   [plumcp.core.impl.capability :as cap]
-   [plumcp.core.impl.impl-support :as is]
-   [plumcp.core.protocols :as p]
-   [plumcp.core.schema.json-rpc :as jr]
-   [plumcp.core.impl.var-support :as vs]
+   [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-support :as is]
+   [plumcp.core.impl.var-support :as vs]
+   [plumcp.core.protocols :as p]
+   [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u]
    [plumcp.core.util.async-bridge :as uab]))
@@ -251,15 +252,16 @@
 
 (defn make-client-options
   "Make client options from given input map, returning an output map:
-   | Keyword-option          | Default | Description                  |
-   |-------------------------|---------|------------------------------|
-   |:capabilities            | Default | Given/made from :primitives  |
-   |:primitives              | --      | Given/made from :vars        |
-   |:vars                    | --      | To make primitives           |
-   |:traffic-logger          | No-op   | MCP transport traffic logger |
-   |:runtime                 | --      | Made from :capabilities      |
-   |:mcp-methods-wrapper     | No-op   | Wraper for MCP-methods impl  |
-   |:jsonrpc-handler         | --      | Made from impl and options   |
+   | Keyword-option          | Default | Description                        |
+   |-------------------------|---------|------------------------------------|
+   |:impl                    |         | see p.c.a.entity-support/make-impl |
+   |:capabilities            | Default | Given/made from :primitives        |
+   |:primitives              | --      | Given/made from :vars              |
+   |:vars                    | --      | To make primitives                 |
+   |:traffic-logger          | No-op   | MCP transport traffic logger       |
+   |:runtime                 | --      | Made from :impl,:capabilities,:tr..|
+   |:mcp-methods-wrapper     | No-op   | Wraper for MCP-methods impl        |
+   |:jsonrpc-handler         | --      | Made from impl and options         |
 
    Option kwargs when JSON-RPC handler is constructed:
    | Keyword option              | Default | Description                      |
@@ -270,7 +272,9 @@
    The returned output map contains the following keys:
    :runtime          Server runtime map
    :jsonrpc-handler  JSON-RPC handler fn"
-  [{:keys [capabilities
+  [{:keys [^{:see [es/make-impl]}
+           impl
+           capabilities
            primitives
            vars
            traffic-logger
@@ -293,6 +297,7 @@
         get-runtime (fn []
                       (or runtime
                           (-> {}
+                              (cond-> impl (rt/?client-impl impl))
                               (rt/?client-capabilities (get-capabilities))
                               (rt/?traffic-logger traffic-logger)
                               (rt/get-runtime))))

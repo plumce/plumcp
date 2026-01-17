@@ -14,7 +14,6 @@
    [plumcp.core.api.mcp-server :as ms]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
-   [plumcp.core.deps.runtime :as rt]
    [plumcp.core.dev.bling-logger :as blogger]
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.main.client :as client]
@@ -26,12 +25,6 @@
 
 
 (def client-capabilities cap/default-client-capabilities)
-
-
-(def client-runtime (-> {}
-                        (rt/?client-capabilities client-capabilities)
-                        (rt/?traffic-logger blogger/client-logger)
-                        (rt/get-runtime)))
 
 
 (def command-tokens ["make" #?(:cljs "run-server-stdio-node"
@@ -104,8 +97,10 @@
       (u/eprintln "Testing transport:" tname)
       (try
         (let [client-transport (maker)
-              client-context   (-> {:runtime client-runtime
+              client-context   (-> {:capabilities client-capabilities
+                                    :traffic-logger blogger/client-logger
                                     :client-transport client-transport}
+                                   (merge client/client-options)
                                    (mc/make-client))]
           ;;
           ;; Handshake

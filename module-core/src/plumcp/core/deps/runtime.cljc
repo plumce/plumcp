@@ -147,6 +147,8 @@
 
 (def session-key :plumcp.core/?session)
 (def response-stream-key :plumcp.core/?response-stream)
+(def server-impl-key ::?server-impl)
+(def client-impl-key ::?client-impl)
 
 
 ;; --- Middleware ---
@@ -211,8 +213,10 @@
 (defkey ?request-id {})
 (defkey ?request-params-meta {})
 (defkey ?response-stream {:key response-stream-key})
+(defkey ?server-impl {:key server-impl-key})
 
 (defkey ?client-context {})
+(defkey ?client-impl {:key client-impl-key})
 
 
 ;; --- Meta utility functions ---

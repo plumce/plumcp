@@ -9,6 +9,7 @@
 
 (ns plumcp.core.server.server-support
   (:require
+   [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.impl-support :as is]
@@ -82,15 +83,16 @@
 
 (defn make-server-options
   "Make server options from given input map, returning an output map:
-   | Keyword-option          | Default  | Description                  |
-   |-------------------------|----------|------------------------------|
-   |:capabilities            | Required | Given/made from :primitives  |
-   |:primitives              | --       | Given/made from :vars        |
-   |:vars                    | --       | To make primitives           |
-   |:traffic-logger          | No-op    | MCP transport traffic logger |
-   |:runtime                 | --       | Made from :capabilities      |
-   |:mcp-methods-wrapper     | No-op    | Wraper for MCP-methods impl  |
-   |:jsonrpc-handler         | --       | Made from impl and options   |
+   | Keyword-option          | Default  | Description                        |
+   |-------------------------|----------|------------------------------------|
+   |:impl                    |          | see p.c.a.entity-support/make-impl |
+   |:capabilities            | Required | Given/made from :primitives        |
+   |:primitives              | --       | Given/made from :vars              |
+   |:vars                    | --       | To make primitives                 |
+   |:traffic-logger          | No-op    | MCP transport traffic logger       |
+   |:runtime                 | --       | Made from :impl,:capabilities,:tr..|
+   |:mcp-methods-wrapper     | No-op    | Wraper for MCP-methods impl        |
+   |:jsonrpc-handler         | --       | Made from impl and options         |
 
    Option kwargs when JSON-RPC handler is constructed:
    | Keyword option                | Default | Description                       |
@@ -102,7 +104,9 @@
    The returned output map contains the following keys:
    :runtime          Server runtime map
    :jsonrpc-handler  JSON-RPC handler fn"
-  [{:keys [capabilities
+  [{:keys [^{:see [es/make-impl]}
+           impl
+           capabilities
            primitives
            vars
            traffic-logger
@@ -132,6 +136,7 @@
         get-runtime (fn []
                       (or runtime
                           (-> {}
+                              (cond-> impl (rt/?server-impl impl))
                               (rt/?server-capabilities (get-capabilities))
                               (rt/?traffic-logger traffic-logger)
                               (rt/get-runtime))))
