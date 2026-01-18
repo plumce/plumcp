@@ -12,7 +12,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.string :as str]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u])
   (:import

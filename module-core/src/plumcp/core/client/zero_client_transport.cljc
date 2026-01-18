@@ -11,7 +11,7 @@
   "Zero-transport client implementation."
   (:require
    [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.util :as u]))
 
 

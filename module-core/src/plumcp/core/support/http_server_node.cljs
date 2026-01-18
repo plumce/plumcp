@@ -12,7 +12,7 @@
   (:require
    ["http" :as http]
    [clojure.string :as str]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.util :as u :refer [format]]
    [plumcp.core.util.async-bridge :as uab]))
 

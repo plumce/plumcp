@@ -12,7 +12,7 @@
   (:require
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u]))
 

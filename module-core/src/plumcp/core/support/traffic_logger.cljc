@@ -11,7 +11,7 @@
   "Traffic logger implementation and support."
   (:require
    [clojure.string :as str]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 

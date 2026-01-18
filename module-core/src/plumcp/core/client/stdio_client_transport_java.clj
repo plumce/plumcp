@@ -12,7 +12,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure.java.process :as proc]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.util :as u]
    [plumcp.core.util-java :as uj])
   (:import

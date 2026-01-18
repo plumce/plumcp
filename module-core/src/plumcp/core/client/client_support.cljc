@@ -15,7 +15,7 @@
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.impl.var-support :as vs]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u]

@@ -11,7 +11,7 @@
   "Ring-style HTTP Client for MCP HTTP Transport using JavaScript fetch"
   (:require
    [clojure.string :as str]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u]
    [plumcp.core.util-cljs :as us]))

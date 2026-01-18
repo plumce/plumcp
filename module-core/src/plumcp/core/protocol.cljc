@@ -7,7 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 
-(ns plumcp.core.protocols
+(ns plumcp.core.protocol
   "All protocols in one place")
 
 

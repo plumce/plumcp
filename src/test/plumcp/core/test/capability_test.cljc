@@ -13,7 +13,7 @@
    [clojure.test :refer [deftest is testing]]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.impl.capability :as cap]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]))
 
 

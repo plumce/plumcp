@@ -13,7 +13,7 @@
    [bling.core :refer [bling]]
    [clojure.pprint :as pp]
    [clojure.string :as string]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]

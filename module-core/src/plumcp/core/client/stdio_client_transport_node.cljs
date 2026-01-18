@@ -12,7 +12,7 @@
   (:require
    ["child_process" :as cp]
    ["readline" :as readline]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.util :as u]
    [plumcp.core.util-cljs :as us]))
 

@@ -11,7 +11,7 @@
   "Ring compatible HTTP server using OpenJDK internal HTTP server."
   (:require
    [clojure.string :as str]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.util :as u]
    [plumcp.core.util-java :as uj])
   (:import

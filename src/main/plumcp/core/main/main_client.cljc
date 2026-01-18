@@ -15,7 +15,7 @@
    [plumcp.core.api.mcp-client :as mc]
    [plumcp.core.main.client :as client]
    [plumcp.core.client.stdio-client-transport :as sct]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.test.test-util :as tu]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 

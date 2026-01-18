@@ -12,7 +12,7 @@
   (:require
    [clojure.set :as set]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))

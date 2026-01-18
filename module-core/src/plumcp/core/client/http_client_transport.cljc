@@ -13,7 +13,7 @@
    [clojure.string :as str]
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.http-client-transport-auth :as hcta]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u]
    [plumcp.core.util.async-bridge :as uab]))

@@ -11,7 +11,7 @@
   "Server-sent Events (SSE) streamable support for Ring server transport"
   (:require
    [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.server.http-ring-stream-util :as hrsu]
    [plumcp.core.util :as u]
    [plumcp.core.util.async-bridge :as uab]

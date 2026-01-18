@@ -10,7 +10,7 @@
 (ns plumcp.core.support.support-util
   "Support utilities for this library. Unlike the generic `util` ns,
    this ns implements protocol-aware, dependency-aware utilities."
-  (:require [plumcp.core.protocols :as p])
+  (:require [plumcp.core.protocol :as p])
   #?(:cljs (:require-macros [plumcp.core.support.support-util])))
 
 

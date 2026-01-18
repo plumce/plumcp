@@ -10,7 +10,7 @@
 (ns plumcp.core.deps.session-mem
   "In-memory session implementation."
   (:require
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u]
    [plumcp.core.util.stream :as us]))

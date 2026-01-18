@@ -12,7 +12,7 @@
   (:require
    #?(:cljs [plumcp.core.support.http-client-cljs :as hcp]
       :clj [plumcp.core.support.http-client-java :as hcp])
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.support.support-util :as su]
    [plumcp.core.util :as u])

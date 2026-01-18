@@ -16,7 +16,7 @@
    #?(:cljs [plumcp.core.util-cljs :as us]
       :clj [plumcp.core.util-java :as uj])
    [clojure.string :as str]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.support.http-server :as hs]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]

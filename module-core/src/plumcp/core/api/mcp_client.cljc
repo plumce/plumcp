@@ -15,7 +15,7 @@
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.capability :as cap]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.banner-print :as bp]

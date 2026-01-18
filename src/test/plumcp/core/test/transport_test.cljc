@@ -18,7 +18,7 @@
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.main.client :as client]
    [plumcp.core.main.server :as server]
-   [plumcp.core.protocols :as p]
+   [plumcp.core.protocol :as p]
    [plumcp.core.server.zero-server :as zs]
    [plumcp.core.test.test-util :as tu]
    [plumcp.core.util :as u]))
