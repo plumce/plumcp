@@ -254,7 +254,7 @@
   "Make client options from given input map, returning an output map:
    | Keyword-option          | Default | Description                        |
    |-------------------------|---------|------------------------------------|
-   |:impl                    |         | see p.c.a.entity-support/make-impl |
+   |:info                    |         | see p.c.a.entity-support/make-info |
    |:capabilities            | Default | Given/made from :primitives        |
    |:primitives              | --      | Given/made from :vars              |
    |:vars                    | --      | To make primitives                 |
@@ -272,8 +272,8 @@
    The returned output map contains the following keys:
    :runtime          Server runtime map
    :jsonrpc-handler  JSON-RPC handler fn"
-  [{:keys [^{:see [es/make-impl]}
-           impl
+  [{:keys [^{:see [es/make-info]}
+           info
            capabilities
            primitives
            vars
@@ -297,7 +297,7 @@
         get-runtime (fn []
                       (or runtime
                           (-> {}
-                              (cond-> impl (rt/?client-impl impl))
+                              (cond-> info (rt/?client-impl info))
                               (rt/?client-capabilities (get-capabilities))
                               (rt/?traffic-logger traffic-logger)
                               (rt/get-runtime))))
@@ -305,7 +305,8 @@
                               (or jsonrpc-handler
                                   (make-client-jsonrpc-message-handler
                                    (assoc client-options
-                                          :request-methods-wrapper mcp-methods-wrapper))))]
+                                          :request-methods-wrapper
+                                          mcp-methods-wrapper))))]
     (-> client-options
         (merge {:runtime (get-runtime)
                 :jsonrpc-handler (get-jsonrpc-handler)}))))

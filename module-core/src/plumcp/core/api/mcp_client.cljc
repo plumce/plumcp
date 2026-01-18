@@ -49,6 +49,8 @@
                              (cs/wrap-transport client-transport)
                              (rt/upsert-runtime runtime))
           client-context (dissoc loaded-context :client-context-atom)]
+      ;; validate client context to fail-fast
+      (rt/?client-impl client-context)
       ;; patch the client-context-atom
       (reset! (:client-context-atom loaded-context) client-context)
       ;; start the transport
@@ -63,13 +65,13 @@
   "Make MCP client (context map) using given (or deduced) options.
    | Option keyword     | Default | Description                        |
    |--------------------|---------|------------------------------------|
-   |:impl               |         |see p.c.api.entity-support/make-impl|
+   |:info               |Required |see p.c.api.entity-support/make-info|
    |:capabilities       |         |Supplied or made from :primitives   |
    |:primitives         |         |Supplied or made from :vars         |
    |:vars               |         |Supplied/discovered from hinted vars|
    |:ns (read literally)|Caller ns|Supplied/discovered from hinted vars|
    |:traffic-logger     |         |No-op by default                    |
-   |:runtime            |         |Made from :impl,:capabilities,:tra..|
+   |:runtime            |         |Made from :info,:capabilities,:tra..|
    |:mcp-methods-wrapper|         |No-op by default                    |
    |:jsonrpc-handler    |         |Impl+made with :schema-check-wrapper|
    |:client-transport   |Required |Protocol p/IClientTransport instance|
@@ -79,7 +81,7 @@
    Dependency map (left/key depends upon the right/vals):
    {:ring-handler    [:runtime :jsonrpc-handler]
     :stdio-handler   [:runtime :jsonrpc-handler]
-    :runtime         [:impl :capabilities :traffic-logger]
+    :runtime         [:info :capabilities :traffic-logger]
     :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}"
   ([options]
    `(let [default-vars# (or (:vars ~options)

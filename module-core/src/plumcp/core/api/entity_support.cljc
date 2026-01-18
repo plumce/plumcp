@@ -16,7 +16,7 @@
 ;; --- Initialization ---
 
 
-(defn make-impl
+(defn make-info
   "Make (server or client) implementation info."
   ([name version]
    (eg/make-implementation name version))

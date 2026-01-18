@@ -213,13 +213,6 @@
    `(defkey ~fn-name ~(assoc options :doc doc))))
 
 
-;; --- Lookup keys ---
-
-
-(def server-impl-key ::?server-impl)
-(def client-impl-key ::?client-impl)
-
-
 ;; --- Key definitions ---
 
 
@@ -260,10 +253,10 @@
 (defkey ?request-id {})
 (defkey ?request-params-meta {})
 (defkey ?response-stream {})
-(defkey ?server-impl {:key server-impl-key})
+(defkey ?server-impl {})
 
 (defkey ?client-context {})
-(defkey ?client-impl {:key client-impl-key})
+(defkey ?client-impl {})
 
 
 ;; --- Meta utility functions ---

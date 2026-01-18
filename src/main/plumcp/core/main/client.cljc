@@ -43,6 +43,6 @@
          (hct/make-streamable-http-transport http-client))))
 
 
-(def client-options (-> {:impl (es/make-impl "Test client" "0.1.0"
+(def client-options (-> {:info (es/make-info "Test client" "0.1.0"
                                              "Test client v0.1.0")}
                         (merge dev/client-options)))

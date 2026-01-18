@@ -85,7 +85,8 @@
   "Make server options from given input map, returning an output map:
    | Keyword-option          | Default  | Description                        |
    |-------------------------|----------|------------------------------------|
-   |:impl                    |          | see p.c.a.entity-support/make-impl |
+   |:info                    |          | see p.c.a.entity-support/make-info |
+   |:instructions            |          | Server instructions for MCP client |
    |:capabilities            | Required | Given/made from :primitives        |
    |:primitives              | --       | Given/made from :vars              |
    |:vars                    | --       | To make primitives                 |
@@ -104,8 +105,9 @@
    The returned output map contains the following keys:
    :runtime          Server runtime map
    :jsonrpc-handler  JSON-RPC handler fn"
-  [{:keys [^{:see [es/make-impl]}
-           impl
+  [{:keys [^{:see [es/make-info]}
+           info
+           instructions
            capabilities
            primitives
            vars
@@ -136,7 +138,9 @@
         get-runtime (fn []
                       (or runtime
                           (-> {}
-                              (cond-> impl (rt/?server-impl impl))
+                              (cond-> info (rt/?server-impl info)
+                                      instructions (rt/?server-instructions
+                                                    instructions))
                               (rt/?server-capabilities (get-capabilities))
                               (rt/?traffic-logger traffic-logger)
                               (rt/get-runtime))))

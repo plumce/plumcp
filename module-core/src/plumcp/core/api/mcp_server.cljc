@@ -11,6 +11,7 @@
   "MCP Server implementation.
    Ref: https://github.com/cyanheads/model-context-protocol-resources/blob/main/guides/mcp-server-development-guide.md"
   (:require
+   [plumcp.core.deps.runtime :as rt]
    [plumcp.core.server.http-ring :as http-ring]
    [plumcp.core.server.server-support :as ss]
    [plumcp.core.server.stdio-server :as stdio-server]
@@ -36,6 +37,8 @@
          :as options} (ss/make-server-options server-options)]
     (u/expected! runtime map? ":runtime to be a map")
     (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
+    ;; validate server runtime to fail-fast
+    (rt/?get runtime rt/?server-impl)
     (let [options (merge {:role :server
                           :transport-info (if transport
                                             {:id transport}
@@ -68,7 +71,8 @@
   "Run MCP server using given (or deduced) options.
    | Option keyword           | Default | Description                          |
    |--------------------------|---------|--------------------------------------|
-   |:impl                     |         |see p.c.api.entity-support/make-impl  |
+   |:info                     |Required |see p.c.api.entity-support/make-info  |
+   |:instructions             |         |Server instructions for the MCP client|
    |:capabilities             |         |Supplied or made from :primitives     |
    |:primitives               |         |Supplied or made from :vars           |
    |:vars                     |         |Supplied/discovered/made from :ns     |
@@ -85,7 +89,7 @@
    Dependency map (left/key depends upon the right/vals):
    {:ring-handler    [:runtime :jsonrpc-handler]
     :stdio-handler   [:runtime :jsonrpc-handler]
-    :runtime         [:impl :capabilities :traffic-logger]
+    :runtime         [:info :instructions :capabilities :traffic-logger]
     :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}"
   ([options]
    `(let [default-vars# (or (:vars ~options)

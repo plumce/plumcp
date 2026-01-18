@@ -55,13 +55,13 @@
 
 
 (def server-options (-> {:primitives everything-primitives
-                         :impl (es/make-impl "Everything Server" "0.1.0"
+                         :info (es/make-info "Everything Server" "0.1.0"
                                              "Everything Server v0.1.0")}
                         #_{:primitives greet-primitives
-                           :impl (es/make-impl "Greet Server" "0.1.0"
+                           :info (es/make-info "Greet Server" "0.1.0"
                                                "Greet Server v0.1.0")}
                         #_{:primitives weather-primitives
-                           :impl (es/make-impl "Weather Server" "0.1.0"
+                           :info (es/make-info "Weather Server" "0.1.0"
                                                "Weather Server v0.1.0")}
                         (merge dev/server-options)
                         ss/make-server-options))
