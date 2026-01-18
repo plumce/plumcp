@@ -14,7 +14,7 @@
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.capability :as cap]
-   [plumcp.core.impl.impl-methods :as im]
+   [plumcp.core.impl.impl-method :as im]
    [plumcp.core.schema.schema-defs :as sd])
   #?(:clj (:import
            [clojure.lang ExceptionInfo])))

@@ -7,7 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 
-(ns plumcp.core.impl.impl-methods
+(ns plumcp.core.impl.impl-method
   "Implementation of the client and server MCP methods."
   (:require
    [plumcp.core.api.entity-gen :as eg]
