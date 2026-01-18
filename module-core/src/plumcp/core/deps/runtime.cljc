@@ -15,7 +15,8 @@
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u])
-  #?(:cljs (:require-macros [plumcp.core.deps.runtime :refer [defkey]])))
+  #?(:cljs (:require-macros [plumcp.core.deps.runtime :refer [defkey]])
+     :clj (:import [clojure.lang IFn])))
 
 
 ;; --- Dependency-bag utility ---
@@ -106,7 +107,76 @@
      not-found)))
 
 
-;; --- Macro to define keys ---
+;; --- Key definition/helpers ---
+
+
+(defn ?has
+  "Like `clojure.core/contains?` return true if the defined key exists
+   in the given runtime map, flase otherwise."
+  [runtime-map key-definition]
+  (let [k (:key key-definition)]
+    (contains? runtime-map k)))
+
+
+(defn ?has-in
+  "Return true if the defined key exists at the runtime path in given
+   context map, false otherwise."
+  [context-map key-definition]
+  (let [k (:key key-definition)]
+    (has-dep? context-map k)))
+
+
+(defn ?get
+  "Like `clojure.core/get` perform a direct lookup on the given runtime
+   map using the key definition. Throw if key not found."
+  [runtime-map key-definition]
+  (let [k (:key key-definition)]
+    (if (contains? runtime-map k)
+      (get runtime-map k)
+      (if (:has-default? key-definition)
+        (:default-value key-definition)
+        (u/expected! runtime-map (str "runtime-map to have key " k))))))
+
+
+(defn ?get-in
+  "Like `clojure.core/get-in` perform a path lookup on the given context
+   map using the key definition. Throw if key not found."
+  [context-map key-definition]
+  (let [k (:key key-definition)]
+    (if (:has-default? key-definition)
+      (get-dep context-map k (:default-value key-definition))
+      (get-dep context-map k))))
+
+
+(defn ?assoc
+  "Like `clojure.core/assoc` add/update the runtime map directly with
+   key/val pair."
+  [runtime-map key-definition value]
+  (let [k (:key key-definition)]
+    (assoc runtime-map k value)))
+
+
+(defn ?assoc-in
+  "Like `clojure.core/assoc-in` add/update the context map at the path
+   with key/val pair."
+  [context-map key-definition value]
+  (let [k (:key key-definition)]
+    (assoc-dep context-map k value)))
+
+
+(defrecord KeyDefinition [key has-default? default-value]
+  IFn
+  (#?(:cljs -invoke
+      :clj invoke) [this context-map] (?get-in context-map this))
+  (#?(:cljs -invoke
+      :clj invoke) [this context-map v] (?assoc-in context-map this v)))
+
+
+(defn make-key-definition
+  ([k]
+   (->KeyDefinition k false nil))
+  ([k lookup-default]
+   (->KeyDefinition k true lookup-default)))
 
 
 (defmacro defkey
@@ -122,22 +192,23 @@
    (assert (nil? (namespace fn-name)) "Fn name symbol should have no namespace")
    (assert (map? options) "Options must be a map")
    (let [has-default? (contains? options :default)
-         context-map-sym (gensym "context-map")
          default-sym (gensym "default")
          default (:default options)
-         default-key (keyword "plumcp.core" (str fn-name))
+         default-key (keyword (str (ns-name *ns*)) (str fn-name))
          {:keys [doc key]
           :or {doc (str "Dependency/runtime key lookup for " default-key)
                key default-key}} options]
      `(let [~default-sym ~default]
-        (defn ~fn-name
+        (def ~(->> (fn [m]
+                     (merge m {:arglists (list 'quote
+                                               '([context-map]
+                                                 [context-map value]))
+                               :doc doc}))
+                   (vary-meta fn-name))
           ~doc
-          ([~context-map-sym]
-           ~(if has-default?
-              `(get-dep ~context-map-sym ~key ~default-sym)
-              `(get-dep ~context-map-sym ~key)))
-          ([~context-map-sym new-val#]
-           (assoc-dep ~context-map-sym ~key new-val#))))))
+          ~(if has-default?
+             `(make-key-definition ~key ~default-sym)
+             `(make-key-definition ~key))))))
   ([fn-name doc options]
    `(defkey ~fn-name ~(assoc options :doc doc))))
 
