@@ -591,51 +591,55 @@
    :http-client             IHttpClient (protocol) instance
    :on-error                (fn [error])
    :redirect-uris           vector of redirect URIs
-   :client-name             Client name string
+   :info                    Client-Info, used for client-name
+   :client-name             Client name string (optional if :info present)
    :mcp-server              Base URL string for the MCP server
    :callback-redirect-uri   Redirectto this URI after Auth success
    :callback-start-server   (fn [handler])->Stoppable
    :open-browser-auth-url   (fn [url])->void
    "
-  [{:keys [http-client
-           on-error
-           redirect-uris
-           client-name
-           mcp-server
-           callback-redirect-uri
-           callback-start-server
-           open-browser-auth-url
-           token-cache]
-    :or {callback-start-server #?(:clj #(hs/run-http-server % {:port 6277})
-                                  :cljs #(node-run-server % {:port 6277}))
-         open-browser-auth-url browse-url
-         token-cache in-memory-token-cache}
-    :as auth-options}]
-  (u/expected! http-client #(satisfies? p/IHttpClient %)
-               ":http-client to be an IHttpClient instance")
-  (u/expected! on-error fn?
-               ":on-error to be a function (fn [error])")
-  (u/expected! redirect-uris (every-pred seqable? seq
-                                         #(every? string? %))
-               ":redirect-uris to be one-or-more redirect URI string")
-  (u/expected! client-name (every-pred string? seq)
-               ":client-name to be a non-empty string")
-  (u/expected! mcp-server (every-pred string? seq)
-               ":mcp-server to be the MCP-server URL")
-  (u/expected! callback-redirect-uri (every-pred string? seq)
-               ":callback-redirect-uri to be a URI string")
-  (u/expected! callback-start-server fn?
-               ":callback-start-server to be a function")
-  (u/expected! open-browser-auth-url fn?
-               ":open-browser-auth-url to be a function")
-  (u/expected! token-cache #(satisfies? p/ITokenCache %)
-               ":token-cache to be an ITokenCache instance")
-  {:auth-enabled?  true
-   :http-client    http-client
-   :redirect-uris  redirect-uris
-   :client-name    client-name
-   :mcp-server     mcp-server
-   :callback-redirect-uri callback-redirect-uri
-   :callback-start-server callback-start-server
-   :open-browser-auth-url open-browser-auth-url
-   :token-cache token-cache})
+  [auth-options]
+  (let [{:keys [http-client
+                on-error
+                redirect-uris
+                client-name
+                mcp-server
+                callback-redirect-uri
+                callback-start-server
+                open-browser-auth-url
+                token-cache]
+         :or {client-name (when (contains? auth-options :info)
+                            (-> (get auth-options :info)
+                                :name))
+              callback-start-server #?(:clj #(hs/run-http-server % {:port 6277})
+                                       :cljs #(node-run-server % {:port 6277}))
+              open-browser-auth-url browse-url
+              token-cache in-memory-token-cache}} auth-options]
+    (u/expected! http-client #(satisfies? p/IHttpClient %)
+                 ":http-client to be an IHttpClient instance")
+    (u/expected! on-error fn?
+                 ":on-error to be a function (fn [error])")
+    (u/expected! redirect-uris (every-pred seqable? seq
+                                           #(every? string? %))
+                 ":redirect-uris to be one-or-more redirect URI string")
+    (u/expected! client-name (every-pred string? seq)
+                 ":client-name to be a non-empty string")
+    (u/expected! mcp-server (every-pred string? seq)
+                 ":mcp-server to be the MCP-server URL")
+    (u/expected! callback-redirect-uri (every-pred string? seq)
+                 ":callback-redirect-uri to be a URI string")
+    (u/expected! callback-start-server fn?
+                 ":callback-start-server to be a function")
+    (u/expected! open-browser-auth-url fn?
+                 ":open-browser-auth-url to be a function")
+    (u/expected! token-cache #(satisfies? p/ITokenCache %)
+                 ":token-cache to be an ITokenCache instance")
+    {:auth-enabled?  true
+     :http-client    http-client
+     :redirect-uris  redirect-uris
+     :client-name    client-name
+     :mcp-server     mcp-server
+     :callback-redirect-uri callback-redirect-uri
+     :callback-start-server callback-start-server
+     :open-browser-auth-url open-browser-auth-url
+     :token-cache token-cache}))

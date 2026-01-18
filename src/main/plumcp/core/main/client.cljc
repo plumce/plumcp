@@ -19,6 +19,11 @@
    [plumcp.core.util :as u]))
 
 
+(def client-options (-> {:info (es/make-info "Test client" "0.1.0"
+                                             "Test client v0.1.0")}
+                        (merge dev/client-options)))
+
+
 (defn make-http-transport
   [endpoint-uri & {:keys [traffic-logger
                           auth-options]
@@ -30,19 +35,14 @@
         auth-options (-> {:http-client http-client
                           :on-error    u/eprintln
                           :redirect-uris ["http://localhost:6277/"]
-                          :client-name "PluMCP Test client"
                           :mcp-server "http://localhost:3000"
                           :callback-redirect-uri "http://localhost:6277/"
                           :callback-start-server #(hs/run-http-server % {:port 6277})
                           ;:token-cache mt-http-auth/local-token-cache
                           ;;
                           }
+                         (u/copy-keys client-options [:info]) ; for :client-name
                          (merge auth-options)
                          hcta/make-client-auth-options)]
     (->> {:auth-options auth-options}
          (hct/make-streamable-http-transport http-client))))
-
-
-(def client-options (-> {:info (es/make-info "Test client" "0.1.0"
-                                             "Test client v0.1.0")}
-                        (merge dev/client-options)))
