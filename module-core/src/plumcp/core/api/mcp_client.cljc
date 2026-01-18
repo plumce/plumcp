@@ -48,16 +48,15 @@
                                                    runtime))
                              (cs/wrap-transport client-transport)
                              (rt/upsert-runtime runtime))
-          client-context (dissoc loaded-context :client-context-atom)]
-      ;; validate client context to fail-fast
-      (rt/?client-impl client-context)
+          client-context (dissoc loaded-context :client-context-atom)
+          client-info (rt/?client-impl client-context)]
       ;; patch the client-context-atom
       (reset! (:client-context-atom loaded-context) client-context)
       ;; start the transport
       (p/start-client-transport client-transport
                                 (:on-message client-context))
       (when print-banner?
-        (bp/print-banner client-options))
+        (bp/print-banner client-info client-options))
       client-context)))
 
 

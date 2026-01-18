@@ -37,13 +37,12 @@
          :as options} (ss/make-server-options server-options)]
     (u/expected! runtime map? ":runtime to be a map")
     (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
-    ;; validate server runtime to fail-fast
-    (rt/?get runtime rt/?server-impl)
     (let [options (merge {:role :server
                           :transport-info (if transport
                                             {:id transport}
                                             {:id default-transport})}
                          options)
+          server-info (rt/?get runtime rt/?server-impl)
           get-stdio-handler (fn []
                               (or stdio-handler
                                   (stdio-server/make-stdio-handler
@@ -57,12 +56,12 @@
                                    options)))]
       (case (u/as-str transport)
         "stdio" (uab/may-await [stdio-handler (get-stdio-handler)]
-                  (when print-banner? (bp/print-banner options))
+                  (when print-banner? (bp/print-banner server-info options))
                   (stdio-handler))
         "http"  (uab/may-await [ring-handler (get-ring-handler)
                                 ring-server (http-ring/run-ring-server
                                              ring-handler options)]
-                  (when print-banner? (bp/print-banner options))
+                  (when print-banner? (bp/print-banner server-info options))
                   ring-server)
         (u/expected! transport "transport to be :stdio or :http")))))
 

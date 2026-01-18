@@ -13,6 +13,7 @@
    #?(:cljs [plumcp.core.util-node :as un])
    [clojure.string :as str]
    [plumcp.core.constant :as const]
+   [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 
 
@@ -66,8 +67,9 @@
         foot (fn [n] (str "└" (u/repeat-str n "─") "┘"))]
     (->> (concat [(head (+ ^long space ^long width ^long space))
                   (first lines)
+                  (second lines)
                   (mark (+ ^long space ^long width ^long space))]
-                 (rest lines)
+                 (nnext lines)
                  [(foot (+ ^long space ^long width ^long space))])
          (str/join \newline))))
 
@@ -77,7 +79,8 @@
 
 
 (defn make-banner-string
-  [{:keys [role
+  [^{:see [sd/Implementation]} self-info
+   {:keys [role
            transport-info
            stdio-command  ; STDIO client only
            http-url       ; HTTP client or server
@@ -111,10 +114,13 @@
                                            (get transport-info :default-uri)))
                   [:zero :server] "started"
                   [:zero :client] "connected")]
-    (-> "PluMCP %s
+    (-> "%s
+PluMCP %s
 Transport: %s
 MCP %s %s"
-        (format const/version
+        (format (or (:title self-info)
+                    (str (:name self-info) " " (:version self-info)))
+                const/version
                 (or (get transport-names transport-id)
                     (-> transport-id u/as-str str/upper-case))
                 (-> role u/as-str str/capitalize)
@@ -122,10 +128,11 @@ MCP %s %s"
 
 
 (defn print-banner
-  [{:keys [boxed-banner?]
+  [^{:see [sd/Implementation]} self-info
+   {:keys [boxed-banner?]
     :or {boxed-banner? true}
     :as banner-options}]
-  (let [banner-string (make-banner-string banner-options)
+  (let [banner-string (make-banner-string self-info banner-options)
         printable-banner (if boxed-banner?
                            (boxed-banner-string banner-string)
                            (str banner-string "\n---------------------"))]
