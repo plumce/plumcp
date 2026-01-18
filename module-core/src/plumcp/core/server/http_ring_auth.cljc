@@ -12,6 +12,7 @@
   (:require
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.server.http-ring-transport :as hrt]
    [plumcp.core.util :as u :refer [#?(:cljs slurp)]]
    [plumcp.core.util.async-bridge :as uab]
    [plumcp.core.util.http-auth :as uha]))
@@ -89,7 +90,8 @@
       (jwt->claims jwks jwt))))
 
 
-(defn make-ring-auth-options
+(defn ^{:see [hrt/wrap-oauth
+              hrt/wrap-route-match]} make-ring-auth-options
   "Create auth-options map to create the MCP Ring handler with OAuth
    enabled. Returns js/Promise in CLJS. KW-arg are described below:
    For wrap-oauth middleware:
@@ -119,8 +121,8 @@
    :scopes-supported      Scopes upported for the resources
    See:
    ----
-   yumcp.core.server.http-ring-transport/wrap-oauth
-   yumcp.core.server.http-ring-transport/wrap-route-match"
+   plumcp.core.server.http-ring-transport/wrap-oauth
+   plumcp.core.server.http-ring-transport/wrap-route-match"
   [runtime
    {:keys [;; --- wrap-oauth middleware ---
            jwt->claims

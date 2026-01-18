@@ -99,7 +99,7 @@
   ([url]
    ;; clojure.java.browse/browse-url doesn't return java.lang.Process,
    ;; which is required to close the browser, so use platform-opener
-   ;; when env var YUMCP_BROWSER is not defined
+   ;; when env var PLUMCP_BROWSER is not defined
    (let [browser (or (env-val "PLUMCP_BROWSER")
                      platform-opener)]
      (browse-url url browser)))
