@@ -216,33 +216,8 @@
 ;; --- Lookup keys ---
 
 
-(def session-key :plumcp.core/?session)
-(def response-stream-key :plumcp.core/?response-stream)
 (def server-impl-key ::?server-impl)
 (def client-impl-key ::?client-impl)
-
-
-;; --- Middleware ---
-
-
-(defn wrap-runtime
-  "Wrap given runtime onto the request before the handler function
-   `(fn handler [request])` can process it."
-  [handler runtime]
-  (fn runtime-attaching-handler [request]
-    (-> (upsert-runtime request runtime)
-        (handler))))
-
-
-(defn wrap-session-required
-  "Wrap given handler `(fn [request-map]) -> response-map` needing a
-   session with session-check, so that the wrapped function returns
-   `session-missing-response` if request doesn't contain a session."
-  [handler session-missing-response]
-  (fn session-key-checker [request]
-    (if (has-dep? request session-key)
-      (handler request)
-      session-missing-response)))
 
 
 ;; --- Key definitions ---
@@ -280,11 +255,11 @@
 
 
 (defkey ?session-id {})
-(defkey ?session {:key session-key})
+(defkey ?session {})
 (defkey ?request-context {})
 (defkey ?request-id {})
 (defkey ?request-params-meta {})
-(defkey ?response-stream {:key response-stream-key})
+(defkey ?response-stream {})
 (defkey ?server-impl {:key server-impl-key})
 
 (defkey ?client-context {})
@@ -296,9 +271,32 @@
 
 (defn has-session?
   [context]
-  (has-dep? context session-key))
+  (?has-in context ?session))
 
 
 (defn has-response-stream?
   [context]
-  (has-dep? context response-stream-key))
+  (?has-in context ?response-stream))
+
+
+;; --- Middleware ---
+
+
+(defn wrap-runtime
+  "Wrap given runtime onto the request before the handler function
+   `(fn handler [request])` can process it."
+  [handler runtime]
+  (fn runtime-attaching-handler [request]
+    (-> (upsert-runtime request runtime)
+        (handler))))
+
+
+(defn wrap-session-required
+  "Wrap given handler `(fn [request-map]) -> response-map` needing a
+   session with session-check, so that the wrapped function returns
+   `session-missing-response` if request doesn't contain a session."
+  [handler session-missing-response]
+  (fn session-key-checker [request]
+    (if (has-session? request)
+      (handler request)
+      session-missing-response)))
