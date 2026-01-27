@@ -1,6 +1,6 @@
 # PluMCP
 
-PluMCP is a
+PluMCP is a low-dependency
 [Clojure](https://clojure.org)/[ClojureScript](https://clojurescript.org)
 library for making
 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
@@ -9,7 +9,12 @@ with AI Agents using MCP and idiomatic Clojure.
 
 ### Rationale
 
-TODO
+- _Complete:_ Enjoy all non-deprecated MCP features and transports
+- _Reach:_ Clojure/ClojureScript reaches Java/JavaScript eco-systems
+- _Ergonomic:_ User-friendly API, automatic error-checking
+- _Light:_ Low dependency, Bring your own dependency
+- _Flexible:_ Composable design with configurable/overridable defaults
+- _Secure:_ OAuth 2.1 integrated with Streamable HTTP transport
 
 ## Documentation
 
@@ -17,11 +22,34 @@ TODO
 
 ## Development
 
-TODO
+There are Makefile targets for various development tasks:
+
+Setup and teardown:
+
+```
+make setup
+make clean
+make distclean  # needs `make setup` later
+```
+
+Running tests:
+
+```
+make clj-test   # run tests in Clojure/JVM
+make cljs-test  # run tests in Node.js
+```
+
+Module release:
+
+```
+# Edit `module-project-clj.bb` for version
+make install-all-modules
+make clean-all-modules
+```
 
 ## Funding and Support
 
-TODO
+You can support this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
 
 # License
 
