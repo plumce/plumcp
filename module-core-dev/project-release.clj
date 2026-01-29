@@ -12,4 +12,6 @@
                  [metosin/malli "0.20.0"
                   :exclusions [org.clojure/clojure]]]
   :repl-options {:init-ns plumcp.core}
-  :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}})
+  :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}}
+  :deploy-repositories [["releases" {:url "https://clojars.org"
+                                     :creds :gpg}]])

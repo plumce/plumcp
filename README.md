@@ -1,6 +1,6 @@
 # PluMCP
 
-[![Clojars Project](https://img.shields.io/clojars/v/io.github.plumce/plumcp.svg)](https://clojars.org/io.github.plumce/plumcp)
+[![Clojars Project](https://img.shields.io/clojars/v/io.github.plumce/plumcp.core.svg)](https://clojars.org/io.github.plumce/plumcp.core)
 [![cljdoc badge](https://cljdoc.org/badge/io.github.plumce/plumcp)](https://cljdoc.org/d/io.github.plumce/plumcp)
 [![Clojurians Slack](https://img.shields.io/badge/clojurians-%23plumcp-4A154B?logo=slack)](https://clojurians.slack.com/archives/plumcp)
 

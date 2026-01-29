@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](https://keepachangelog.com/).
 
-## [Unreleased] - 2026-01-??
+## [0.1.0] - 2026-01-29
 ### Added
 - MCP Protocol spec implementation
   - 2025-06-18, 2025-03-26

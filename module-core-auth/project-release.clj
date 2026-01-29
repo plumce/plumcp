@@ -9,4 +9,6 @@
   :dependencies [[io.github.plumce/plumcp.core "{{version}}"]
                  [org.bitbucket.b_c/jose4j "0.9.6"]]
   :repl-options {:init-ns plumcp.core}
-  :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}})
+  :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}}
+  :deploy-repositories [["releases" {:url "https://clojars.org"
+                                     :creds :gpg}]])
