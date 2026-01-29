@@ -1,5 +1,10 @@
 # PluMCP
 
+[![Clojars Project](https://img.shields.io/clojars/v/io.github.plumce/plumcp.svg)](https://clojars.org/io.github.plumce/plumcp)
+[![cljdoc badge](https://cljdoc.org/badge/io.github.plumce/plumcp)](https://cljdoc.org/d/io.github.plumce/plumcp)
+[![Clojurians Slack](https://img.shields.io/badge/clojurians-%23plumcp-4A154B?logo=slack)](https://clojurians.slack.com/archives/plumcp)
+
+
 PluMCP is a low-dependency
 [Clojure](https://clojure.org)/[ClojureScript](https://clojurescript.org)
 library for making
@@ -15,10 +20,6 @@ with AI Agents using MCP and idiomatic Clojure.
 - _Light:_ Low dependency, Bring your own dependency
 - _Flexible:_ Composable design with configurable/overridable defaults
 - _Secure:_ OAuth 2.1 integrated with Streamable HTTP transport
-
-## Documentation
-
-TODO
 
 ## Development
 
