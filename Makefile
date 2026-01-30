@@ -116,7 +116,7 @@ run-client-http-node: #pedantic-abort
 
 clean-module:
 	@#Help: Clean the module or generated artifacts
-	rm -rf $(MODULE)/project.clj $(MODULE)/pom.xml $(MODULE)/target
+	rm -rf $(MODULE)/project.clj $(MODULE)/pom.xml $(MODULE)/pom.xml.asc $(MODULE)/target
 	@#bb module-project-clj.bb clean $(MODULE)
 
 

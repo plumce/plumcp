@@ -1,8 +1,8 @@
 # PluMCP
 
-[![Clojars Project](https://img.shields.io/clojars/v/io.github.plumce/plumcp.core.svg)](https://clojars.org/io.github.plumce/plumcp.core)
-[![cljdoc badge](https://cljdoc.org/badge/io.github.plumce/plumcp)](https://cljdoc.org/d/io.github.plumce/plumcp)
-[![Clojurians Slack](https://img.shields.io/badge/clojurians-%23plumcp-4A154B?logo=slack)](https://clojurians.slack.com/archives/plumcp)
+[![Clojars Project](https://img.shields.io/clojars/v/io.github.plumce/plumcp.core.svg?style=for-the-badge)](https://clojars.org/io.github.plumce/plumcp.core)
+[![Documentation](https://img.shields.io/badge/View_docs-GH_Pages-2ea44f?style=for-the-badge)](https://plumce.github.io/plumcp-docs/)
+[![Clojurians Slack](https://img.shields.io/badge/clojurians-%23plumcp-4A154B?logo=slack&style=for-the-badge)](https://clojurians.slack.com/archives/plumcp)
 
 
 PluMCP is a low-dependency
