@@ -3,6 +3,7 @@
 [![Clojars Project](https://img.shields.io/clojars/v/io.github.plumce/plumcp.core.svg)](https://clojars.org/io.github.plumce/plumcp.core)
 [![Documentation](https://img.shields.io/badge/View_docs-GH_Pages-2ea44f)](https://plumce.github.io/plumcp-docs/)
 [![Clojurians Slack](https://img.shields.io/badge/clojurians-%23plumcp-4A154B?logo=slack)](https://clojurians.slack.com/archives/plumcp)
+[![Ask DeepWiki (useful but watch  for hallucinations)](https://deepwiki.com/badge.svg)](https://deepwiki.com/plumce/plumcp)
 
 
 PluMCP is a low-dependency
@@ -14,7 +15,7 @@ with AI Agents using MCP and idiomatic Clojure.
 
 ### Rationale
 
-- _Complete:_ Enjoy all non-deprecated MCP features and transports
+- _Complete:_ Enjoy almost all non-deprecated MCP features and transports
 - _Reach:_ Clojure/ClojureScript reaches Java/JavaScript eco-systems
 - _Ergonomic:_ User-friendly API, automatic error-checking
 - _Light:_ Low dependency, Bring your own dependency
