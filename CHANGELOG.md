@@ -1,6 +1,21 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](https://keepachangelog.com/).
 
+## [Unreleased] - 2026-??-??
+### Added
+- STDIO Client Transport
+  - [Todo] Options in `plumcp.core.client.stdio-client-transport/run-command`
+    - Option `:dir` - current directory for process
+    - Option `:env` - environment variables map
+- List-changed support
+  - [Todo] Server: Send out notifications to all connected clients
+  - [Todo] Client: Change listener (with client, so as to re-fetch list)
+- Convenience functions for making capability
+  - [Todo] In `plumcp.core.api.capability-support`: for making capability
+  - [Todo] Cache/expose `InitializeResult` after `initialize!` success
+  - [Todo] In `plumcp.core.api.mcp-client`: for "sync" client operations
+    - [Todo] Return `InitializeResult` in "sync" `initialize-and-notify!`
+
 ## [0.1.0] - 2026-01-29
 ### Added
 - MCP Protocol spec implementation
@@ -28,3 +43,6 @@ All notable changes to this project will be documented in this file. This change
     - Each of `charred`, `cheshire`, `data.json`, `jsonista`
 - Utility
   - Ring based HTTP Client and Server implementation
+
+[Unreleased]: https://github.com/plumce/plumcp/compare/v0.1.0...HEAD
+
