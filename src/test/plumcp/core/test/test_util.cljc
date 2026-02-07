@@ -12,10 +12,13 @@
             ["wait-sync" :as wait-sync])
      :clj (:require
            [clojure.edn :as edn]
+           [clojure.string :as str]
            [plumcp.core.util :as u]
            [plumcp.core.util-java :as uj]))
   #?(:cljs (:require-macros [plumcp.core.test.test-util
-                             :refer [read-edn-file]])))
+                             :refer [find-os-windows?
+                                     find-project-dir
+                                     read-edn-file]])))
 
 
 (defn sleep-millis
@@ -35,6 +38,26 @@
      ~@body
      (while (not @toggle#)
        (sleep-millis ~idle-millis))))
+
+
+#?(:clj (defmacro find-os-windows?
+          "Find whether project OS at compile-time is Windows."
+          []
+          (-> (System/getProperty "os.name")
+              str/lower-case
+              (str/starts-with? "windows"))))
+
+
+(def os-windows? "Project OS Windows?" (find-os-windows?))
+
+
+#?(:clj (defmacro find-project-dir
+          "Find project dir at compile-time."
+          []
+          (System/getProperty "user.dir")))
+
+
+(def project-dir "Project directory" (find-project-dir))
 
 
 #?(:clj

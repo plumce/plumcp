@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. This change
 ## [Unreleased] - 2026-??-??
 ### Added
 - STDIO Client Transport
-  - [Todo] Options in `plumcp.core.client.stdio-client-transport/run-command`
+  - Options in `plumcp.core.client.stdio-client-transport/run-command`
     - Option `:dir` - current directory for process
     - Option `:env` - environment variables map
 - List-changed support

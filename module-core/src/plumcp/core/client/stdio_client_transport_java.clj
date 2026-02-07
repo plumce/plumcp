@@ -21,12 +21,18 @@
 
 (defn run-server!
   [command-tokens
+   dir
+   env
    on-server-exit
    on-stdout-line
    on-stderr-text
    json-reader]
   (let [^Process
-        server-proc (->> (cons {} command-tokens)
+        server-proc (->> command-tokens
+                         (cons (-> {}
+                                   (u/assoc-some :dir dir
+                                                 ;; inherits parent env
+                                                 :env env)))
                          (apply proc/start))
         server-stdin (-> server-proc
                          proc/stdin
@@ -70,10 +76,14 @@
   "Run given command, returning a protocol p/IClientTransport instance.
    Required options:
    :command-tokens - [command-string arg1 arg2...])
+   :dir            - current directory for process (string)
+   :env            - environment variables map
    :on-server-exit - (fn [exit-code-integer])
    :on-stdout-line - (fn [jsonrpc-message-string])
    :on-stderr-text - (fn [stderr-message-string])"
   [{:keys [command-tokens
+           dir
+           env
            on-server-exit
            on-stdout-line
            on-stderr-text]
@@ -90,6 +100,8 @@
                              (fn [server-attrs]
                                (or server-attrs
                                    (run-server! command-tokens
+                                                dir
+                                                env
                                                 on-server-exit
                                                 (or on-message
                                                     on-stdout-line)

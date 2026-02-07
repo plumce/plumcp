@@ -19,10 +19,14 @@
   "Run given command, returning a protocol p/IClientTransport instance.
    Required options:
    :command-tokens - [command-string arg1 arg2...])
+   :dir            - current directory for process (string)
+   :env            - environment variables map
    :on-server-exit - (fn [exit-code-integer])
    :on-stdout-line - (fn [jsonrpc-message-string])
    :on-stderr-text - (fn [stderr-message-string])"
   [{:keys [command-tokens
+           dir
+           env
            on-server-exit
            on-stdout-line
            on-stderr-text]
@@ -33,7 +37,9 @@
   (u/expected! on-server-exit fn? ":on-server-exit to be a function")
   (u/expected! on-stdout-line fn? ":on-stdout-line to be a function")
   (u/expected! on-stderr-text fn? ":on-stderr-text to be a function")
-  (stdio/run-command {:command-tokens command-tokens
-                      :on-server-exit on-server-exit
-                      :on-stdout-line on-stdout-line
-                      :on-stderr-text on-stderr-text}))
+  (stdio/run-command (-> {:command-tokens command-tokens
+                          :on-server-exit on-server-exit
+                          :on-stdout-line on-stdout-line
+                          :on-stderr-text on-stderr-text}
+                         (u/assoc-some :dir dir
+                                       :env env))))

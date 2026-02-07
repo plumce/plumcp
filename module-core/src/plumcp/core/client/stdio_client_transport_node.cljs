@@ -19,17 +19,28 @@
 
 (defn run-server!
   [command-tokens
+   dir
+   env
    on-server-exit
    on-stdout-line
    on-stderr-text
    json-reader]
   (let [[command & args] command-tokens
+        proc-env (->> (.-env js/process)       ; process.env magic-obj
+                      (js/Object.assign #js{}) ; shallow-merge into map
+                      js->clj)                 ; expects enumerable obj
         server-proc (cp/spawn command (-> (vec args)
                                           clj->js)
-                              #js{:stdio #js ["pipe"  ; stdin
-                                              "pipe"  ; stdout
-                                              "pipe"  ; "inherit" ; stderr
-                                              ]})
+                              (-> {:stdio ["pipe"  ; stdin
+                                           "pipe"  ; stdout
+                                           "pipe"  ; "inherit" ; stderr
+                                           ]}
+                                  (u/assoc-some :cwd dir
+                                                ;; inherits parent env
+                                                :env (when env
+                                                       (merge proc-env
+                                                              env)))
+                                  clj->js))
         server-stdin (.-stdin server-proc)
         msg-receiver on-stdout-line]
     ;; --
@@ -64,10 +75,14 @@
   "Run given command, returning a protocol p/IClientTransport instance.
    Required options:
    :command-tokens - [command-string arg1 arg2...])
+   :dir            - current directory for process (string)
+   :env            - environment variables map
    :on-server-exit - (fn [exit-code-integer])
    :on-stdout-line - (fn [jsonrpc-message-string])
    :on-stderr-text - (fn [stderr-message-string])"
   [{:keys [command-tokens
+           dir
+           env
            on-server-exit
            on-stdout-line
            on-stderr-text]
@@ -80,6 +95,8 @@
                              (fn [server-attrs]
                                (or server-attrs
                                    (run-server! command-tokens
+                                                dir
+                                                env
                                                 on-server-exit
                                                 (or on-message
                                                     on-stdout-line)

@@ -27,16 +27,29 @@
 (def client-capabilities cap/default-client-capabilities)
 
 
-(def command-tokens ["make" #?(:cljs "run-server-stdio-node"
-                               :clj "run-server-stdio-java")])
+(def command-tokens
+  "Absolute path to executable file. Required to test `:dir` option."
+  [(str tu/project-dir "/script/"
+        (if tu/os-windows?
+          #?(:cljs "make-run-server-stdio-node.bat"
+             :clj "make-run-server-stdio-java.bat")
+          #?(:cljs "make-run-server-stdio-node.sh"
+             :clj "make-run-server-stdio-java.sh")))])
 
 
 (defn make-stdio-transport
-  [command-tokens]
-  (sct/run-command {:command-tokens command-tokens
-                    :on-server-exit (partial u/eprintln "[Server Exit]")
-                    :on-stdout-line println #_(partial u/eprintln "[Server-OUT]")
-                    :on-stderr-text u/eprintln #_(partial u/eprintln "[Server-ERR]")}))
+  ([command-tokens]
+   (make-stdio-transport command-tokens nil nil))
+  ([command-tokens dir env]
+   (-> {:command-tokens command-tokens
+        :dir dir
+        :env env
+        :on-server-exit (partial u/eprintln "[Server Exit]")
+        :on-stdout-line println #_(partial u/eprintln "[Server-OUT]")
+        :on-stderr-text u/eprintln #_(partial u/eprintln "[Server-ERR]")}
+       (u/assoc-some :dir dir
+                     :env env)
+       sct/run-command)))
 
 
 (def endpoint-uri "http://localhost:3000/mcp")
@@ -57,9 +70,16 @@
 
 
 (def transport-makers
-  [{:tname "STDIO transport" :maker #(make-stdio-transport command-tokens)}
-   {:tname "Streamable HTTP transport" :maker #(make-http-transport endpoint-uri)}
-   {:tname "Zero transport" :maker #(make-zero-transport server/server-options)}])
+  [{:tname "STDIO transport"
+    :maker #(make-stdio-transport command-tokens)}
+   {:tname "STDIO transport with opts"
+    :maker #(make-stdio-transport command-tokens
+                                  ".."
+                                  {"PLUMCP_TEST_FOO" "PLUMCP_TEST_BAR"})}
+   {:tname "Streamable HTTP transport"
+    :maker #(make-http-transport endpoint-uri)}
+   {:tname "Zero transport"
+    :maker #(make-zero-transport server/server-options)}])
 
 
 (def running-server-atom (atom nil))
