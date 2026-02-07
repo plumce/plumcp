@@ -124,26 +124,28 @@
 
 (defn make-base-client-context
   "Make base client context from the given handler options:
+   :jsonrpc-handler (fn [jsonrpc-message]) - used as fallback handler
    :on-request (fn [jsonrpc-request]) - called upon receiving a request
    :on-success (fn [jsonrpc-success-response]) - on successful response
    :on-failure (fn [jsonrpc-failure-response]) - on failure response
    :on-notification (fn [jsonrpc-notification]) - on notification
    The default implementation only prints them out."
-  [{:keys [jsonrpc-handler
-           on-request
-           on-success
-           on-failure
-           on-notification]
-    :or {on-request jsonrpc-handler
-         on-success (fn [jsonrpc-message]
-                      (u/eprintln "[JSON-RPC Received Response-Success]"
-                                  jsonrpc-message))
-         on-failure (fn [jsonrpc-message]
-                      (u/eprintln "[JSON-RPC Received Response-Failure]"
-                                  jsonrpc-message))
-         on-notification jsonrpc-handler}}]
+  [{:keys [jsonrpc-handler]
+    :as options}]
   (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
-  (let [pending-client-requests-atom (atom {})
+  (let [{:keys [on-request
+                on-success
+                on-failure
+                on-notification]
+         :or {on-request jsonrpc-handler
+              on-success (fn [jsonrpc-message]
+                           (u/eprintln "[JSON-RPC Received Response-Success]"
+                                       jsonrpc-message))
+              on-failure (fn [jsonrpc-message]
+                           (u/eprintln "[JSON-RPC Received Response-Failure]"
+                                       jsonrpc-message))
+              on-notification jsonrpc-handler}} options
+        pending-client-requests-atom (atom {})
         pending-server-requests-atom (atom {})
         session-context-atom (atom {})
         client-context-atom (atom nil)]

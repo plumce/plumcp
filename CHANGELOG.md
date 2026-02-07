@@ -16,6 +16,9 @@ All notable changes to this project will be documented in this file. This change
   - [Todo] In `plumcp.core.api.mcp-client`: for "sync" client operations
     - [Todo] Return `InitializeResult` in "sync" `initialize-and-notify!`
 
+### Fixed
+- Options destructuring in base-client-context construction
+
 ## [0.1.0] - 2026-01-29
 ### Added
 - MCP Protocol spec implementation
@@ -29,6 +32,7 @@ All notable changes to this project will be documented in this file. This change
   - Resources (and Resource Templates)
   - Tools
   - Callbacks (to handle responses for requests sent to client)
+  - Completion
 - MCP Client features
   - Roots
   - Sampling
