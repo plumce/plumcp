@@ -20,8 +20,13 @@
 ;; --- Client capability ---
 
 
-(def root-one (-> "file:///home/user/projects/myproject"
-                  (eg/make-root {:name "My Project"})
+(def root-one (-> "file:///home/user/projects/myproject1"
+                  (eg/make-root {:name "My Project1"})
+                  cap/make-roots-capability-item))
+
+
+(def root-two (-> "file:///home/user/projects/myproject2"
+                  (eg/make-root {:name "My Project2"})
                   cap/make-roots-capability-item))
 
 
@@ -42,7 +47,19 @@
       (is (= [root-one]
              (p/obtain-list roots-cap sd/method-roots-list)))
       (is (= nil
-             (p/find-handler roots-cap {}))))))
+             (p/find-handler roots-cap {})))))
+  (testing "mutable roots"
+    (let [roots-ref (atom [root-one])
+          roots-cap (-> roots-ref
+                        (cap/make-deref-roots-capability))]
+      (is (= {:listChanged true}
+             (p/get-capability-declaration roots-cap)))
+      (is (= [root-one]
+             (p/obtain-list roots-cap sd/method-roots-list)))
+      (swap! roots-ref conj root-two)
+      (is (= [root-one
+              root-two]
+             (p/obtain-list roots-cap sd/method-roots-list))))))
 
 
 (deftest sampling-capability-test
@@ -122,7 +139,25 @@
           handler-map (p/find-handler prompts-cap prompt2-name)
           handler (:handler handler-map)]
       (is (fn? handler) "prompt2 handler is a function")
-      (is (= 12 (handler 10)) "prompt2 handler is called"))))
+      (is (= 12 (handler 10)) "prompt2 handler is called")))
+  (testing "mutable prompts"
+    (let [prompt1-name "prompt-1"
+          prompt2-name "prompt-2"
+          prompt1 (-> (eg/make-prompt prompt1-name)
+                      (cap/make-prompts-capability-item identity))
+          prompt2 (-> (eg/make-prompt prompt2-name)
+                      (cap/make-prompts-capability-item identity))
+          prompts-ref (atom [prompt1])
+          prompts-cap (-> prompts-ref
+                          (cap/make-deref-prompts-capability))]
+      (is (= {:listChanged true}
+             (p/get-capability-declaration prompts-cap)))
+      (is (= [(dissoc prompt1 :handler)]
+             (p/obtain-list prompts-cap sd/method-prompts-list)))
+      (swap! prompts-ref conj prompt2)
+      (is (= [(dissoc prompt1 :handler)
+              (dissoc prompt2 :handler)]
+             (p/obtain-list prompts-cap sd/method-prompts-list))))))
 
 
 (deftest resources-capability-test
@@ -167,7 +202,31 @@
       (is (= {:id "100"} tem-params))
       (is (= (str tem1-url-one "::templated-resource-100")
              (tem-handler {:uri tem1-url-one
-                           :params tem-params}))))))
+                           :params tem-params})))))
+  (testing "mutable resources"
+    (let [rs1 (-> (eg/make-resource "test://res1" "res1")
+                  (cap/make-resources-capability-resource-item identity))
+          rs2 (-> (eg/make-resource "test://res2" "res2")
+                  (cap/make-resources-capability-resource-item identity))
+          rt1 (-> (eg/make-resource-template "test://rt1/{id}" "rt1")
+                  (cap/make-resources-capability-resource-template-item identity))
+          rt2 (-> (eg/make-resource-template "test://rt2/{id}" "rt2")
+                  (cap/make-resources-capability-resource-template-item identity))
+          rsref (atom [rs1])
+          rtref (atom [rt1])
+          rcap (cap/make-deref-resources-capability rsref rtref)]
+      (is (= [(dissoc rs1 :handler :matcher)]
+             (p/obtain-list rcap sd/method-resources-list)))
+      (is (= [(dissoc rt1 :handler :matcher)]
+             (p/obtain-list rcap sd/method-resources-templates-list)))
+      (swap! rsref conj rs2)
+      (swap! rtref conj rt2)
+      (is (= [(dissoc rs1 :handler :matcher)
+              (dissoc rs2 :handler :matcher)]
+             (p/obtain-list rcap sd/method-resources-list)))
+      (is (= [(dissoc rt1 :handler :matcher)
+              (dissoc rt2 :handler :matcher)]
+             (p/obtain-list rcap sd/method-resources-templates-list))))))
 
 
 (defn tool-add-handler
@@ -181,6 +240,19 @@
     (eg/make-tool-input-output-schema $ ["a" "b"])
     (eg/make-tool "add" $)
     (cap/make-tools-capability-item $ tool-add-handler)))
+
+
+(defn tool-mul-handler
+  [{:keys [^long a ^long b]}]
+  (* a b))
+
+
+(def tool-mul
+  (as-> {"a" {:type "number" :description "first number"}
+         "b" {:type "number" :description "second number"}} $
+    (eg/make-tool-input-output-schema $ ["a" "b"])
+    (eg/make-tool "mul" $)
+    (cap/make-tools-capability-item $ tool-mul-handler)))
 
 
 (deftest tools-capability-test
@@ -201,7 +273,18 @@
              (p/obtain-list tools-cap sd/method-tools-list)))
       (is (map? handler-map) "tool handler is found")
       (is (fn? handler) "tool handler is indeed a function we supplied")
-      (is (= 30 (handler {:a 10 :b 20})) "tool handler works"))))
+      (is (= 30 (handler {:a 10 :b 20})) "tool handler works")))
+  (testing "mutable tools"
+    (let [tools-ref (atom [tool-add])
+          tools-cap (cap/make-deref-tools-capability tools-ref)]
+      (is (= {:listChanged true}
+             (p/get-capability-declaration tools-cap)))
+      (is (= [(dissoc tool-add :handler)]
+             (p/obtain-list tools-cap sd/method-tools-list)))
+      (swap! tools-ref conj tool-mul)
+      (is (= [(dissoc tool-add :handler)
+              (dissoc tool-mul :handler)]
+             (p/obtain-list tools-cap sd/method-tools-list))))))
 
 
 (deftest completion-capability-test

@@ -7,7 +7,12 @@ All notable changes to this project will be documented in this file. This change
   - Options in `plumcp.core.client.stdio-client-transport/run-command`
     - Option `:dir` - current directory for process
     - Option `:env` - environment variables map
-- List-changed support
+- Capability List-changed support
+  - Capability-making fns from dereferenceable refs (eg. atom, volatile)
+  - [Todo] Capability item fns in new ns `plumcp.core.api.capability-support`
+  - Send out notifications to all connected peers
+    - [Todo] Server: Integrated with `run-server`
+    - [Todo] Client: Integrated with `make-client`
   - [Todo] Server: Send out notifications to all connected clients
   - [Todo] Client: Change listener (with client, so as to re-fetch list)
 - Convenience functions for making capability
@@ -49,4 +54,3 @@ All notable changes to this project will be documented in this file. This change
   - Ring based HTTP Client and Server implementation
 
 [Unreleased]: https://github.com/plumce/plumcp/compare/v0.1.0...HEAD
-
