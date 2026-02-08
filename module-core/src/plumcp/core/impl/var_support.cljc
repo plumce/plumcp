@@ -14,10 +14,10 @@
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.method-handler :as mh]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
-   [plumcp.core.util :as u :refer [#?(:cljs format)]]
-   [plumcp.core.util.async-bridge :as uab]))
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 
 
 ;; ----- Var metadata to capability primitives -----
@@ -108,41 +108,6 @@
 ;; ----- Prompt making -----
 
 
-(defn ^{:see sd/GetPromptResult} get-prompt-result?
-  [x]
-  (and (map? x)
-       (vector? (:messages x))))
-
-
-(defn prompt-message?
-  [x]
-  (and (map? x)
-       (string? (:role x))
-       (map? (:content x))))
-
-
-(defn ^{:see [sd/GetPromptResult
-              eg/make-get-prompt-result]} as-get-prompt-result
-  [sora-retval]  ; SORA: Sync-OR-Async
-  (uab/may-await [x sora-retval]
-    (condp u/invoke x
-      jr/jsonrpc-response? x
-      get-prompt-result?   x
-      vector?              (eg/make-get-prompt-result x {})
-      prompt-message?      (eg/make-get-prompt-result [x] {})
-      (u/expected!
-       x
-       "argument to be either of get-prompt-result/prompt-message-vector"))))
-
-
-(defn make-get-prompt-handler
-  "Make prompt handler fn from the given `(fn [kwargs]) -> prompt-result`."
-  [f]
-  (fn get-prompt-handler [kwargs]
-    (-> (f kwargs)
-        as-get-prompt-result)))
-
-
 (defn ^{:see sd/Prompt} make-prompt-from-var
   "Given a var instance of a prompt function, extract metadata and
    construct MCP prompt details. Example below:
@@ -182,40 +147,13 @@
                                  :required (:required? sm true)}))))
         handler  (-> var-instance
                      var-handler
-                     make-get-prompt-handler)]
+                     mh/make-get-prompt-handler)]
     (-> (eg/make-prompt mcp-name {:description descrip
                                   :args args-vec})
         (cap/make-prompts-capability-item handler))))
 
 
 ;; ----- Resource making -----
-
-
-(defn ^{:see sd/ReadResourceResult} read-resource-result?
-  [x]
-  (and (map? x)
-       (vector? (:contents x))))
-
-
-(defn ^{:see sd/ReadResourceResult} as-read-resource-result
-  [sora-retval]  ; SORA: Sync-OR-Async
-  (uab/may-await [x sora-retval]
-    (condp u/invoke x
-      jr/jsonrpc-response?  x
-      read-resource-result? x
-      vector?               (eg/make-read-resource-result x {})
-      (u/expected!
-       x
-       "argument to be either of read-resource-result/content-vector"))))
-
-
-(defn make-read-resource-handler
-  "Make read-resource handler fn from the given
-   `(fn [kwargs]) -> read-resource-result`."
-  [f]
-  (fn call-resource-handler [kwargs]
-    (-> (f kwargs)
-        as-read-resource-result)))
 
 
 (defn ^{:see sd/Resource} make-resource-from-var
@@ -260,7 +198,7 @@
                                 "an arg symbol named `uri`"))
         handler  (-> var-instance
                      var-handler
-                     make-read-resource-handler)]
+                     mh/make-read-resource-handler)]
     (-> (eg/make-resource uri-str mcp-name
                           (-> {:description descrip}
                               (u/assoc-some :mime-type (:mime-type vm))))
@@ -310,53 +248,6 @@
 
 
 ;; ----- Tool making -----
-
-
-(defn ^{:see sd/CallToolResult} call-tool-result?
-  [x]
-  (and (map? x)
-       (vector? (:content x))))
-
-
-(defn ^{:see sd/CallToolResult} make-call-tool-result
-  ([content-vector error?]
-   (u/expected! content-vector vector? "content-vector to be a vector")
-   {:content content-vector
-    :isError (boolean error?)})
-  ([content-vector]
-   (make-call-tool-result content-vector false)))
-
-
-(defn ^{:see sd/CallToolResult} as-call-tool-result
-  [sora-retval]  ; SORA: Sync-OR-Async
-  (uab/may-await [x sora-retval]
-    (condp u/invoke x
-      jr/jsonrpc-response? x
-      call-tool-result?    x
-      vector?              (make-call-tool-result x)
-      string?              (-> [(eg/make-text-content x {})]
-                               make-call-tool-result)
-      number?              (-> [(eg/make-text-content (str x) {})]
-                               make-call-tool-result)
-      boolean?             (-> [(eg/make-text-content (str x) {})]
-                               make-call-tool-result)
-      (u/expected!
-       x
-       "argument to be either of call-tool-result/content-vector/string"))))
-
-
-(defn make-call-tool-handler
-  "Make call-tool handler fn from the given
-   `(fn [kwargs]) -> call-tool-result`."
-  [f]
-  (fn call-tool-handler [kwargs]
-    (try
-      (-> (f kwargs)
-          as-call-tool-result)
-      (catch #?(:cljs js/Error
-                :clj Exception) ex
-        (rs/log-mcpcall-failure kwargs ex)
-        (make-call-tool-result [] true)))))
 
 
 (defn ^{:see [sd/Tool
@@ -414,7 +305,7 @@
                   :required required}
         handler  (-> var-instance
                      var-handler
-                     make-call-tool-handler)]
+                     mh/make-call-tool-handler)]
     (-> (eg/make-tool mcp-name inschema
                       {:description tool-doc})
         (cap/make-tools-capability-item handler))))
