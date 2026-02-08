@@ -92,7 +92,7 @@
 
 
 (defn as-vec [x]
-  (if (or (counted? x)
+  (if (or (vector? x)
           (list? x)
           (set? x))
     (vec x)
