@@ -11,23 +11,23 @@
   "Client and Server capability tests"
   (:require
    [clojure.test :refer [deftest is testing]]
+   [plumcp.core.api.capability-support :as cs]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.protocol :as p]
-   [plumcp.core.schema.schema-defs :as sd]))
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.api.entity-support :as es]))
 
 
 ;; --- Client capability ---
 
 
-(def root-one (-> "file:///home/user/projects/myproject1"
-                  (eg/make-root {:name "My Project1"})
-                  cap/make-roots-capability-item))
+(def root-one (cs/make-root-item "file:///home/user/projects/myproject1"
+                                 {:name "My Project1"}))
 
 
-(def root-two (-> "file:///home/user/projects/myproject2"
-                  (eg/make-root {:name "My Project2"})
-                  cap/make-roots-capability-item))
+(def root-two (cs/make-root-item "file:///home/user/projects/myproject2"
+                                 {:name "My Project2"}))
 
 
 (deftest roots-capability-test
@@ -112,9 +112,11 @@
       (is (nil? (p/find-handler prompts-cap "absent-prompt")))))
   (testing "one prompt"
     (let [prompt1-name "prompt-1"
-          prompt1-handler identity
-          prompt1 (-> (eg/make-prompt prompt1-name)
-                      (cap/make-prompts-capability-item prompt1-handler))
+          prompt1-handler (fn [{:keys [arg]}]
+                            (-> sd/role-user
+                                (es/make-text-prompt-message arg)
+                                (es/prompt-message->get-prompt-result)))
+          prompt1 (cs/make-prompt-item prompt1-name prompt1-handler)
           prompts-cap (cap/make-fixed-prompts-capability [prompt1])]
       (is (= {:listChanged true}
              (p/get-capability-declaration prompts-cap)))
@@ -124,29 +126,33 @@
             handler (:handler handler-map)]
         (is (map? handler-map) "lookup by prompt1-name returns a handler map")
         (is (fn? handler) "prompt1 handler is a function")
-        (is (= 10 (handler 10)) "prompt1 handler executes as expected"))))
+        (is (= {:messages [{:role "user", :content {:type "text", :text "10"}}]}
+               (handler {:arg "10"})) "prompt1 handler executes as expected"))))
   (testing "two prompts"
     (let [prompt1-name "prompt-1"
-          prompt1-handler (fn [^long n] (+ 1 n))
-          prompt1 (-> (eg/make-prompt prompt1-name)
-                      (cap/make-prompts-capability-item prompt1-handler))
+          prompt1-handler (fn [{:keys [^long n]}]
+                            (-> sd/role-user
+                                (es/make-text-prompt-message (+ 1 n))
+                                (es/prompt-message->get-prompt-result)))
+          prompt1 (cs/make-prompt-item prompt1-name prompt1-handler)
           prompt2-name "prompt-2"
-          prompt2-handler (fn [^long n] (+ 2 n))
-          prompt2 (-> (eg/make-prompt prompt2-name)
-                      (cap/make-prompts-capability-item prompt2-handler))
+          prompt2-handler (fn [{:keys [^long n]}]
+                            (-> sd/role-user
+                                (es/make-text-prompt-message (+ 2 n))
+                                (es/prompt-message->get-prompt-result)))
+          prompt2 (cs/make-prompt-item prompt2-name prompt2-handler)
           prompts-cap (cap/make-fixed-prompts-capability [prompt1
                                                           prompt2])
           handler-map (p/find-handler prompts-cap prompt2-name)
           handler (:handler handler-map)]
       (is (fn? handler) "prompt2 handler is a function")
-      (is (= 12 (handler 10)) "prompt2 handler is called")))
+      (is (= {:messages [{:role "user", :content {:type "text", :text "12"}}]}
+             (handler {:n 10})) "prompt2 handler is called")))
   (testing "mutable prompts"
     (let [prompt1-name "prompt-1"
           prompt2-name "prompt-2"
-          prompt1 (-> (eg/make-prompt prompt1-name)
-                      (cap/make-prompts-capability-item identity))
-          prompt2 (-> (eg/make-prompt prompt2-name)
-                      (cap/make-prompts-capability-item identity))
+          prompt1 (cs/make-prompt-item prompt1-name identity)
+          prompt2 (cs/make-prompt-item prompt2-name identity)
           prompts-ref (atom [prompt1])
           prompts-cap (-> prompts-ref
                           (cap/make-deref-prompts-capability))]
@@ -172,9 +178,10 @@
   (testing "one resource, one resource template"
     (let [res1-name "res1"
           res1-url "resource://res1"
-          res1-handler (fn [{:keys [uri]}] (str uri "::resource-1"))
-          res1 (-> (eg/make-resource res1-url res1-name)
-                   (cap/make-resources-capability-resource-item res1-handler))
+          res1-handler (fn [{:keys [uri]}]
+                         (->> (str uri "::resource-1")
+                              (es/make-text-resource-result uri)))
+          res1 (cs/make-resource-item res1-url res1-name res1-handler)
           tem1-name "tem1"
           tem1-url-tem "resource://restem/{id}"
           tem1-url-one "resource://restem/100"
@@ -194,7 +201,8 @@
       ;; resource
       (is (map? res-handler-map))
       (is (fn? res-handler))
-      (is (= "resource://res1::resource-1"
+      (is (= {:contents [{:uri "resource://res1"
+                          :text "resource://res1::resource-1"}]}
              (res-handler {:uri res1-url})))
       ;; template
       (is (map? tem-handler-map))
@@ -204,14 +212,12 @@
              (tem-handler {:uri tem1-url-one
                            :params tem-params})))))
   (testing "mutable resources"
-    (let [rs1 (-> (eg/make-resource "test://res1" "res1")
-                  (cap/make-resources-capability-resource-item identity))
-          rs2 (-> (eg/make-resource "test://res2" "res2")
-                  (cap/make-resources-capability-resource-item identity))
-          rt1 (-> (eg/make-resource-template "test://rt1/{id}" "rt1")
-                  (cap/make-resources-capability-resource-template-item identity))
-          rt2 (-> (eg/make-resource-template "test://rt2/{id}" "rt2")
-                  (cap/make-resources-capability-resource-template-item identity))
+    (let [hh (fn [{:keys [uri]}]
+               (es/make-text-resource-result uri uri))
+          rs1 (cs/make-resource-item "test://res1" "res1" hh)
+          rs2 (cs/make-resource-item "test://res2" "res2" hh)
+          rt1 (cs/make-resource-template-item "test://rt1/{id}" "rt1" hh)
+          rt2 (cs/make-resource-template-item "test://rt2/{id}" "rt2" hh)
           rsref (atom [rs1])
           rtref (atom [rt1])
           rcap (cap/make-deref-resources-capability rsref rtref)]
@@ -235,11 +241,11 @@
 
 
 (def tool-add
-  (as-> {"a" {:type "number" :description "first number"}
-         "b" {:type "number" :description "second number"}} $
-    (eg/make-tool-input-output-schema $ ["a" "b"])
-    (eg/make-tool "add" $)
-    (cap/make-tools-capability-item $ tool-add-handler)))
+  (cs/make-tool-item "add"
+                     (-> {"a" {:type "number" :description "first number"}
+                          "b" {:type "number" :description "second number"}}
+                         (eg/make-tool-input-output-schema ["a" "b"]))
+                     tool-add-handler))
 
 
 (defn tool-mul-handler
@@ -248,11 +254,11 @@
 
 
 (def tool-mul
-  (as-> {"a" {:type "number" :description "first number"}
-         "b" {:type "number" :description "second number"}} $
-    (eg/make-tool-input-output-schema $ ["a" "b"])
-    (eg/make-tool "mul" $)
-    (cap/make-tools-capability-item $ tool-mul-handler)))
+  (cs/make-tool-item "add"
+                     (-> {"a" {:type "number" :description "first number"}
+                          "b" {:type "number" :description "second number"}}
+                         (eg/make-tool-input-output-schema ["a" "b"]))
+                     tool-mul-handler))
 
 
 (deftest tools-capability-test
@@ -273,7 +279,8 @@
              (p/obtain-list tools-cap sd/method-tools-list)))
       (is (map? handler-map) "tool handler is found")
       (is (fn? handler) "tool handler is indeed a function we supplied")
-      (is (= 30 (handler {:a 10 :b 20})) "tool handler works")))
+      (is (= {:content [{:type "text", :text "30"}], :isError false}
+             (handler {:a 10 :b 20})) "tool handler works")))
   (testing "mutable tools"
     (let [tools-ref (atom [tool-add])
           tools-cap (cap/make-deref-tools-capability tools-ref)]

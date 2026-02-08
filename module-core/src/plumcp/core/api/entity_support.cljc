@@ -10,7 +10,8 @@
 (ns plumcp.core.api.entity-support
   "Convenience fns for making schema entities."
   (:require
-   [plumcp.core.api.entity-gen :as eg]))
+   [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.util :as u]))
 
 
 ;; --- Initialization ---
@@ -43,6 +44,12 @@
   [role-string audio mime-type]
   (eg/make-prompt-message role-string
                           (eg/make-audio-content audio mime-type {})))
+
+
+(defn prompt-message->get-prompt-result
+  [prompt-message]
+  (-> (u/as-vec prompt-message)
+      eg/make-get-prompt-result))
 
 
 ;; --- Resources ---

@@ -7,9 +7,10 @@ All notable changes to this project will be documented in this file. This change
   - Options in `plumcp.core.client.stdio-client-transport/run-command`
     - Option `:dir` - current directory for process
     - Option `:env` - environment variables map
+- Capability API fns in new ns `plumcp.core.api.capability-support`
+  - Capability item-making fns
 - Capability List-changed support
   - Capability-making fns from dereferenceable refs (eg. atom, volatile)
-  - [Todo] Capability item fns in new ns `plumcp.core.api.capability-support`
   - Send out notifications to all connected peers
     - [Todo] Server: Integrated with `run-server`
     - [Todo] Client: Integrated with `make-client`
@@ -20,6 +21,14 @@ All notable changes to this project will be documented in this file. This change
   - [Todo] Cache/expose `InitializeResult` after `initialize!` success
   - [Todo] In `plumcp.core.api.mcp-client`: for "sync" client operations
     - [Todo] Return `InitializeResult` in "sync" `initialize-and-notify!`
+- Convenience functions
+  - Function `p.c.a.entity-support/prompt-message->get-prompt-result`
+
+### BREAKING CHANGE
+- [Todo] Move into `capability-support` ns
+  - capability/make-deref-xxxx-capability
+  - capability/make-fixed-xxxx-capability
+- [Todo] Refactor MCP client-op functions to return value/js-Promise
 
 ### Fixed
 - Options destructuring in base-client-context construction
