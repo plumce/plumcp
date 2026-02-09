@@ -71,8 +71,8 @@
                                  (let [context (rt/upsert-runtime
                                                 {} runtime)]
                                    (fn [notification]
-                                     (rs/notify-all-clients context
-                                                            notification)))
+                                     (rs/notify-initialized-clients
+                                      context notification)))
                                  list-notifier-options)))
           get-stdio-handler (fn []
                               (or stdio-handler

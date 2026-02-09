@@ -50,10 +50,11 @@
     (p/update-server-sessions store updater)))
 
 
-(defn notify-all-clients [context notification]
+(defn notify-initialized-clients [context notification]
   (->> (fn [session]
-         (p/send-message-to-client session (rt/?session context session)
-                                   notification))
+         (when (p/get-init-ts session)
+           (p/send-message-to-client session (rt/?session context session)
+                                     notification)))
        (update-server-sessions context)))
 
 
