@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. This change
 - Capability List-changed support
   - Capability-making fns from dereferenceable refs (eg. atom, volatile)
   - Send out notifications to all connected peers
+    - Core implementation to detect and send list-changed notification
     - [Todo] Server: Integrated with `run-server`
     - [Todo] Client: Integrated with `make-client`
   - [Todo] Server: Send out notifications to all connected clients
@@ -23,6 +24,8 @@ All notable changes to this project will be documented in this file. This change
     - [Todo] Return `InitializeResult` in "sync" `initialize-and-notify!`
 - Convenience functions
   - Function `p.c.a.entity-support/prompt-message->get-prompt-result`
+- Auth support
+  - [Todo] Client: Support for Bearer token passed in options
 
 ### BREAKING CHANGE
 - [Todo] Move into `capability-support` ns

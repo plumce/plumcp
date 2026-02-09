@@ -88,6 +88,78 @@
                              (find-handler $ args)))))
 
 
+;; List-Changed support
+
+
+(def notif-makers
+  "Map of {list-method-name notification-generator-fn}"
+  {;; client
+   sd/method-roots-list eg/make-roots-list-changed-notification
+   ;; server
+   sd/method-prompts-list eg/make-prompt-list-changed-notification
+   sd/method-resources-list eg/make-resource-list-changed-notification
+   sd/method-resources-templates-list eg/make-resource-list-changed-notification
+   sd/method-tools-list eg/make-tool-list-changed-notification})
+
+
+(defn run-list-changed-notifier
+  "Given arguments as follows:
+   - map {list-method-name listed-capability}
+   - (fn notification-sender [])->nil
+   and options:
+   - :idle-mills
+   - :notification-options
+   start a non-stop 'detect and send list-changed notifications' loop
+   using the `notification-sender` fn, observing an idle period between
+   idle detect-and-send iterations.
+   Return an p/IStoppable instance (that may be used to break the loop)
+   for lifecycle management."
+  [listed-capability-map
+   notification-sender
+   & {:keys [^long idle-millis
+             notification-options]
+      :or {idle-millis 100
+           notification-options {}}}]
+  (let [meth-names (keys listed-capability-map)
+        fetch-caps (fn []
+                     (reduce-kv (fn [m method-name cap]
+                                  (->> (p/obtain-list cap method-name)
+                                       (assoc m method-name)))
+                                {}
+                                listed-capability-map))
+        loop? (volatile! true)
+        cache (atom (fetch-caps))
+        check (fn thisfn []
+                (when (deref loop?)
+                  (let [cache-caps (deref cache)
+                        fresh-caps (fetch-caps)]
+                    (if (= fresh-caps cache-caps)
+                      #?(:cljs (js/setTimeout thisfn idle-millis)
+                         :clj (do
+                                (Thread/sleep idle-millis)
+                                (recur)))
+                      (do
+                        (-> (fn [each-method]
+                              (let [method-caps (get fresh-caps each-method)]
+                                (when (not= (get cache-caps each-method)
+                                            method-caps)
+                                  ;; update cache
+                                  (swap! cache
+                                         assoc each-method method-caps)
+                                  ;; send notification
+                                  (-> (get notif-makers each-method)
+                                      (u/invoke notification-options)
+                                      notification-sender))))
+                            (run! meth-names))
+                        (recur))))))]
+    (doseq [each-method meth-names]
+      (u/expected-enum! each-method notif-makers))
+    (u/background {}
+      (check))
+    (reify p/IStoppable
+      (stop! [_] (vreset! loop? false)))))
+
+
 ;; --- Client capability ---
 
 

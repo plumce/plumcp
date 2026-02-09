@@ -16,7 +16,8 @@
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
-   [plumcp.core.api.entity-support :as es]))
+   [plumcp.core.api.entity-support :as es]
+   [plumcp.core.test.test-util :as tu]))
 
 
 ;; --- Client capability ---
@@ -330,3 +331,90 @@
               :resources {:listChanged true :subscribe true}
               :tools {:listChanged true}}
              (cap/get-server-capability-declaration all-caps))))))
+
+
+;; --- Common ---
+
+
+(defn test-lc-notifier
+  [item1 item2 list-method deref-cap-maker notification-method]
+  (let [mlist (atom [item1])
+        cap (deref-cap-maker mlist)
+        received (atom [])
+        notifier (cap/run-list-changed-notifier {list-method cap}
+                                                #(swap! received conj %))]
+    (tu/until-done [done! 10]
+      (tu/sleep-millis 100)
+      (swap! mlist conj item2)
+      (tu/sleep-millis 1000)
+      (done!))
+    (is (= [{:method notification-method, :params {}, :jsonrpc "2.0"}]
+           (deref received)) "received notifications")
+    (p/stop! notifier)))
+
+
+(deftest list-changed-test
+  (testing "no change, no notification"
+    (let [root1 (cs/make-root-item "file:///tmp")
+          roots-cap (cap/make-fixed-roots-capability [root1])
+          received (atom [])
+          notifier (cap/run-list-changed-notifier
+                    {sd/method-roots-list roots-cap}
+                    #(swap! received conj %))]
+      (tu/until-done [done! 10]
+        (tu/sleep-millis 1000)
+        (done!))
+      (is (= [] (deref received)) "no received notifications")
+      (p/stop! notifier)))
+  (testing "roots - change and notification"
+    (let [root1 (cs/make-root-item "file:///tmp")
+          root2 (cs/make-root-item "file:///tmp2")]
+      (test-lc-notifier root1 root2
+                        sd/method-roots-list
+                        cap/make-deref-roots-capability
+                        sd/method-notifications-roots-list_changed)))
+  (testing "prompts - change and notification"
+    (let [ph (fn [{:keys [arg]}]
+               (-> sd/role-user
+                   (es/make-text-prompt-message arg)
+                   (es/prompt-message->get-prompt-result)))
+          prompt1 (cs/make-prompt-item "p1" ph)
+          prompt2 (cs/make-prompt-item "p1" ph)]
+      (test-lc-notifier prompt1 prompt2
+                        sd/method-prompts-list
+                        cap/make-deref-prompts-capability
+                        sd/method-notifications-prompts-list_changed)))
+  (testing "resources - change and notification"
+    (let [hh (fn [{:keys [uri]}]
+               (es/make-text-resource-result uri uri))
+          rs1 (cs/make-resource-item "test://res1" "res1" hh)
+          rs2 (cs/make-resource-item "test://res2" "res2" hh)
+          rt1 (cs/make-resource-template-item "test://rt1/{id}" "rt1" hh)
+          rt2 (cs/make-resource-template-item "test://rt2/{id}" "rt2" hh)
+          rsref (atom [rs1])
+          rtref (atom [rt1])
+          rcap (cap/make-deref-resources-capability rsref rtref)
+          received (atom [])
+          notifier (cap/run-list-changed-notifier
+                    {sd/method-resources-list rcap
+                     sd/method-resources-templates-list rcap}
+                    #(swap! received conj %))]
+      (tu/until-done [done! 10]
+        (tu/sleep-millis 100)
+        (swap! rsref conj rs2)
+        (swap! rtref conj rt2)
+        (tu/sleep-millis 1000)
+        (done!))
+      (is (= [{:method sd/method-notifications-resources-list_changed,
+               :params {}, :jsonrpc "2.0"}
+              {:method sd/method-notifications-resources-list_changed,
+               :params {}, :jsonrpc "2.0"}]
+             (deref received)) "received notifications")
+      (p/stop! notifier)))
+  (testing "tools - change and notification"
+    (let [tool1 tool-add
+          tool2 tool-mul]
+      (test-lc-notifier tool1 tool2
+                        sd/method-tools-list
+                        cap/make-deref-tools-capability
+                        sd/method-notifications-tools-list_changed))))
