@@ -177,7 +177,7 @@
   (let [server-method-names (select-keys list-method-names
                                          listed-capability-keys)]
     (->> (keys server-method-names)
-         (select-keys capabilities)
+         (select-keys (u/remove-vals nil? capabilities))
          (reduce-kv (fn [listed-caps cap-key the-cap]
                       (->> (repeat the-cap)
                            (zipmap (get server-method-names cap-key))

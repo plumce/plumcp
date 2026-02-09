@@ -216,6 +216,30 @@
                map-dest)))
 
 
+(defn filter-vals
+  "Return a map of K/V entries in `map` for which (pred val) returns
+   logical true."
+  [pred map]
+  (reduce-kv (fn [m k v]
+               (if (pred v)
+                 m
+                 (dissoc m k)))
+             map
+             map))
+
+
+(defn remove-vals
+  "Return a map of K/V entries in `map` for which (pred val) returns
+   logical false."
+  [pred map]
+  (reduce-kv (fn [m k v]
+               (if (pred v)
+                 (dissoc m k)
+                 m))
+             map
+             map))
+
+
 ;; --- Exception convenience ---
 
 
