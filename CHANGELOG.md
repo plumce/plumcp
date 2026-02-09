@@ -27,7 +27,10 @@ All notable changes to this project will be documented in this file. This change
 - Auth support
   - [Todo] Client: Support for Bearer token passed in options
 
-### BREAKING CHANGE
+### Changed
+- [BREAKING CHANGE] Replace protocol fn `log-mcp-notification` with
+  - `log-incoming-jsonrpc-notification`
+  - `log-outgoing-jsonrpc-notification`
 - [Todo] Move into `capability-support` ns
   - capability/make-deref-xxxx-capability
   - capability/make-fixed-xxxx-capability

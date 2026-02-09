@@ -87,7 +87,14 @@
 
 (defn log-incoming-jsonrpc-notification [jsonrpc-notification]
   (-> (rt/?traffic-logger jsonrpc-notification)
-      (p/log-mcp-notification (rt/dissoc-runtime jsonrpc-notification))))
+      (p/log-incoming-jsonrpc-notification (-> jsonrpc-notification
+                                               rt/dissoc-runtime))))
+
+
+(defn log-outgoing-jsonrpc-notification [context jsonrpc-notification]
+  (-> (rt/?traffic-logger context)
+      (p/log-outgoing-jsonrpc-notification (-> jsonrpc-notification
+                                               rt/dissoc-runtime))))
 
 
 (defn log-incoming-jsonrpc-response [jsonrpc-response]

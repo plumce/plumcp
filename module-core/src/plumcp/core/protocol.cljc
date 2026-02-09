@@ -58,7 +58,8 @@
   (log-outgoing-jsonrpc-success [this id result])
   (log-incoming-jsonrpc-failure [this id error])
   (log-outgoing-jsonrpc-failure [this id error])
-  (log-mcp-notification [this notification])
+  (log-incoming-jsonrpc-notification [this notification])
+  (log-outgoing-jsonrpc-notification [this notification])
   (log-mcpcall-failure [this error])
   (log-mcp-sse-message [this message]))
 

@@ -27,7 +27,8 @@
     (log-outgoing-jsonrpc-success [_ _ _])
     (log-incoming-jsonrpc-failure [_ _ _])
     (log-outgoing-jsonrpc-failure [_ _ _])
-    (log-mcp-notification [_ _])
+    (log-incoming-jsonrpc-notification [_ _])
+    (log-outgoing-jsonrpc-notification [_ _])
     (log-mcpcall-failure [_ _])
     (log-mcp-sse-message [_ _])))
 
@@ -132,7 +133,8 @@
 (def role->dir:outgoing-jsonrpc-success {:server :out :client :out})
 (def role->dir:incoming-jsonrpc-failure {:server :in  :client :in})
 (def role->dir:outgoing-jsonrpc-failure {:server :out :client :out})
-(def role->dir:mcp-notification {:server :in  :client :in}) ; both in
+(def role->dir:incoming-jsonrpc-notification {:server :in  :client :in})
+(def role->dir:outgoing-jsonrpc-notification {:server :out :client :out})
 (def role->dir:mcpcall-failure  {:server :out :client :out})
 (def role->dir:mcp-sse-message  {:server :out :client :in})
 
@@ -188,10 +190,16 @@
                        (make-prefix role
                                     role->dir:outgoing-jsonrpc-failure)
                        id jr-error))
-    (log-mcp-notification [_ notification] (compact-log-mcp-notification
-                                            (make-prefix role
-                                                         role->dir:mcp-notification)
-                                            notification))
+    (log-incoming-jsonrpc-notification
+      [_ notification] (compact-log-mcp-notification
+                        (make-prefix role
+                                     role->dir:incoming-jsonrpc-notification)
+                        notification))
+    (log-outgoing-jsonrpc-notification
+      [_ notification] (compact-log-mcp-notification
+                        (make-prefix role
+                                     role->dir:outgoing-jsonrpc-notification)
+                        notification))
     (log-mcpcall-failure [_ failure] (compact-log-mcpcall-failure
                                       (make-prefix role
                                                    role->dir:mcpcall-failure)

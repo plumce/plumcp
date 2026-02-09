@@ -180,10 +180,14 @@
       [_ id error] (as-> stl/role->dir:outgoing-jsonrpc-failure $
                      (stl/make-prefix role $)
                      (impl-log-jsonrpc-failure $ id error)))
-    (log-mcp-notification [_
-                           notification] (as-> stl/role->dir:mcp-notification $
-                                           (stl/make-prefix role $)
-                                           (impl-log-mcp-notification $ notification)))
+    (log-incoming-jsonrpc-notification
+      [_ notification] (as-> stl/role->dir:incoming-jsonrpc-notification $
+                         (stl/make-prefix role $)
+                         (impl-log-mcp-notification $ notification)))
+    (log-outgoing-jsonrpc-notification
+      [_ notification] (as-> stl/role->dir:outgoing-jsonrpc-notification $
+                         (stl/make-prefix role $)
+                         (impl-log-mcp-notification $ notification)))
     (log-mcpcall-failure [_
                           error] (as-> stl/role->dir:mcpcall-failure $
                                    (stl/make-prefix role $)
