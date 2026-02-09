@@ -13,7 +13,7 @@ All notable changes to this project will be documented in this file. This change
   - Capability-making fns from dereferenceable refs (eg. atom, volatile)
   - Send out notifications to all connected peers
     - Core implementation to detect and send list-changed notification
-    - [Todo] Server: Integrated with `run-server`
+    - Server: Integrate list-changed notifier with `run-server`, `run-mcp-server`
     - [Todo] Client: Integrated with `make-client`
   - [Todo] Server: Send out notifications to all connected clients
   - [Todo] Client: Change listener (with client, so as to re-fetch list)

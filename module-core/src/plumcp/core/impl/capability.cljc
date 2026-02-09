@@ -160,6 +160,45 @@
       (stop! [_] (vreset! loop? false)))))
 
 
+(def list-method-names
+  "Map of capability keys to respective list-method names"
+  {;; Client
+   :roots [sd/method-roots-list]
+   ;; Server
+   :prompts [sd/method-prompts-list]
+   :resources [sd/method-resources-list
+               sd/method-resources-templates-list]
+   :tools [sd/method-tools-list]})
+
+
+(defn ^{:see [run-list-changed-notifier]} get-listed-capabilities
+  "Make listed-capability-map for list-changed notifier."
+  [capabilities listed-capability-keys]
+  (let [server-method-names (select-keys list-method-names
+                                         listed-capability-keys)]
+    (->> (keys server-method-names)
+         (select-keys capabilities)
+         (reduce-kv (fn [listed-caps cap-key the-cap]
+                      (->> (repeat the-cap)
+                           (zipmap (get server-method-names cap-key))
+                           (merge listed-caps)))
+                    {}))))
+
+
+(defn ^{:see [run-list-changed-notifier]} get-server-listed-capabilities
+  "Make listed-capability-map for MCP server."
+  [server-capabilities]
+  (get-listed-capabilities server-capabilities [:prompts
+                                                :resources
+                                                :tools]))
+
+
+(defn ^{:see [run-list-changed-notifier]} get-client-listed-capabilities
+  "Make listed-capability-map for MCP client."
+  [client-capabilities]
+  (get-listed-capabilities client-capabilities [:roots]))
+
+
 ;; --- Client capability ---
 
 

@@ -12,6 +12,9 @@
    Ref: https://github.com/cyanheads/model-context-protocol-resources/blob/main/guides/mcp-server-development-guide.md"
   (:require
    [plumcp.core.deps.runtime :as rt]
+   [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.protocol :as p]
    [plumcp.core.server.http-ring :as http-ring]
    [plumcp.core.server.server-support :as ss]
    [plumcp.core.server.stdio-server :as stdio-server]
@@ -24,15 +27,31 @@
 (def default-transport :stdio)
 
 
-(defn run-mcp-server
+(defrecord RunningServer [server list-notifier]
+  p/IStoppable
+  (stop! [_] (try (when list-notifier (p/stop! list-notifier))
+                  (finally
+                    (when server (p/stop! server))))))
+
+
+(declare run-server)
+
+
+(defn ^{:see [run-server]} run-mcp-server
+  "Run MCP server based on the given options, returning a RunningServer
+   instance. See `run-server` for detailed docs."
   [server-options]
   (let [{:keys [runtime
                 jsonrpc-handler
                 ring-handler   ; only for Streamable-HTTP transport
                 stdio-handler  ; only for STDIO transport
                 transport
+                run-list-notifier?
+                list-notifier-options
                 print-banner?]
          :or {transport default-transport
+              run-list-notifier? true
+              list-notifier-options {}
               print-banner? true}
          :as options} (ss/make-server-options server-options)]
     (u/expected! runtime map? ":runtime to be a map")
@@ -43,6 +62,18 @@
                                             {:id default-transport})}
                          options)
           server-info (rt/?get runtime rt/?server-impl)
+          run-list-notifier (fn []
+                              (when run-list-notifier?
+                                (cap/run-list-changed-notifier
+                                 (-> runtime
+                                     (rt/?get rt/?server-capabilities)
+                                     cap/get-server-listed-capabilities)
+                                 (let [context (rt/upsert-runtime
+                                                {} runtime)]
+                                   (fn [notification]
+                                     (rs/notify-all-clients context
+                                                            notification)))
+                                 list-notifier-options)))
           get-stdio-handler (fn []
                               (or stdio-handler
                                   (stdio-server/make-stdio-handler
@@ -57,17 +88,19 @@
       (case (u/as-str transport)
         "stdio" (uab/may-await [stdio-handler (get-stdio-handler)]
                   (when print-banner? (bp/print-banner server-info options))
-                  (stdio-handler))
+                  (->RunningServer (stdio-handler) (run-list-notifier)))
         "http"  (uab/may-await [ring-handler (get-ring-handler)
                                 ring-server (http-ring/run-ring-server
                                              ring-handler options)]
                   (when print-banner? (bp/print-banner server-info options))
-                  ring-server)
+                  (->RunningServer ring-server (run-list-notifier)))
         (u/expected! transport "transport to be :stdio or :http")))))
 
 
-(defmacro run-server
-  "Run MCP server using given (or deduced) options.
+(defmacro ^{:see [run-mcp-server
+                  RunningServer]} run-server
+  "Run MCP server using given (or deduced) options, returning a
+   RunningServer instance.
    | Option keyword           | Default | Description                          |
    |--------------------------|---------|--------------------------------------|
    |:info                     |Required |see p.c.api.entity-support/make-info  |
@@ -84,6 +117,8 @@
    |:ring-handler  (for HTTP) |         |Made from :runtime, :jsonrpc-handler  |
    |:stdio-handler (for STDIO)|         |Made from :runtime, :jsonrpc-handler  |
    |:print-banner?            |  True   |Print a library banner if true        |
+   |:run-list-notifier?       |  True   |Run list-changed notifier if true     |
+   |:list-notifier-options    |  {}     |Option map for list-changed notifier  |
 
    Dependency map (left/key depends upon the right/vals):
    {:ring-handler    [:runtime :jsonrpc-handler]

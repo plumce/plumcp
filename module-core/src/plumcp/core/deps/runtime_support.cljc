@@ -45,6 +45,18 @@
     (p/remove-server-session store session-id)))
 
 
+(defn update-server-sessions [context updater]
+  (let [store (rt/?session-store context)]
+    (p/update-server-sessions store updater)))
+
+
+(defn notify-all-clients [context notification]
+  (->> (fn [session]
+         (p/send-message-to-client session (rt/?session context session)
+                                   notification))
+       (update-server-sessions context)))
+
+
 ;; --- Traffic Logger ---
 
 
