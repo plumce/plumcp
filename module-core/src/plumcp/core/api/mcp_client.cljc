@@ -23,14 +23,23 @@
   #?(:cljs (:require-macros [plumcp.core.api.mcp-client])))
 
 
-(defn make-mcp-client
+(declare make-client)
+
+
+(defn ^{:see [make-client]} make-mcp-client
+  "Make MCP client based on the given options, returning a client
+   instance. See `make-client` for detailed docs."
   [client-options]
   (let [{:keys [runtime
                 jsonrpc-handler
                 client-transport
                 client-context
+                run-list-notifier?
+                list-notifier-options
                 print-banner?]
-         :or {print-banner? true}
+         :or {run-list-notifier? true
+              list-notifier-options {}
+              print-banner? true}
          :as options} (cs/make-client-options client-options)]
     (u/expected! runtime map? ":runtime to be a map")
     (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
@@ -49,6 +58,20 @@
                              (cs/wrap-transport client-transport)
                              (rt/upsert-runtime runtime))
           client-context (dissoc loaded-context :client-context-atom)
+          run-list-notifier (fn []
+                              (when run-list-notifier?
+                                (cap/run-list-changed-notifier
+                                 (-> runtime
+                                     (rt/?get rt/?client-capabilities)
+                                     cap/get-client-listed-capabilities)
+                                 (fn [notification]
+                                   (cs/send-notification-to-server
+                                    client-context
+                                    notification))
+                                 list-notifier-options)))
+          client-context (-> client-context
+                             (u/assoc-some :list-notifier
+                                           (run-list-notifier)))
           client-info (rt/?client-impl client-context)]
       ;; patch the client-context-atom
       (reset! (:client-context-atom loaded-context) client-context)
@@ -60,22 +83,24 @@
       client-context)))
 
 
-(defmacro make-client
+(defmacro ^{:see [make-mcp-client]} make-client
   "Make MCP client (context map) using given (or deduced) options.
-   | Option keyword     | Default | Description                        |
-   |--------------------|---------|------------------------------------|
-   |:info               |Required |see p.c.api.entity-support/make-info|
-   |:capabilities       |         |Supplied or made from :primitives   |
-   |:primitives         |         |Supplied or made from :vars         |
-   |:vars               |         |Supplied/discovered from hinted vars|
-   |:ns (read literally)|Caller ns|Supplied/discovered from hinted vars|
-   |:traffic-logger     |         |No-op by default                    |
-   |:runtime            |         |Made from :info,:capabilities,:tra..|
-   |:mcp-methods-wrapper|         |No-op by default                    |
-   |:jsonrpc-handler    |         |Impl+made with :schema-check-wrapper|
-   |:client-transport   |Required |Protocol p/IClientTransport instance|
-   |:client-context     |         |Base client context                 |
-   |:print-banner?      |  True   |Print a library banner if true      |
+   | Option keyword       | Default | Description                        |
+   |----------------------|---------|------------------------------------|
+   |:info                 |Required |see p.c.api.entity-support/make-info|
+   |:capabilities         |         |Supplied or made from :primitives   |
+   |:primitives           |         |Supplied or made from :vars         |
+   |:vars                 |         |Supplied/discovered from hinted vars|
+   |:ns (read literally)  |Caller ns|Supplied/discovered from hinted vars|
+   |:traffic-logger       |         |No-op by default                    |
+   |:runtime              |         |Made from :info,:capabilities,:tra..|
+   |:mcp-methods-wrapper  |         |No-op by default                    |
+   |:jsonrpc-handler      |         |Impl+made with :schema-check-wrapper|
+   |:client-transport     |Required |Protocol p/IClientTransport instance|
+   |:client-context       |         |Base client context                 |
+   |:print-banner?        |  True   |Print a library banner if true      |
+   |:run-list-notifier?   |  True   |Run list-changed notifier if true   |
+   |:list-notifier-options|  {}     |Option map for list-changed notifier|
 
    Dependency map (left/key depends upon the right/vals):
    {:ring-handler    [:runtime :jsonrpc-handler]
@@ -137,7 +162,11 @@
 (defn disconnect!
   "Disconnect and destroy the session."
   [client]
-  (p/stop-client-transport! (:transport client) false))
+  (try
+    (when-let [list-notifier (:list-notifier client)]
+      (p/stop! list-notifier))
+    (finally
+      (p/stop-client-transport! (:transport client) false))))
 
 
 ;; --- MCP requests expecting result ---

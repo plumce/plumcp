@@ -14,9 +14,10 @@ All notable changes to this project will be documented in this file. This change
   - Send out notifications to all connected peers
     - Core implementation to detect and send list-changed notification
     - Server: Integrate list-changed notifier with `run-server`, `run-mcp-server`
-    - [Todo] Client: Integrated with `make-client`
-  - [Todo] Server: Send out notifications to all connected clients
-  - [Todo] Client: Change listener (with client, so as to re-fetch list)
+    - Client: Integrate list-changed notifier with `make-client`, `make-mcp-client`
+  - Listener for List-changed
+    - [Todo] Server: Change listener (with re-fetch list support)
+    - [Todo] Client: Change listener (with re-fetch list support)
 - Convenience functions for making capability
   - [Todo] In `plumcp.core.api.capability-support`: for making capability
   - [Todo] Cache/expose `InitializeResult` after `initialize!` success

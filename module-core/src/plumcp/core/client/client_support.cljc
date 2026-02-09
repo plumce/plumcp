@@ -181,6 +181,13 @@
   (send-message-to-server client message))
 
 
+(defn send-notification-to-server
+  [client message]
+  ;; send the message
+  (rs/log-outgoing-jsonrpc-notification client message)
+  (send-message-to-server client message))
+
+
 (defn wrap-transport
   [client-context transport]
   (-> client-context
