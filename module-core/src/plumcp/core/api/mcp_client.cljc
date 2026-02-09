@@ -58,8 +58,8 @@
                              (cs/wrap-transport client-transport)
                              (rt/upsert-runtime runtime))
           client-context (dissoc loaded-context :client-context-atom)
-          run-list-notifier (fn []
-                              (when run-list-notifier?
+          run-list-notifier (when run-list-notifier?
+                              (fn []
                                 (cap/run-list-changed-notifier
                                  (-> runtime
                                      (rt/?get rt/?client-capabilities)
@@ -70,8 +70,10 @@
                                     notification))
                                  list-notifier-options)))
           client-context (-> client-context
-                             (u/assoc-some :list-notifier
-                                           (run-list-notifier)))
+                             (u/assoc-some
+                              :run-list-notifier run-list-notifier
+                              :list-notifier-atom (when run-list-notifier
+                                                    (atom nil))))
           client-info (rt/?client-impl client-context)]
       ;; patch the client-context-atom
       (reset! (:client-context-atom loaded-context) client-context)
@@ -146,9 +148,14 @@
    See: `initialize-and-notify!`"
   [client]
   (let [notification (eg/make-initialized-notification)]
-    (cs/send-message-to-server client notification)
+    (cs/send-notification-to-server client notification)
     (p/upon-handshake-success (:transport client)
-                              (cs/get-session-context client))))
+                              (cs/get-session-context client))
+    ;; run list-change notifier for this connection
+    (when-let [run-list-notifier (:run-list-notifier client)]
+      (let [list-notifier (run-list-notifier)
+            list-notifier-atom (:list-notifier-atom client)]
+        (reset! list-notifier-atom list-notifier)))))
 
 
 (defn initialize-and-notify!
@@ -163,7 +170,8 @@
   "Disconnect and destroy the session."
   [client]
   (try
-    (when-let [list-notifier (:list-notifier client)]
+    (when-let [list-notifier (some-> (:list-notifier-atom client)
+                                     deref)]
       (p/stop! list-notifier))
     (finally
       (p/stop-client-transport! (:transport client) false))))
