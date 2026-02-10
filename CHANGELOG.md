@@ -5,8 +5,11 @@ All notable changes to this project will be documented in this file. This change
 ### Added
 - STDIO Client Transport
   - Options in `plumcp.core.client.stdio-client-transport/run-command`
-    - Option `:dir` - current directory for process
-    - Option `:env` - environment variables map
+    - Kwarg `:dir` - current directory for process
+    - Kwarg `:env` - environment variables map
+- Runtime override option
+  - Server: Kwarg `:override` in `run-server`, `run-mcp-server`
+  - Client: Kwarg `:override` in `make-client`, `make-mcp-client`
 - Capability API fns in new ns `plumcp.core.api.capability-support`
   - Capability item-making fns
 - Capability List-changed support
@@ -15,9 +18,6 @@ All notable changes to this project will be documented in this file. This change
     - Core implementation to detect and send list-changed notification
     - Server: Integrate list-changed notifier with `run-server`, `run-mcp-server`
     - Client: Integrate list-changed notifier with `make-client`, `make-mcp-client`
-  - Listener for List-changed
-    - [Todo] Server: Change listener (with re-fetch list support)
-    - [Todo] Client: Change listener (with re-fetch list support)
 - Convenience functions for making capability
   - [Todo] In `plumcp.core.api.capability-support`: for making capability
   - [Todo] Cache/expose `InitializeResult` after `initialize!` success

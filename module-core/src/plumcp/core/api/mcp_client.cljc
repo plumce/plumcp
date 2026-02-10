@@ -96,6 +96,7 @@
    |:ns (read literally)  |Caller ns|Supplied/discovered from hinted vars|
    |:traffic-logger       |         |No-op by default                    |
    |:runtime              |         |Made from :info,:capabilities,:tra..|
+   |:override             | {}      |Merged into final runtime           |
    |:mcp-methods-wrapper  |         |No-op by default                    |
    |:jsonrpc-handler      |         |Impl+made with :schema-check-wrapper|
    |:client-transport     |Required |Protocol p/IClientTransport instance|

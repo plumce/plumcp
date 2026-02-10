@@ -111,6 +111,7 @@
    |:ns (read literally)      |Caller ns|(Vector of) Namespaces to find vars in|
    |:traffic-logger           |         |No-op by default                      |
    |:runtime                  |         |made from :impl,:capabilities,:traff..|
+   |:override                 | {}      |Merged into final runtime             |
    |:mcp-methods-wrapper      |identity |Middleware `(fn [handlers])->handlers`|
    |:jsonrpc-handler          |         |Impl+made with :schema-check-wrapper  |
    |:transport                | :stdio  |Either of :stdio, :http               |

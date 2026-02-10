@@ -83,24 +83,25 @@
 
 (defn make-server-options
   "Make server options from given input map, returning an output map:
-   | Keyword-option          | Default  | Description                        |
-   |-------------------------|----------|------------------------------------|
-   |:info                    |          | see p.c.a.entity-support/make-info |
-   |:instructions            |          | Server instructions for MCP client |
-   |:capabilities            | Required | Given/made from :primitives        |
-   |:primitives              | --       | Given/made from :vars              |
-   |:vars                    | --       | To make primitives                 |
-   |:traffic-logger          | No-op    | MCP transport traffic logger       |
-   |:runtime                 | --       | Made from :impl,:capabilities,:tr..|
-   |:mcp-methods-wrapper     | No-op    | Wraper for MCP-methods impl        |
-   |:jsonrpc-handler         | --       | Made from impl and options         |
+   | Keyword-option        | Default  | Description                        |
+   |-----------------------|----------|------------------------------------|
+   |:info                  |          | see p.c.a.entity-support/make-info |
+   |:instructions          |          | Server instructions for MCP client |
+   |:capabilities          | Required | Given/made from :primitives        |
+   |:primitives            | --       | Given/made from :vars              |
+   |:vars                  | --       | To make primitives                 |
+   |:traffic-logger        | No-op    | MCP transport traffic logger       |
+   |:runtime               | --       | Made from :impl,:capabilities,:tr..|
+   |:override              | {}       | Merged into final runtime          |
+   |:mcp-methods-wrapper   | No-op    | Wraper for MCP-methods impl        |
+   |:jsonrpc-handler       | --       | Made from impl and options         |
 
    Option kwargs when JSON-RPC handler is constructed:
-   | Keyword option                | Default | Description                       |
-   |-------------------------------|---------|-----------------------------------|
-   | :callback-handlers            | {}      | For old req, get from :primitives |
-   | :request-methods-wrapper      | No-op   | MCP request-methods impl wrapper  |
-   | :default-notification-handler | No-op   | Notif handler (fn [notif-msg])    |
+   |Keyword option               |Default|Description                      |
+   |-----------------------------|-------|---------------------------------|
+   |:callback-handlers           |{}     |For old req, get from :primitives|
+   |:request-methods-wrapper     |No-op  |MCP request-methods impl wrapper |
+   |:default-notification-handler|No-op  |Notif handler (fn [notif-msg])   |
 
    The returned output map contains the following keys:
    :runtime          Server runtime map
@@ -113,9 +114,11 @@
            vars
            traffic-logger
            runtime
+           override
            mcp-methods-wrapper
            jsonrpc-handler]
     :or {traffic-logger stl/compact-server-traffic-logger
+         override {}
          mcp-methods-wrapper identity}
     :as server-options}]
   (when-not (or (u/non-empty-map? capabilities)
@@ -136,14 +139,15 @@
                                (some-> (get-primitives)
                                        vs/primitives->fixed-server-capabilities)))
         get-runtime (fn []
-                      (or runtime
-                          (-> {}
-                              (cond-> info (rt/?server-info info)
-                                      instructions (rt/?server-instructions
-                                                    instructions))
-                              (rt/?server-capabilities (get-capabilities))
-                              (rt/?traffic-logger traffic-logger)
-                              (rt/get-runtime))))
+                      (-> runtime
+                          (or (-> {}
+                                  (cond-> info (rt/?server-info info)
+                                          instructions (rt/?server-instructions
+                                                        instructions))
+                                  (rt/?server-capabilities (get-capabilities))
+                                  (rt/?traffic-logger traffic-logger)
+                                  (rt/get-runtime)))
+                          (merge override)))
         get-jsonrpc-handler (fn []
                               (or jsonrpc-handler
                                   (-> server-options

@@ -269,6 +269,7 @@
    |:vars                    | --      | To make primitives                 |
    |:traffic-logger          | No-op   | MCP transport traffic logger       |
    |:runtime                 | --      | Made from :impl,:capabilities,:tr..|
+   |:override                | {}      | Merged into final runtime          |
    |:mcp-methods-wrapper     | No-op   | Wraper for MCP-methods impl        |
    |:jsonrpc-handler         | --      | Made from impl and options         |
 
@@ -288,9 +289,11 @@
            vars
            traffic-logger
            runtime
+           override
            jsonrpc-handler
            mcp-methods-wrapper]
     :or {traffic-logger stl/compact-client-traffic-logger
+         override {}
          mcp-methods-wrapper identity}
     :as client-options}]
   (let [get-primitives (fn []
@@ -304,12 +307,13 @@
                                        vs/primitives->client-capabilities)
                                cap/default-client-capabilities))
         get-runtime (fn []
-                      (or runtime
-                          (-> {}
-                              (cond-> info (rt/?client-info info))
-                              (rt/?client-capabilities (get-capabilities))
-                              (rt/?traffic-logger traffic-logger)
-                              (rt/get-runtime))))
+                      (-> runtime
+                          (or (-> {}
+                                  (cond-> info (rt/?client-info info))
+                                  (rt/?client-capabilities (get-capabilities))
+                                  (rt/?traffic-logger traffic-logger)
+                                  (rt/get-runtime)))
+                          (merge override)))
         get-jsonrpc-handler (fn []
                               (or jsonrpc-handler
                                   (make-client-jsonrpc-message-handler
