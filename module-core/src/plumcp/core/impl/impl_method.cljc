@@ -150,13 +150,13 @@
   (let [protocol-version supported-protocol-version
         server-capabilities (-> (rt/?server-capabilities jsonrpc-request)
                                 (cap/get-server-capability-declaration))
-        server-implementation (rt/?server-impl jsonrpc-request)
+        server-info (rt/?server-info jsonrpc-request)
         server-instructions (rt/?server-instructions jsonrpc-request)]
     (->> (-> {}
              (u/assoc-some :instructions server-instructions))
          (eg/make-initialize-result protocol-version
                                     server-capabilities
-                                    server-implementation))))
+                                    server-info))))
 
 
 (defn find-supported-protocol-version

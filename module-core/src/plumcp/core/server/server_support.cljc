@@ -138,7 +138,7 @@
         get-runtime (fn []
                       (or runtime
                           (-> {}
-                              (cond-> info (rt/?server-impl info)
+                              (cond-> info (rt/?server-info info)
                                       instructions (rt/?server-instructions
                                                     instructions))
                               (rt/?server-capabilities (get-capabilities))

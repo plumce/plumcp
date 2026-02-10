@@ -200,11 +200,11 @@
 (defn ^{:see sd/InitializeResult} make-initialize-result
   [protocol-version
    server-capabilities
-   server-implementation
+   server-info
    & {:keys [instructions]}]
   (-> {:protocolVersion protocol-version
        :capabilities server-capabilities
-       :serverInfo server-implementation}
+       :serverInfo server-info}
       (u/assoc-some :instructions instructions)))
 
 

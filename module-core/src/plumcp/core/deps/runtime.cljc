@@ -253,7 +253,7 @@
 (defkey ?request-id {})
 (defkey ?request-params-meta {})
 (defkey ?response-stream {})
-(defkey ?server-impl {})
+(defkey ?server-info {})
 
 (defkey ?client-context {})
 (defkey ?client-impl {})

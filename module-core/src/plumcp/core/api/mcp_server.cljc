@@ -61,7 +61,7 @@
                                             {:id transport}
                                             {:id default-transport})}
                          options)
-          server-info (rt/?get runtime rt/?server-impl)
+          server-info (rt/?get runtime rt/?server-info)
           run-list-notifier (fn []
                               (when run-list-notifier?
                                 (cap/run-list-changed-notifier
