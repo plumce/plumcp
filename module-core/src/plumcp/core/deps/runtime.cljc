@@ -22,31 +22,70 @@
 ;; --- Dependency-bag utility ---
 
 
-(def ^:const k-deps-bag :plumcp.core/runtime)
+(def ^:const k-runtime :plumcp.core/runtime)
+(def ^:const not-found-sentinel ::not-found)
+
+
+(defn !get
+  "Like `(clojure.core/get m k)` that throws if not found."
+  [m k]
+  (let [v (get m k not-found-sentinel)]
+    (if (= v not-found-sentinel)
+      (u/expected! m (str "container-map to have key" k))
+      v)))
+
+
+(defn !>get
+  "Like `(clojure.core/get-in m [k-runtime k])` that throws if not found."
+  [m k]
+  (let [v (get-in m [k-runtime k] not-found-sentinel)]
+    (if (= v not-found-sentinel)
+      (u/expected! m (str "container-map to have path" [k-runtime k]))
+      v)))
+
+
+(defn >get
+  "Like `(clojure.core/get-in m [k-runtime k] not-found)`."
+  [m k not-found]
+  (get-in m [k-runtime k] not-found))
+
+
+(defn >contains?
+  "Like `clojure.core/contains?` for path [k-runtime k]."
+  [m k]
+  #_(contains? (get m k-runtime) k)
+  (not= (get-in m [k-runtime k] not-found-sentinel)
+        not-found-sentinel))
+
+
+(defn >assoc
+  "Like `(clojure.core/assoc-in m [k-runtime k] v)`."
+  [m k v]
+  (assoc-in m [k-runtime k] v))
 
 
 (defn has-runtime?
   "Return true if the context map has the dependency bag (a map that is
    containing dependencies), false otherwise."
   [container-map]
-  (contains? container-map k-deps-bag))
+  (contains? container-map k-runtime))
 
 
 (defn get-runtime
   "Return deps-bag if available in the context map, throw otherwise."
   [container-map]
   (if (has-runtime? container-map)
-    (get container-map k-deps-bag)
+    (get container-map k-runtime)
     (u/expected! container-map (str "container-map to have key"
-                                    k-deps-bag))))
+                                    k-runtime))))
 
 
 (defn upsert-runtime
   "Insert or update (existing) given deps bag into the context map."
   [container-map dependencies]
   (if (has-runtime? container-map)
-    (update container-map k-deps-bag merge dependencies)
-    (assoc container-map k-deps-bag dependencies)))
+    (update container-map k-runtime merge dependencies)
+    (assoc container-map k-runtime dependencies)))
 
 
 (defn copy-runtime
@@ -55,56 +94,19 @@
    Optionally, you may specify the keys to be selected when copying."
   ([map-dest map-src]
    (->> {}
-        (get map-src k-deps-bag)
-        (assoc map-dest k-deps-bag)))
+        (get map-src k-runtime)
+        (assoc map-dest k-runtime)))
   ([map-dest map-src ks]
    (as-> {} $
-     (get map-src k-deps-bag $)
+     (get map-src k-runtime $)
      (select-keys $ ks)
-     (assoc map-dest k-deps-bag $))))
+     (assoc map-dest k-runtime $))))
 
 
 (defn dissoc-runtime
   "Remove deps bag from given context map."
   [container-map]
-  (dissoc container-map k-deps-bag))
-
-
-;; --- Individual dependency utility ---
-
-
-(defn assoc-dep
-  "Associate a new/updated dependency K/V pair into the context map."
-  [container-map k v]
-  (assoc-in container-map [k-deps-bag k] v))
-
-
-(defn has-dep?
-  "Return true if context map contains the dependency key, false
-   otherwise."
-  [container-map k]
-  (contains? (get container-map k-deps-bag) k))
-
-
-(defn opt-dep
-  "Get the optional dependency by key from context map if available,
-   return nil otherwise."
-  [container-map k]
-  (get-in container-map [k-deps-bag k]))
-
-
-(defn get-dep
-  "Get the dependency by key from context map if available, throw
-   otherwise."
-  ([container-map k]
-   (if (has-dep? container-map k)
-     (get-in container-map [k-deps-bag k])
-     (u/expected! container-map (str "container-map to have path"
-                                     [k-deps-bag k]))))
-  ([container-map k not-found]
-   (if (has-dep? container-map k)
-     (get-in container-map [k-deps-bag k])
-     not-found)))
+  (dissoc container-map k-runtime))
 
 
 ;; --- Key definition/helpers ---
@@ -118,12 +120,12 @@
     (contains? runtime-map k)))
 
 
-(defn ?has-in
+(defn ?>has
   "Return true if the defined key exists at the runtime path in given
    context map, false otherwise."
   [context-map key-definition]
   (let [k (:key key-definition)]
-    (has-dep? context-map k)))
+    (>contains? context-map k)))
 
 
 (defn ?get
@@ -138,14 +140,14 @@
         (u/expected! runtime-map (str "runtime-map to have key " k))))))
 
 
-(defn ?get-in
+(defn ?>get
   "Like `clojure.core/get-in` perform a path lookup on the given context
    map using the key definition. Throw if key not found."
   [context-map key-definition]
   (let [k (:key key-definition)]
     (if (:has-default? key-definition)
-      (get-dep context-map k (:default-value key-definition))
-      (get-dep context-map k))))
+      (>get context-map k (:default-value key-definition))
+      (!>get context-map k))))
 
 
 (defn ?assoc
@@ -156,20 +158,20 @@
     (assoc runtime-map k value)))
 
 
-(defn ?assoc-in
+(defn ?>assoc
   "Like `clojure.core/assoc-in` add/update the context map at the path
    with key/val pair."
   [context-map key-definition value]
   (let [k (:key key-definition)]
-    (assoc-dep context-map k value)))
+    (>assoc context-map k value)))
 
 
 (defrecord KeyDefinition [key has-default? default-value]
   IFn
   (#?(:cljs -invoke
-      :clj invoke) [this context-map] (?get-in context-map this))
+      :clj invoke) [this context-map] (?>get context-map this))
   (#?(:cljs -invoke
-      :clj invoke) [this context-map v] (?assoc-in context-map this v)))
+      :clj invoke) [this context-map v] (?>assoc context-map this v)))
 
 
 (defn make-key-definition
@@ -264,12 +266,12 @@
 
 (defn has-session?
   [context]
-  (?has-in context ?session))
+  (?>has context ?session))
 
 
 (defn has-response-stream?
   [context]
-  (?has-in context ?response-stream))
+  (?>has context ?response-stream))
 
 
 ;; --- Middleware ---
