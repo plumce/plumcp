@@ -306,7 +306,7 @@
         get-runtime (fn []
                       (or runtime
                           (-> {}
-                              (cond-> info (rt/?client-impl info))
+                              (cond-> info (rt/?client-info info))
                               (rt/?client-capabilities (get-capabilities))
                               (rt/?traffic-logger traffic-logger)
                               (rt/get-runtime))))

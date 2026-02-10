@@ -157,14 +157,14 @@
 (defn ^{:see sd/InitializeRequest} make-initialize-request
   [protocol-version
    client-capabilities-declaration
-   client-implementation
+   client-info
    & {:keys [_meta] :as opts}]
   (-> (make-request sd/method-initialize
                     opts)
       (update :params
               merge {:protocolVersion protocol-version
                      :capabilities client-capabilities-declaration
-                     :clientInfo client-implementation})))
+                     :clientInfo client-info})))
 
 
 (defn ^{:see sd/ServerCapabilities} make-server-capabilities

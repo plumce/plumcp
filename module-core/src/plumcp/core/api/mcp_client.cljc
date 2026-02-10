@@ -74,7 +74,7 @@
                               :run-list-notifier run-list-notifier
                               :list-notifier-atom (when run-list-notifier
                                                     (atom nil))))
-          client-info (rt/?client-impl client-context)]
+          client-info (rt/?client-info client-context)]
       ;; patch the client-context-atom
       (reset! (:client-context-atom loaded-context) client-context)
       ;; start the transport
@@ -134,7 +134,7 @@
                  sd/protocol-version-max
                  (-> (:capabilities client)
                      cap/get-client-capability-declaration)
-                 (rt/?client-impl client))
+                 (rt/?client-info client))
         setter (partial cs/set-session-context! client)]
     (cs/send-request-to-server client
                                request

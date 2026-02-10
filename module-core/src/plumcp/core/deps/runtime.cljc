@@ -256,7 +256,7 @@
 (defkey ?server-info {})
 
 (defkey ?client-context {})
-(defkey ?client-impl {})
+(defkey ?client-info {})
 
 
 ;; --- Meta utility functions ---
