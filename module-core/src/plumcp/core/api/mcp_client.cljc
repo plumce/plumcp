@@ -19,7 +19,8 @@
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.banner-print :as bp]
-   [plumcp.core.util :as u])
+   [plumcp.core.util :as u]
+   [plumcp.core.util.key-lookup :as kl])
   #?(:cljs (:require-macros [plumcp.core.api.mcp-client])))
 
 
@@ -62,7 +63,7 @@
                               (fn []
                                 (cap/run-list-changed-notifier
                                  (-> runtime
-                                     (rt/?get rt/?client-capabilities)
+                                     (kl/?get rt/?client-capabilities)
                                      cap/get-client-listed-capabilities)
                                  (fn [notification]
                                    (cs/send-notification-to-server

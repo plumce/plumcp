@@ -20,7 +20,8 @@
    [plumcp.core.server.stdio-server :as stdio-server]
    [plumcp.core.support.banner-print :as bp]
    [plumcp.core.util :as u]
-   [plumcp.core.util.async-bridge :as uab])
+   [plumcp.core.util.async-bridge :as uab]
+   [plumcp.core.util.key-lookup :as kl])
   #?(:cljs (:require-macros [plumcp.core.api.mcp-server])))
 
 
@@ -61,12 +62,12 @@
                                             {:id transport}
                                             {:id default-transport})}
                          options)
-          server-info (rt/?get runtime rt/?server-info)
+          server-info (kl/?get runtime rt/?server-info)
           run-list-notifier (fn []
                               (when run-list-notifier?
                                 (cap/run-list-changed-notifier
                                  (-> runtime
-                                     (rt/?get rt/?server-capabilities)
+                                     (kl/?get rt/?server-capabilities)
                                      cap/get-server-listed-capabilities)
                                  (let [context (rt/upsert-runtime
                                                 {} runtime)]

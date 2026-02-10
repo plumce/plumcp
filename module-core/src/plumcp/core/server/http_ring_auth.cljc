@@ -15,7 +15,8 @@
    [plumcp.core.server.http-ring-transport :as hrt]
    [plumcp.core.util :as u :refer [#?(:cljs slurp)]]
    [plumcp.core.util.async-bridge :as uab]
-   [plumcp.core.util.http-auth :as uha]))
+   [plumcp.core.util.http-auth :as uha]
+   [plumcp.core.util.key-lookup :as kl]))
 
 
 (defn handler-for:static-json
@@ -148,7 +149,7 @@
          jwks-cache-millis (* 60 60 1000)
          auth-cache-millis (* 60 60 1000)
          mcp-uri "/mcp"
-         mcp-server-name (-> (rt/?get runtime rt/?server-info)
+         mcp-server-name (-> (kl/?get runtime rt/?server-info)
                              :name)}
     :as auth-options}]
   (u/expected! jwt->claims fn? "jwt->claims to be a (fn [jwks-str jwt-str])")

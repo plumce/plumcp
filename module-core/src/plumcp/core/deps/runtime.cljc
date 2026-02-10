@@ -14,32 +14,23 @@
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
-   [plumcp.core.util :as u])
-  #?(:cljs (:require-macros [plumcp.core.deps.runtime :refer [defkey]])
-     :clj (:import [clojure.lang IFn])))
+   [plumcp.core.util :as u]
+   [plumcp.core.util.key-lookup :as kl])
+  #?(:cljs (:require-macros [plumcp.core.deps.runtime
+                             :refer [defrtkey]])))
 
 
 ;; --- Dependency-bag utility ---
 
 
 (def ^:const k-runtime :plumcp.core/runtime)
-(def ^:const not-found-sentinel ::not-found)
-
-
-(defn !get
-  "Like `(clojure.core/get m k)` that throws if not found."
-  [m k]
-  (let [v (get m k not-found-sentinel)]
-    (if (= v not-found-sentinel)
-      (u/expected! m (str "container-map to have key" k))
-      v)))
 
 
 (defn !>get
   "Like `(clojure.core/get-in m [k-runtime k])` that throws if not found."
   [m k]
-  (let [v (get-in m [k-runtime k] not-found-sentinel)]
-    (if (= v not-found-sentinel)
+  (let [v (get-in m [k-runtime k] kl/not-found-sentinel)]
+    (if (= v kl/not-found-sentinel)
       (u/expected! m (str "container-map to have path" [k-runtime k]))
       v)))
 
@@ -54,8 +45,8 @@
   "Like `clojure.core/contains?` for path [k-runtime k]."
   [m k]
   #_(contains? (get m k-runtime) k)
-  (not= (get-in m [k-runtime k] not-found-sentinel)
-        not-found-sentinel))
+  (not= (get-in m [k-runtime k] kl/not-found-sentinel)
+        kl/not-found-sentinel))
 
 
 (defn >assoc
@@ -112,32 +103,12 @@
 ;; --- Key definition/helpers ---
 
 
-(defn ?has
-  "Like `clojure.core/contains?` return true if the defined key exists
-   in the given runtime map, flase otherwise."
-  [runtime-map key-definition]
-  (let [k (:key key-definition)]
-    (contains? runtime-map k)))
-
-
 (defn ?>has
   "Return true if the defined key exists at the runtime path in given
    context map, false otherwise."
   [context-map key-definition]
   (let [k (:key key-definition)]
     (>contains? context-map k)))
-
-
-(defn ?get
-  "Like `clojure.core/get` perform a direct lookup on the given runtime
-   map using the key definition. Throw if key not found."
-  [runtime-map key-definition]
-  (let [k (:key key-definition)]
-    (if (contains? runtime-map k)
-      (get runtime-map k)
-      (if (:has-default? key-definition)
-        (:default-value key-definition)
-        (u/expected! runtime-map (str "runtime-map to have key " k))))))
 
 
 (defn ?>get
@@ -150,14 +121,6 @@
       (!>get context-map k))))
 
 
-(defn ?assoc
-  "Like `clojure.core/assoc` add/update the runtime map directly with
-   key/val pair."
-  [runtime-map key-definition value]
-  (let [k (:key key-definition)]
-    (assoc runtime-map k value)))
-
-
 (defn ?>assoc
   "Like `clojure.core/assoc-in` add/update the context map at the path
    with key/val pair."
@@ -166,70 +129,26 @@
     (>assoc context-map k value)))
 
 
-(defrecord KeyDefinition [key has-default? default-value]
-  IFn
-  (#?(:cljs -invoke
-      :clj invoke) [this context-map] (?>get context-map this))
-  (#?(:cljs -invoke
-      :clj invoke) [this context-map v] (?>assoc context-map this v)))
-
-
-(defn make-key-definition
-  ([k]
-   (->KeyDefinition k false nil))
-  ([k lookup-default]
-   (->KeyDefinition k true lookup-default)))
-
-
-(defmacro defkey
-  "Define a key fn for looking up corresponding value. Option map may
-   have the following keys:
-   | Keyword  | Default   | Description                                |
-   |----------|-----------|--------------------------------------------|
-   | :doc     | Inferred  | Docstring for the key-lookup fn            |
-   | :key     | Inferred  | Key used for lookup                        |
-   | :default |    --     | Default value if no lookup value available |"
-  ([fn-name options]
-   (assert (symbol? fn-name) "Fn name should be a symbol")
-   (assert (nil? (namespace fn-name)) "Fn name symbol should have no namespace")
-   (assert (map? options) "Options must be a map")
-   (let [has-default? (contains? options :default)
-         default-sym (gensym "default")
-         default (:default options)
-         default-key (keyword (str (ns-name *ns*)) (str fn-name))
-         {:keys [doc key]
-          :or {doc (str "Dependency/runtime key lookup for " default-key)
-               key default-key}} options]
-     `(let [~default-sym ~default]
-        (def ~(->> (fn [m]
-                     (merge m {:arglists (list 'quote
-                                               '([context-map]
-                                                 [context-map value]))
-                               :doc doc}))
-                   (vary-meta fn-name))
-          ~doc
-          ~(if has-default?
-             `(make-key-definition ~key ~default-sym)
-             `(make-key-definition ~key))))))
-  ([fn-name doc options]
-   `(defkey ~fn-name ~(assoc options :doc doc))))
-
-
 ;; --- Key definitions ---
-
-
-;; We ?-prefix all key definition var names to identify them visually
-;; (?foo container) --> looks up and returns an item
-;; (?foo container val) --> updates item/val and returns container
 
 
 ;; Keys with default values
 
 
-(defkey ?traffic-logger      {:default stl/nop-traffic-logger})
-(defkey ?client-capabilities {:default cap/default-client-capabilities})
-(defkey ?server-capabilities {:default cap/default-server-capabilities})
-(defkey ?notification-listeners
+(defmacro defrtkey
+  [fn-name options]
+  (assert (symbol? fn-name) "Fn name should be a symbol")
+  (assert (nil? (namespace fn-name)) "Fn name symbol should have no namespace")
+  (assert (map? options) "Options must be a map")
+  `(kl/defkey ~fn-name ~(assoc options
+                               :get (symbol #'?>get)
+                               :assoc (symbol #'?>assoc))))
+
+
+(defrtkey ?traffic-logger      {:default stl/nop-traffic-logger})
+(defrtkey ?client-capabilities {:default cap/default-client-capabilities})
+(defrtkey ?server-capabilities {:default cap/default-server-capabilities})
+(defrtkey ?notification-listeners
   {:default (zipmap
              [sd/method-notifications-initialized
               sd/method-notifications-cancelled
@@ -241,24 +160,24 @@
               sd/method-notifications-tools-list_changed
               sd/method-notifications-roots-list_changed]
              (repeat u/nop))})
-(defkey ?session-store {:default (sm/make-in-memory-server-session-store)})
-(defkey ?mcp-logger {:default nil})
-(defkey ?server-instructions {:default nil})
+(defrtkey ?session-store {:default (sm/make-in-memory-server-session-store)})
+(defrtkey ?mcp-logger {:default nil})
+(defrtkey ?server-instructions {:default nil})
 
 
 ;; Keys without default values
 
 
-(defkey ?session-id {})
-(defkey ?session {})
-(defkey ?request-context {})
-(defkey ?request-id {})
-(defkey ?request-params-meta {})
-(defkey ?response-stream {})
-(defkey ?server-info {})
+(defrtkey ?session-id {})
+(defrtkey ?session {})
+(defrtkey ?request-context {})
+(defrtkey ?request-id {})
+(defrtkey ?request-params-meta {})
+(defrtkey ?response-stream {})
+(defrtkey ?server-info {})
 
-(defkey ?client-context {})
-(defkey ?client-info {})
+(defrtkey ?client-context {})
+(defrtkey ?client-info {})
 
 
 ;; --- Meta utility functions ---
