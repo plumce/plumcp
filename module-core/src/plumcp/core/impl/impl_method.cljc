@@ -140,7 +140,7 @@
   (jr/jsonrpc-failure
    sd/error-code-invalid-params
    "Unsupported protocol version"
-   {:supported [sd/protocol-versions-supported]
+   {:supported (vec sd/protocol-versions-supported)
     :requested client-protocol-version}))
 
 
@@ -173,16 +173,14 @@
                                                         :as jsonrpc-request}]
   (let [{client-protocol-version :protocolVersion
          client-capabilities :capabilities
-         client-info :clientInfo} params
-        ;; server-capabilities @mcp-state/db
-        ;; server-info {}
-        ;; server-instructions ""
-        ]
+         client-info :clientInfo} params]
     (if-some [protocol-version (-> client-protocol-version
                                    (find-supported-protocol-version))]
-      (-> jsonrpc-request
-          (get-initialize-result protocol-version)
-          jr/jsonrpc-success)
+      (do
+        (rs/set-initiliazed-params jsonrpc-request params)
+        (-> jsonrpc-request
+            (get-initialize-result protocol-version)
+            jr/jsonrpc-success))
       (handshake-error client-protocol-version))))
 
 

@@ -17,6 +17,7 @@
 
 
 (def ^:const k-cancellation-reqs :cancellation-reqs)
+(def ^:const k-initialize-params :initialize-params)
 (def ^:const k-initialize-ts     :initialize-ts)
 (def ^:const k-log-level         :log-level)
 (def ^:const k-log-level-index   :log-level-index)
@@ -98,6 +99,9 @@
       ;;
       ;; initialization
       ;;
+      (get-init-params [_] (s-get k-initialize-params))
+      (set-init-params [_ init-params] (s-update-at! k-initialize-ts
+                                                     #(or %  init-params)))
       (get-init-ts [_] (s-get k-initialize-ts))
       (set-init-ts [_] (s-update-at! k-initialize-ts
                                      #(or % (u/now-millis))))

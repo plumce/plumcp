@@ -164,7 +164,19 @@
 ;; --- Session ---
 
 
-;; Initialization timestamp
+;; Initialization info
+
+
+(defn get-initialized-params
+  [context]
+  (-> (rt/?session context)
+      p/get-init-params))
+
+
+(defn set-initiliazed-params
+  [context init-params]
+  (-> (rt/?session context)
+      (p/set-init-params init-params)))
 
 
 (defn get-initialized-timestamp

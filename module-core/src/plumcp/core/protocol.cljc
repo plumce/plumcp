@@ -87,6 +87,8 @@
   ;;
   ;; Initialization
   ;;
+  (get-init-params [this] "Get init params if initialized, nil otherwise")
+  (set-init-params [this init-info] "Set init params if un-initialized")
   (get-init-ts [this] "Get init timestamp if initialized, else nil")
   (set-init-ts [this] "Set init timestamp if un-initialized")
   ;;

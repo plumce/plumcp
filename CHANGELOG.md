@@ -18,6 +18,9 @@ All notable changes to this project will be documented in this file. This change
     - Core implementation to detect and send list-changed notification
     - Server: Integrate list-changed notifier with `run-server`, `run-mcp-server`
     - Client: Integrate list-changed notifier with `make-client`, `make-mcp-client`
+- Make initialization info accessible
+  - Server: Store initialization params in server session
+  - [Todo] Client: Store initialization result in client context
 - Convenience functions for making capability
   - [Todo] In `plumcp.core.api.capability-support`: for making capability
   - [Todo] Cache/expose `InitializeResult` after `initialize!` success
