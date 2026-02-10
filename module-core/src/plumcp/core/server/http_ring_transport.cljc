@@ -446,31 +446,44 @@
         request)
       (let [session (rs/get-server-session request session-id)]
         (rt/?session request session)))
-    request))
+    (if (= sd/method-initialize
+           (get-in request [:body :method]))  ; method is 'initialize'
+      ;; attach a removable session
+      (let [session-id (u/uuid-v4)
+            streams (rs/make-server-streams request)]
+        (rs/set-server-session request
+                               session-id
+                               streams
+                               hrs/push-msg-receiver)
+        (let [session (rs/get-server-session request session-id)]
+          (-> request
+              (rt/?session session)
+              (assoc-in [:headers
+                         sd/mcp-session-id-header-lower] session-id))))
+      ;; let it process without a session
+      request)))
 
 
 (defn ring-session-response [request response]
   (cond
     ;; request already has session
     (rt/has-session? request)
-    response
-    ;; request has no session, but method is 'initialize'
-    ;; and response is a success
-    (and
-     (= sd/method-initialize
-        (get-in request [:body :method]))
-     (jr/jsonrpc-result?
-      (get response :body)))
-    ;;
-    (let [session-id (u/uuid-v4)
-          streams (rs/make-server-streams request)]
-      (rs/set-server-session request
-                             session-id
-                             streams
-                             hrs/push-msg-receiver)
-      (assoc-in response
-                [:headers sd/mcp-session-id-header]
-                session-id))
+    (if (= sd/method-initialize
+           (get-in request [:body :method]))  ; method is 'initialize'
+      (let [session-id (get-in request
+                               [:headers
+                                sd/mcp-session-id-header-lower])]
+        (if (jr/jsonrpc-result? (get response :body))
+          ;; response is a success, so add session ID to response header
+          (assoc-in response
+                    [:headers sd/mcp-session-id-header]
+                    session-id)
+          ;; response is NOT a success, so destroy session
+          (do
+            (rs/remove-server-session request session-id)
+            (-> response
+                (update :headers dissoc sd/mcp-session-id-header)))))
+      response)
     ;; otherwise
     :else response))
 
