@@ -46,13 +46,9 @@
     (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
     (u/expected! client-transport #(satisfies? p/IClientTransport %)
                  ":client-transport to be a valid client transport")
-    (let [client-options (merge {:role :client
-                                 :transport-info (-> client-transport
-                                                     p/client-transport-info)}
-                                options)
-          loaded-context (-> (or client-context
+    (let [loaded-context (-> (or client-context
                                  (-> {:jsonrpc-handler jsonrpc-handler}
-                                     (merge client-options)
+                                     (merge options)
                                      cs/make-base-client-context))
                              (assoc :capabilities (rt/?client-capabilities
                                                    runtime))
@@ -82,7 +78,11 @@
       (p/start-client-transport client-transport
                                 (:on-message client-context))
       (when print-banner?
-        (bp/print-banner client-info client-options))
+        (as-> {:role :client
+               :transport-info (-> client-transport
+                                   p/client-transport-info)} $
+          (merge $ options)
+          (bp/print-banner client-info $)))
       client-context)))
 
 
