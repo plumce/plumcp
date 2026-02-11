@@ -27,7 +27,8 @@
 
 
 (defn !>get
-  "Like `(clojure.core/get-in m [k-runtime k])` that throws if not found."
+  "Like `(clojure.core/get-in m [k-runtime k])` that throws if key is
+   not found."
   [m k]
   (let [v (get-in m [k-runtime k] kl/not-found-sentinel)]
     (if (= v kl/not-found-sentinel)
@@ -55,28 +56,39 @@
   (assoc-in m [k-runtime k] v))
 
 
+(defn !>update
+  "Like `(clojure.core/update-in m [k-runtime k] f & args)` that throws
+   if key is not found."
+  [m k f & args]
+  (let [v (get-in m [k-runtime k] kl/not-found-sentinel)]
+    (if (= v kl/not-found-sentinel)
+      (u/expected! m (str "container-map to have path" [k-runtime k]))
+      (->> (apply f v args)
+           (>assoc m k)))))
+
+
 (defn has-runtime?
   "Return true if the context map has the dependency bag (a map that is
    containing dependencies), false otherwise."
-  [container-map]
-  (contains? container-map k-runtime))
+  [m]
+  (contains? m k-runtime))
 
 
 (defn get-runtime
   "Return deps-bag if available in the context map, throw otherwise."
-  [container-map]
-  (if (has-runtime? container-map)
-    (get container-map k-runtime)
-    (u/expected! container-map (str "container-map to have key"
-                                    k-runtime))))
+  [m]
+  (if (has-runtime? m)
+    (get m k-runtime)
+    (u/expected! m (str "container-map to have key"
+                        k-runtime))))
 
 
 (defn upsert-runtime
   "Insert or update (existing) given deps bag into the context map."
-  [container-map dependencies]
-  (if (has-runtime? container-map)
-    (update container-map k-runtime merge dependencies)
-    (assoc container-map k-runtime dependencies)))
+  [m dependencies]
+  (if (has-runtime? m)
+    (update m k-runtime merge dependencies)
+    (assoc m k-runtime dependencies)))
 
 
 (defn copy-runtime
@@ -96,8 +108,8 @@
 
 (defn dissoc-runtime
   "Remove deps bag from given context map."
-  [container-map]
-  (dissoc container-map k-runtime))
+  [m]
+  (dissoc m k-runtime))
 
 
 ;; --- Key definition/helpers ---
@@ -106,27 +118,40 @@
 (defn ?>has
   "Return true if the defined key exists at the runtime path in given
    context map, false otherwise."
-  [context-map key-definition]
-  (let [k (:key key-definition)]
-    (>contains? context-map k)))
+  [m kd]
+  (->> (kl/->key kd)
+       (>contains? m)))
 
 
 (defn ?>get
   "Like `clojure.core/get-in` perform a path lookup on the given context
    map using the key definition. Throw if key not found."
-  [context-map key-definition]
-  (let [k (:key key-definition)]
-    (if (:has-default? key-definition)
-      (>get context-map k (:default-value key-definition))
-      (!>get context-map k))))
+  [m kd]
+  (if (kl/keydef? kd)
+    (let [k (kl/->key kd)]
+      (if (kl/->has-default? kd)
+        (>get m k (kl/->default-value kd))
+        (!>get m k)))
+    (!>get m kd)))
 
 
 (defn ?>assoc
   "Like `clojure.core/assoc-in` add/update the context map at the path
    with key/val pair."
-  [context-map key-definition value]
-  (let [k (:key key-definition)]
-    (>assoc context-map k value)))
+  [m kd value]
+  (as-> (kl/->key kd) $
+    (>assoc m $ value)))
+
+
+(defn ?>update
+  "Like `clojure.core/update-in` add/update the context map at the path
+   with key/val pair."
+  [m kd f & args]
+  (if (kl/keydef? kd)
+    (as-> (?>get m kd) $
+      (apply f $ args)
+      (?>assoc m kd $))
+    (apply !>update m kd f args)))
 
 
 ;; --- Key definitions ---
@@ -136,13 +161,18 @@
 
 
 (defmacro defrtkey
-  [fn-name options]
-  (assert (symbol? fn-name) "Fn name should be a symbol")
-  (assert (nil? (namespace fn-name)) "Fn name symbol should have no namespace")
-  (assert (map? options) "Options must be a map")
-  `(kl/defkey ~fn-name ~(assoc options
-                               :get (symbol #'?>get)
-                               :assoc (symbol #'?>assoc))))
+  "Define a runtime key (fn) that accesses K/V pairs in a map at a
+   well-known key in a map. This macro is a derivate of `defkey`."
+  ([fn-name options]
+   (assert (symbol? fn-name) "Fn name should be a symbol")
+   (assert (nil? (namespace fn-name)) "Fn name symbol should have no namespace")
+   (assert (map? options) "Options must be a map")
+   `(kl/defkey ~fn-name ~(assoc options
+                                :get (symbol #'?>get)
+                                :assoc (symbol #'?>assoc)
+                                :update (symbol #'?>update))))
+  ([fn-name doc options]
+   `(defrtkey ~fn-name ~(assoc options :doc doc))))
 
 
 (defrtkey ?traffic-logger      {:default stl/nop-traffic-logger})
