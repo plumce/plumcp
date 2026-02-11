@@ -163,7 +163,16 @@
    session and notify the MCP server of a successful initialization."
   [client]
   (initialize! client (fn [result]
+                        (-> (cs/?client-cache client)
+                            (cs/?cc-initialize-result result))
                         (notify-initialized client))))
+
+
+(defn get-initialize-result
+  "Return the initialization result from the server."
+  [client]
+  (-> (cs/?client-cache client)
+      cs/?cc-initialize-result))
 
 
 (defn disconnect!

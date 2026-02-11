@@ -59,6 +59,7 @@
                               :get kl/?atom-get-invoke
                               :assoc kl/?atom-assoc-thunk
                               :update kl/?atom-update-thunk})
+(defcckey ?cc-initialize-result {:default nil})
 (defcckey ?cc-session-context {:default {}})
 (defcckey ?cc-pending-client-requests {:default {}}) ; {<req-id> {:ts <ms> :callback <fn>}}
 (defcckey ?cc-pending-server-requests {:default {}}) ; {<req-id> {:ts <ms>}}

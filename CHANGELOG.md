@@ -20,10 +20,10 @@ All notable changes to this project will be documented in this file. This change
     - Client: Integrate list-changed notifier with `make-client`, `make-mcp-client`
 - Make initialization info accessible
   - Server: Store initialization params in server session
-  - [Todo] Client: Store initialization result in client context
+  - Client: Store initialization result in client context
+    - Add fn `p.c.a.mcp-client/get-initialize-result` to return the result
 - Convenience functions for making capability
   - [Todo] In `plumcp.core.api.capability-support`: for making capability
-  - [Todo] Cache/expose `InitializeResult` after `initialize!` success
   - [Todo] In `plumcp.core.api.mcp-client`: for "sync" client operations
     - [Todo] Return `InitializeResult` in "sync" `initialize-and-notify!`
 - Convenience functions
