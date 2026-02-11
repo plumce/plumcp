@@ -46,15 +46,13 @@
     (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
     (u/expected! client-transport #(satisfies? p/IClientTransport %)
                  ":client-transport to be a valid client transport")
-    (let [loaded-context (-> (or client-context
-                                 (-> {:jsonrpc-handler jsonrpc-handler}
-                                     (merge options)
+    (let [client-context (-> (or client-context
+                                 (-> options
                                      cs/make-base-client-context))
-                             (assoc :capabilities (rt/?client-capabilities
-                                                   runtime))
+                             (cs/?capabilities (rt/?client-capabilities
+                                                runtime))
                              (cs/wrap-transport client-transport)
                              (rt/upsert-runtime runtime))
-          client-context (dissoc loaded-context :client-context-atom)
           run-list-notifier (when run-list-notifier?
                               (fn []
                                 (cap/run-list-changed-notifier
@@ -67,16 +65,16 @@
                                     notification))
                                  list-notifier-options)))
           client-context (-> client-context
-                             (u/assoc-some
-                              :run-list-notifier run-list-notifier
-                              :list-notifier-atom (when run-list-notifier
-                                                    (atom nil))))
+                             (cs/?run-list-notifier run-list-notifier))
+          client-cache-atom (cs/?client-cache client-context)
           client-info (rt/?client-info client-context)]
+      (when run-list-notifier
+        (cs/?cc-list-notifier client-cache-atom nil))
       ;; patch the client-context-atom
-      (reset! (:client-context-atom loaded-context) client-context)
+      (cs/?cc-client-context client-cache-atom client-context)
       ;; start the transport
       (p/start-client-transport client-transport
-                                (:on-message client-context))
+                                (cs/?on-message client-context))
       (when print-banner?
         (as-> {:role :client
                :transport-info (-> client-transport
@@ -134,7 +132,7 @@
    ^{:see [sd/InitializeResult]} on-initialize-result]
   (let [request (eg/make-initialize-request
                  sd/protocol-version-max
-                 (-> (:capabilities client)
+                 (-> (cs/?capabilities client)
                      cap/get-client-capability-declaration)
                  (rt/?client-info client))
         setter (partial cs/set-session-context! client)]
@@ -151,13 +149,13 @@
   [client]
   (let [notification (eg/make-initialized-notification)]
     (cs/send-notification-to-server client notification)
-    (p/upon-handshake-success (:transport client)
+    (p/upon-handshake-success (cs/?transport client)
                               (cs/get-session-context client))
     ;; run list-change notifier for this connection
-    (when-let [run-list-notifier (:run-list-notifier client)]
-      (let [list-notifier (run-list-notifier)
-            list-notifier-atom (:list-notifier-atom client)]
-        (reset! list-notifier-atom list-notifier)))))
+    (when-let [run-list-notifier (cs/?run-list-notifier client)]
+      (let [client-cache-atom (cs/?client-cache client)
+            list-notifier (run-list-notifier)]
+        (cs/?cc-list-notifier client-cache-atom list-notifier)))))
 
 
 (defn initialize-and-notify!
@@ -172,11 +170,11 @@
   "Disconnect and destroy the session."
   [client]
   (try
-    (when-let [list-notifier (some-> (:list-notifier-atom client)
-                                     deref)]
+    (when-let [list-notifier (-> (cs/?client-cache client)
+                                 cs/?cc-list-notifier)]
       (p/stop! list-notifier))
     (finally
-      (p/stop-client-transport! (:transport client) false))))
+      (p/stop-client-transport! (cs/?transport client) false))))
 
 
 ;; --- MCP requests expecting result ---
@@ -374,7 +372,7 @@
 (defn respond-roots-list
   "Send response for roots-list server request."
   [client request-id]
-  (if-let [roots (-> (:capabilities client)
+  (if-let [roots (-> (cs/?capabilities client)
                      (cap/get-capability-roots))]
     (let [response (->> (eg/make-list-roots-result roots)
                         (jr/jsonrpc-success request-id))]
@@ -388,7 +386,7 @@
 (defn respond-sampling-create-message
   "Send response for sampling-createMessage server request."
   [client request-id role content]
-  (if-let [sampling (-> (:capabilities client)
+  (if-let [sampling (-> (cs/?capabilities client)
                         (cap/get-capability-sampling))]
     (let [response (->> (eg/make-sampling-message role content)
                         (jr/jsonrpc-success request-id))]
@@ -402,7 +400,7 @@
 (defn respond-create-elicitation
   "Send response for sampling-createMessage server request."
   [client request-id action elicit-options]
-  (if-let [elicitation (-> (:capabilities client)
+  (if-let [elicitation (-> (cs/?capabilities client)
                            (cap/get-capability-elicitation))]
     (let [response (->> (eg/make-elicit-result action elicit-options)
                         (jr/jsonrpc-success request-id))]

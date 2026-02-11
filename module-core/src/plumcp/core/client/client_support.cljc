@@ -19,17 +19,74 @@
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u]
-   [plumcp.core.util.async-bridge :as uab]))
+   [plumcp.core.util.async-bridge :as uab]
+   [plumcp.core.util.key-lookup :as kl])
+  #?(:cljs (:require-macros [plumcp.core.client.client-support
+                             :refer [defcckey]])))
+
+
+;; ----- Client-context keys -----
+
+
+(kl/defkey ?capabilities {})
+(kl/defkey ?transport {})
+(kl/defkey ?send-message {})
+(kl/defkey ?on-message {})
+(kl/defkey ?client-cache {})  ; English word meaning, is (atom <map>)
+(kl/defkey ?run-list-notifier {:default nil})
+
+
+;; ----- Client K/V cache -----
+
+
+(defmacro defcckey
+  "Define a client-cache key (fn) that accesses K/V pairs in an atom
+   holding a map. This macro is a derivate of `defkey`."
+  ([fn-name options]
+   (assert (symbol? fn-name) "Fn name should be a symbol")
+   (assert (nil? (namespace fn-name)) "Fn name symbol should have no namespace")
+   (assert (map? options) "Options must be a map")
+   `(kl/defkey ~fn-name ~(-> {:get (symbol #'kl/?atom-get)
+                              :assoc (symbol #'kl/?atom-assoc)
+                              :update (symbol #'kl/?atom-update)}
+                             (merge options))))
+  ([fn-name doc options]
+   `(defcckey ~fn-name ~(assoc options :doc doc))))
+
+
+(defcckey ?cc-client-context {;; Circular reference, so store as thunk
+                              ;; Else printing throws StackOverflowError
+                              :get kl/?atom-get-invoke
+                              :assoc kl/?atom-assoc-thunk
+                              :update kl/?atom-update-thunk})
+(defcckey ?cc-session-context {:default {}})
+(defcckey ?cc-pending-client-requests {:default {}}) ; {<req-id> {:ts <ms> :callback <fn>}}
+(defcckey ?cc-pending-server-requests {:default {}}) ; {<req-id> {:ts <ms>}}
+(defcckey ?cc-list-notifier {:default nil})
+
+
+(defn make-client-cache-atom
+  []
+  (doto (atom {})
+    (?cc-pending-client-requests {})
+    (?cc-pending-server-requests {})
+    (?cc-session-context {})
+    (?cc-client-context nil)))
+
+
+;; ----- Client operations -----
 
 
 (defn get-session-context
   [client]
-  @(:session-context-atom client))
+  (-> (?client-cache client)
+      ?cc-session-context))
 
 
 (defn set-session-context!
   [client new-session-context]
-  (reset! (:session-context-atom client) new-session-context))
+  (-> (?client-cache client)
+      (?cc-session-context new-session-context)))
 
 
 (def key-mcp-session-id
@@ -47,26 +104,24 @@
 
 
 (defn send-message-to-server
-  [{:keys [pending-client-requests-atom  ; {<req-id> {:ts <ms> :callback <fn>}}
-           pending-server-requests-atom  ; {<req-id> {:ts <ms>}}
-           session-context-atom
-           send-message]
-    :as _context}
-   jsonrpc-message]
-  (let [jsonrpc-message (merge jsonrpc-message @session-context-atom)]
+  [client jsonrpc-message]
+  (let [client-cache-atom (?client-cache client)
+        send-message (?send-message client)
+        jsonrpc-message (->> (?cc-session-context client-cache-atom)
+                             (merge jsonrpc-message))]
     (if-let [id (:id jsonrpc-message)]
       (cond
         ;; request (to server)
         (jr/jsonrpc-request? jsonrpc-message)
         (do
-          (swap! pending-client-requests-atom
-                 assoc-in [id :ts] (u/now-millis))
+          (?cc-pending-client-requests client-cache-atom
+                                       assoc-in [id :ts] (u/now-millis))
           (send-message jsonrpc-message))
         ;; response (to server)
         (jr/jsonrpc-response? jsonrpc-message)
         (do
-          (swap! pending-server-requests-atom
-                 dissoc id)
+          (?cc-pending-server-requests client-cache-atom
+                                       dissoc id)
           (send-message jsonrpc-message))
         ;; notification
         :else
@@ -75,18 +130,14 @@
 
 
 (defn on-message-received-from-server
-  [{:keys [pending-client-requests-atom  ; {<req-id> {:ts <ms> :callback <fn>}}
-           pending-server-requests-atom  ; {<req-id> {:ts <ms>}}
-           session-context-atom
-           client-context-atom
+  [{:keys [client-cache-atom
            on-request
            on-success
            on-failure
-           on-notification]
-    :as _context}
+           on-notification]}
    jsonrpc-message]
   (uab/may-await [jsonrpc-message jsonrpc-message]
-    (let [client-context (deref client-context-atom)
+    (let [client-context (?cc-client-context client-cache-atom)
           jsonrpc-message-with-deps (-> jsonrpc-message
                                         (rt/copy-runtime client-context)
                                         (rt/?client-context client-context))]
@@ -95,22 +146,22 @@
           ;; request (from server)
           (jr/jsonrpc-request? jsonrpc-message)
           (do
-            (swap! pending-server-requests-atom
-                   assoc-in [id :ts] (u/now-millis))
+            (?cc-pending-server-requests client-cache-atom
+                                         assoc-in [id :ts] (u/now-millis))
             (try
               (uab/may-await [response (on-request jsonrpc-message-with-deps)]
                 (rs/log-outgoing-jsonrpc-response client-context
                                                   response)
                 (send-message-to-server client-context response))
               (finally
-                (swap! pending-server-requests-atom
-                       dissoc id))))
+                (?cc-pending-server-requests client-cache-atom
+                                             dissoc id))))
           ;; response (from server)
           (jr/jsonrpc-response? jsonrpc-message)
-          (let [callback (get-in @pending-client-requests-atom
-                                 [id :callback])]
-            (swap! pending-client-requests-atom
-                   dissoc id)
+          (let [callback (-> (?cc-pending-client-requests client-cache-atom)
+                             (get-in [id :callback]))]
+            (?cc-pending-client-requests client-cache-atom
+                                         dissoc id)
             (if (some? callback)  ; found a registered callback?
               (callback jsonrpc-message)
               (if (jr/jsonrpc-error? jsonrpc-message)
@@ -145,37 +196,31 @@
                            (u/eprintln "[JSON-RPC Received Response-Failure]"
                                        jsonrpc-message))
               on-notification jsonrpc-handler}} options
-        pending-client-requests-atom (atom {})
-        pending-server-requests-atom (atom {})
-        session-context-atom (atom {})
-        client-context-atom (atom nil)]
-    {:capabilities cap/default-client-capabilities
-     :pending-client-requests-atom pending-client-requests-atom
-     :pending-server-requests-atom pending-server-requests-atom
-     :send-message (fn [jsonrpc-message]
-                     (u/eprintln "[JSON-RPC Sending Message]" jsonrpc-message))
-     :on-message (fn [jsonrpc-message]
-                   (on-message-received-from-server
-                    {:pending-client-requests-atom pending-client-requests-atom
-                     :pending-server-requests-atom pending-server-requests-atom
-                     :session-context-atom session-context-atom
-                     :client-context-atom client-context-atom
-                     :on-request on-request
-                     :on-success on-success
-                     :on-failure on-failure
-                     :on-notification on-notification}
-                    jsonrpc-message))
-     :session-context-atom session-context-atom
-     :client-context-atom client-context-atom  ; forward self reference
-     :transport nil}))
+        client-cache-atom (make-client-cache-atom)]
+    (-> {}
+        (?capabilities cap/default-client-capabilities)
+        (?send-message (fn [jsonrpc-message]
+                         (u/eprintln "[Dummy:JSON-RPC Sending Message]"
+                                     jsonrpc-message)))
+        (?client-cache client-cache-atom)
+        (?on-message (fn [jsonrpc-message]
+                       (on-message-received-from-server
+                        {:client-cache-atom client-cache-atom
+                         :on-request on-request
+                         :on-success on-success
+                         :on-failure on-failure
+                         :on-notification on-notification}
+                        jsonrpc-message)))
+        (?transport nil))))
 
 
 (defn send-request-to-server
   [client message callback]
   (u/expected! (:id message) some? "message :id to be string or integer")
   ;; register the callback
-  (swap! (:pending-client-requests-atom client)
-         assoc-in [(:id message) :callback] callback)
+  (-> (?client-cache client)
+      (?cc-pending-client-requests assoc-in
+                                   [(:id message) :callback] callback))
   ;; send the message
   (rs/log-outgoing-jsonrpc-request client message)
   (send-message-to-server client message))
@@ -191,10 +236,10 @@
 (defn wrap-transport
   [client-context transport]
   (-> client-context
-      (assoc :transport transport
-             :send-message (fn [jsonrpc-message]
-                             (p/send-message-to-server transport
-                                                       jsonrpc-message)))))
+      (?transport transport)
+      (?send-message (fn [jsonrpc-message]
+                       (p/send-message-to-server transport
+                                                 jsonrpc-message)))))
 
 
 (defn error-logger

@@ -6,4 +6,5 @@
            plumcp.core.util.async-bridge/do-iterator clojure.core/let
            plumcp.core.util.http-auth/with-code-verifier-challenge clojure.core/let
            plumcp.core.util.key-lookup/defkey clojure.core/def
+           plumcp.core.client.client-support/defcckey clojure.core/def
            plumcp.core.deps.runtime/defrtkey clojure.core/def}}

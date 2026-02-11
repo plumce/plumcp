@@ -161,6 +161,37 @@
          ?update kd f args))
 
 
+(defn ?atom-get-invoke
+  "Like `?atom-get`, but where value is stored as arity-0 fn (thunk)."
+  [the-atom ^KeyDefinition kd]
+  (let [m (deref the-atom)]
+    (if (keydef? kd)
+      (let [k (.-key kd)
+            v (get m k not-found-sentinel)]
+        (if (= v not-found-sentinel)
+          (if (.-has-default? kd)
+            (.-default-value kd)
+            (u/expected! m (str "container-map to have key " k)))
+          (u/invoke v)))
+      (-> (!get m kd)
+          u/invoke))))
+
+
+(defn ?atom-assoc-thunk
+  "Like `?atom-assoc`, but where value is stored as arity-0 fn (thunk)."
+  [the-atom kd value]
+  (->> (constantly value)
+       (swap! the-atom
+              ?assoc kd)))
+
+
+(defn ?atom-update-thunk
+  "Like `?update`, but where the value is stored as arity-0 fn (thunk)."
+  [the-atom kd f & args]
+  (apply swap! the-atom
+         ?update kd (comp constantly f) args))
+
+
 (defn make-key-definition
   ([k f-get f-assoc f-update]
    (->KeyDefinition k false nil f-get f-assoc f-update))
@@ -189,7 +220,7 @@
          letter? #?(:cljs #(-> (js/RegExp. "^\\p{L}$" "u") ; unicode aware
                                (.test %)
                                boolean)
-                    :clj #(Character/isLetter %))
+                    :clj #(Character/isLetter ^char %))
          default-key (keyword (str (ns-name *ns*))
                               (->> (str fn-name)
                                    (drop-while (complement letter?))
