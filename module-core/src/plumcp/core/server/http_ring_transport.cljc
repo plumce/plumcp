@@ -136,7 +136,6 @@
   (let [[_ stream-atom] (rt/?response-stream request)
         start-millis (u/now-millis)]
     (u/background
-      {:delay-millis 0}  ; run in background without delay
       (try
         (uab/may-await [jsonrpc-response (jsonrpc-task)]
           (->> (jr/select-jsonrpc-keys jsonrpc-response)

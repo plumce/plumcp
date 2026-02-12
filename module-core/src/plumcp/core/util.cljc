@@ -387,16 +387,20 @@
   "Evaluate given body of code in the background, without interrupting
    current flow. Options:
    :delay-millis - (long) delay in milliseconds before evaluating body"
-  [options & body]
-  (if (:ns &env) ;; :ns only exists in CLJS
-    `(let [delay-millis# (:delay-millis ~options 0)]
-       (js/setTimeout (fn []
-                        ~@body)
-                      delay-millis#))
-    `(let [delay-millis# (:delay-millis ~options 0)]
-       (uj/background-exec
-        (Thread/sleep (long delay-millis#))
-        ~@body))))
+  [& opts+body]
+  (let [[options body] (if (and (> (count opts+body) 1)
+                                (map? (first opts+body)))
+                         [(first opts+body) (rest opts+body)]
+                         [{} opts+body])]
+    (if (:ns &env) ;; :ns only exists in CLJS
+      `(let [delay-millis# (:delay-millis ~options 0)]
+         (js/setTimeout (fn []
+                          ~@body)
+                        delay-millis#))
+      `(let [delay-millis# (:delay-millis ~options 0)]
+         (uj/background-exec
+          (Thread/sleep (long delay-millis#))
+          ~@body)))))
 
 
 (defn dotee

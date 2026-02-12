@@ -159,7 +159,6 @@
                                                         (get-auth-hdrs)))
       (upon-handshake-success [_ success] (when start-get-stream?
                                             (u/background
-                                              {}
                                               (fetch-stream
                                                success
                                                (get-auth-hdrs))))))))

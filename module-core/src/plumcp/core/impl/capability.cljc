@@ -154,7 +154,7 @@
                         (recur))))))]
     (doseq [each-method meth-names]
       (u/expected-enum! each-method notif-makers))
-    (u/background {}
+    (u/background
       (check))
     (reify p/IStoppable
       (stop! [_] (vreset! loop? false)))))
