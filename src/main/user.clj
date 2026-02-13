@@ -15,9 +15,15 @@
 ;; ```
 ;; See: https://ask.clojure.org/index.php/3787/theres-enable-warn-reflection-from-command-running-clojure?show=12656#a12656
 ;;
-(alter-var-root #'*warn-on-reflection* (constantly true))
-(alter-var-root #'*assert* (constantly true))
-(alter-var-root #'*unchecked-math* (constantly :warn-on-boxed))
+(when (-> (System/getenv "VERBOSE")        ; env var overrides sysprop
+          (or (System/getProperty "verbose"))  ; meant for build files
+          (or "true")    ; set value as NOT "true" to disable warnings
+          parse-boolean
+          true?)
+  (alter-var-root #'*warn-on-reflection* (constantly true))
+  (alter-var-root #'*assert* (constantly true))
+  (alter-var-root #'*unchecked-math* (constantly :warn-on-boxed)))
+
 
 ;; Enable #p for debugging
 (require '[clojure+.hashp])
