@@ -7,7 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 
-;; Equivalent of he following in Leiningen project.clj:
+;; Equivalent of the following in Leiningen project.clj:
 ;; ```
 ;; :global-vars {*warn-on-reflection* true
 ;;               *assert* true
@@ -20,6 +20,16 @@
           (or "true")    ; set value as NOT "true" to disable warnings
           parse-boolean
           true?)
+  (binding [*out* *err*]
+    (println)
+    (println ",-----------------------------------------------------------.")
+    (println "|  Reflection warning is ON. To turn this off, set either:  |")
+    (println "|                                                           |")
+    (println "|  - Environment var: `VERBOSE=false` (overrides sysprop)   |")
+    (println "|  - System property: `verbose=false`                       |")
+    (println "`-----------------------------------------------------------'")
+    (println)
+    (flush))
   (alter-var-root #'*warn-on-reflection* (constantly true))
   (alter-var-root #'*assert* (constantly true))
   (alter-var-root #'*unchecked-math* (constantly :warn-on-boxed)))
