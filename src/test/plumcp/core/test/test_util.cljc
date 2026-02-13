@@ -9,16 +9,23 @@
 
 (ns plumcp.core.test.test-util
   #?(:cljs (:require
-            ["wait-sync" :as wait-sync])
+            [clojure.test :as t :include-macros true]
+            ["wait-sync" :as wait-sync]
+            [plumcp.core.util :as u]
+            [plumcp.core.util.async-bridge :as uab])
      :clj (:require
            [clojure.edn :as edn]
            [clojure.string :as str]
+           [clojure.test :as t]
            [plumcp.core.util :as u]
-           [plumcp.core.util-java :as uj]))
+           [plumcp.core.util-java :as uj]
+           [plumcp.core.util.async-bridge :as uab]))
   #?(:cljs (:require-macros [plumcp.core.test.test-util
                              :refer [find-os-windows?
                                      find-project-dir
-                                     read-edn-file]])))
+                                     read-edn-file
+                                     async-test
+                                     async-each]])))
 
 
 (defn sleep-millis
@@ -85,3 +92,33 @@
      (catch #?(:cljs :default :clj Exception) e#
        (u/print-stack-trace e#)
        (throw e#))))
+
+
+(defmacro async-test
+  "CLJC replacement for CLJS `cljs.test/async` macro - is dummy in CLJ."
+  [[done-sym] & body]
+  (assert (symbol? done-sym) "First arg must be a vector of one symbol")
+  (if (:ns &env) ;; :ns only exists in CLJS
+    `(t/async ~done-sym ~@body)
+    `(let [~done-sym u/nop] ~@body)))
+
+
+(defn async-each*
+  [coll body-f]
+  (async-test [done]
+    (let [coll-atom (atom coll)
+          next-f (fn thisfn []
+                   (if (nil? @coll-atom)
+                     (uab/async-thunk done)
+                     (let [item (first @coll-atom)]
+                       (swap! coll-atom next)
+                       (body-f thisfn item))))]
+      (next-f))))
+
+
+(defmacro async-each
+  [[each coll] & body]
+  `(async-each* ~coll (fn [next# ~each]
+                        (u/eprintln "Entered body")
+                        (uab/may-await [_# (do ~@body)]
+                          (next#)))))

@@ -10,5 +10,7 @@
                  may-await [[:inner 0]]
                  do-iterator [[:inner 0]]
                  background [[:inner 0]]
-                 until-done [[:inner 0]]}}
+                 until-done [[:inner 0]]
+                 async-test [[:inner 0]]
+                 async-each [[:inner 0]]}}
 

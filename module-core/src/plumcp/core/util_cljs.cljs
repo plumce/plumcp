@@ -136,6 +136,29 @@
   (js/Promise.reject error))
 
 
+(defn make-timeout-promise
+  "Make a js/Promise that you can js/Promise.race to effect a timeout."
+  [timeout-millis ex]
+  (js/Promise.
+   (fn [_# reject]
+     (let [timeout (atom nil)]
+       (reset! timeout (js/setTimeout
+                        (fn []
+                          (when-let [id (deref timeout)]
+                            (js/clearTimeout id))
+                          (reject ex))
+                        timeout-millis))))))
+
+
+(defn race-promises
+  "Race two or more js/Promises objects to completion."
+  [promise-1 promise-2 & more]
+  (-> [promise-1 promise-2]
+      (concat more)
+      clj->js
+      js/Promise.race))
+
+
 (defn stream-chain
   "Given an `(atom [...])` return a lazy promise-chain that extracts all
    vector elements until the atom value is `nil`. When the atom has no

@@ -30,34 +30,78 @@
 
 
 (defn async-val
-  "Create an async value that one can `b-await` on."
+  "Create an async value that one can await."
   [value]
   #?(:cljs (js/Promise.resolve value)
      :clj value))
 
 
+(defn async-thunk
+  "Create an async thunk that one can await."
+  [thunk]
+  #?(:cljs (js/Promise. (fn [return _]
+                          (return (thunk))))
+     :clj (thunk)))
+
+
+#?(:cljs
+   (defn timeout-promise
+     [task-promise timeout-millis ex]
+     (->> (us/make-timeout-promise timeout-millis ex)
+          (us/race-promises task-promise))))
+
+
 (defmacro as-async
-  "Create an async value. In CLJ, return the value synchronously as is,
-   whereas in CLJS create a js/Promise that you may `let-await` on. The
-   [resolve reject] symbols are bound to their namesake fns. You must
+  "Evaluate body of code in background, returning synchronous result in
+   CLJ, whereas a js/Promise in CLJS that you may `let-await` on. The
+   [resolve reject] symbols are bound to their namesake fns. You MUST
    call (resolve <value>) to resolve the awaitable, or (reject <error>)
-   to error out."
-  [[resolve-sym reject-sym] & body]
+   to error out.
+   Options:
+   :timeout-millis - (long) timeout in milliseconds awaiting result"
+  [[resolve-sym reject-sym] & opts+body]
   (assert (symbol? resolve-sym) "resolve-sym must be a symbol")
   (assert (symbol? reject-sym) "reject-sym must be a symbol")
-  (if (:ns &env) ;; :ns only exists in CLJS
-    `(js/Promise. (fn [~resolve-sym ~reject-sym]
-                    ~@body))
-    `(let [~resolve-sym (promise)
-           ~reject-sym (fn [error#]
-                         (cond
-                           (instance? Throwable
-                                      error#) (throw error#)
-                           (string? error#) (u/throw! error#)
-                           (map? error#) (u/throw! "Error" error#)
-                           :else (u/throw! "Error" {:context error#})))]
-       ~@body
-       (deref ~resolve-sym))))
+  (let [[options body] (if (and (> (count opts+body) 1)
+                                (map? (first opts+body)))
+                         [(first opts+body) (rest opts+body)]
+                         [{} opts+body])]
+    (if (:ns &env) ;; :ns only exists in CLJS
+      `(let [result-promise# (js/Promise. (fn [~resolve-sym ~reject-sym]
+                                            (try
+                                              ~@body
+                                              (catch js/Error e#
+                                                (~reject-sym e#)))))
+             timeout-millis# (:timeout-millis ~options)]
+         (if (nil? timeout-millis#)
+           result-promise#
+           (let [ex# (ex-info "Timed out awaiting execution to end"
+                              {:timeout-millis timeout-millis#})]
+             (timeout-promise result-promise#
+                              timeout-millis#
+                              ex#))))
+      `(let [~resolve-sym (promise)
+             ~reject-sym (fn [error#]
+                           (cond
+                             (instance? Throwable
+                                        error#) (throw error#)
+                             (string? error#) (u/throw! error#)
+                             (map? error#) (u/throw! "Error" error#)
+                             :else (u/throw! "Error" {:context error#})))
+             timeout-millis# (:timeout-millis ~options)]
+         (u/background
+           (try
+             ~@body
+             (catch Exception e#
+               (~reject-sym e#))))
+         (let [retval# (if (nil? timeout-millis#)
+                         (deref ~resolve-sym)
+                         (deref ~resolve-sym timeout-millis#
+                                ::timed-out))]
+           (if (= retval# ::timed-out)
+             (throw (ex-info "Timed out awaiting execution to end"
+                             {:timeout-millis timeout-millis#}))
+             retval#))))))
 
 
 (defmacro let-await
