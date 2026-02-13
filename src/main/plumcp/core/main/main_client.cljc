@@ -66,7 +66,7 @@
   (tu/until-done [done! 10]
     (->> (fn [result]
            (done!))
-         (mc/ping client))))
+         (mc/async-ping client))))
 
 
 (def commands
@@ -79,37 +79,37 @@
    "ping" command-ping
    "init" (fn [client]
             (tu/until-done [done! 10]
-              (mc/initialize! client
-                              (fn [result]
-                                (u/eprintln "Initialize response:" result)
-                                (u/eprintln "Sending notifications/initialized")
-                                (mc/notify-initialized client)
-                                (u/eprintln "Done sending notifications/initialized")
-                                (done!)))))
+              (mc/async-initialize! client
+                                    (fn [result]
+                                      (u/eprintln "Initialize response:" result)
+                                      (u/eprintln "Sending notifications/initialized")
+                                      (mc/notify-initialized client)
+                                      (u/eprintln "Done sending notifications/initialized")
+                                      (done!)))))
    "prompts" (fn [client]
                (tu/until-done [done! 10]
                  (->> (fn [prompts]
                         (u/dprint "Prompts:" prompts)
                         (done!))
-                      (mc/list-prompts client))))
+                      (mc/async-list-prompts client))))
    "resources" (fn [client]
                  (tu/until-done [done! 10]
                    (->> (fn [resources]
                           (u/dprint "Resources:" resources)
                           (done!))
-                        (mc/list-resources client))))
+                        (mc/async-list-resources client))))
    "templates" (fn [client]
                  (tu/until-done [done! 10]
                    (->> (fn [templates]
                           (u/dprint "Resource templates:" templates)
                           (done!))
-                        (mc/list-resource-templates client))))
+                        (mc/async-list-resource-templates client))))
    "tools" (fn [client]
              (tu/until-done [done! 10]
                (->> (fn [tools]
                       (u/dprint "Tools:" tools)
                       (done!))
-                    (mc/list-tools client))))
+                    (mc/async-list-tools client))))
    "quit" (fn [client]
             (exit-app))})
 

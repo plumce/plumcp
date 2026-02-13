@@ -20,6 +20,7 @@
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.banner-print :as bp]
    [plumcp.core.util :as u]
+   [plumcp.core.util.async-bridge :as uab]
    [plumcp.core.util.key-lookup :as kl])
   #?(:cljs (:require-macros [plumcp.core.api.mcp-client])))
 
@@ -124,23 +125,45 @@
 ;; --- initilization / de-initialization / handshake ---
 
 
-(defn initialize!
+(defn async-initialize!
   "Send initialize request to the MCP server, and setup a session on
-   success result.
+   success result. Arguments:
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response
    See: `initialize-and-notify!`"
-  [client
-   ^{:see [sd/InitializeResult]} on-initialize-result]
-  (let [request (eg/make-initialize-request
-                 sd/protocol-version-max
-                 (-> (cs/?capabilities client)
-                     cap/get-client-capability-declaration)
-                 (rt/?client-info client))
-        setter (partial cs/set-session-context! client)]
-    (cs/send-request-to-server client
-                               request
-                               (-> on-initialize-result
-                                   cs/on-result-callback
-                                   (cs/wrap-session-setting setter)))))
+  ([client
+    ^{:see [sd/InitializeResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
+   (let [request (eg/make-initialize-request
+                  sd/protocol-version-max
+                  (-> (cs/?capabilities client)
+                      cap/get-client-capability-declaration)
+                  (rt/?client-info client))
+         setter (partial cs/set-session-context! client)]
+     (as-> on-success-result $
+       (cs/on-result-callback $ on-error-response)
+       (cs/wrap-session-setting $ setter)
+       (cs/send-request-to-server client request $))))
+  ([client
+    ^{:see [sd/InitializeResult]} on-initialize-result]
+   (->> (fn [error-response]
+          (u/throw! (get-in error-response [:error :message]
+                            "Error initializing connection")
+                    error-response))
+        (async-initialize! client
+                           on-initialize-result))))
+
+
+(defn initialize!
+  "Synchronous version of `async-initialize!` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-initialize! client
+                       return reject)))
 
 
 (defn notify-initialized
@@ -158,14 +181,28 @@
         (cs/?cc-list-notifier client-cache-atom list-notifier)))))
 
 
-(defn initialize-and-notify!
+(defn async-initialize-and-notify!
   "Send initialize request to the MCP server and on success, setup a
    session and notify the MCP server of a successful initialization."
   [client]
-  (initialize! client (fn [result]
-                        (-> (cs/?client-cache client)
-                            (cs/?cc-initialize-result result))
-                        (notify-initialized client))))
+  (async-initialize! client
+                     (fn [result]
+                       (-> (cs/?client-cache client)
+                           (cs/?cc-initialize-result result))
+                       (notify-initialized client))))
+
+
+(defn initialize-and-notify!
+  "Synchronous version of `async-initialize-and-notify!` that returns
+   result (value in CLJ, js/Promise in CLJS) on success, or throws on
+   error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client & {:as options}]
+  (uab/let-await [init-result (initialize! client options)]
+    (-> (cs/?client-cache client)
+        (cs/?cc-initialize-result init-result))
+    (notify-initialized client)
+    init-result))
 
 
 (defn get-initialize-result
@@ -189,26 +226,52 @@
 ;; --- MCP requests expecting result ---
 
 
+(defn async-list-tools
+  "Return the list of MCP tools supported by the server. Arguments:
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
+  ([client
+    ^{:see [sd/ListToolsResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
+   (let [request (eg/make-list-tools-request)]
+     (as-> on-success-result $
+       (cs/destructure-result $ sd/result-key-tools)
+       (cs/on-result-callback $ on-error-response)
+       (cs/send-request-to-server client request $))))
+  ([client
+    ^{:see [sd/ListToolsResult]} on-list-tools-result]
+   (->> (fn [error-response]
+          (u/throw! (get-in error-response [:error :message]
+                            "Error listing tools")
+                    error-response))
+        (async-list-tools client on-list-tools-result))))
+
+
 (defn list-tools
-  "Return the list of MCP tools supported by the server. "
-  [client
-   ^{:see [sd/ListToolsResult]} on-list-tools-result]
-  (let [request (eg/make-list-tools-request)]
-    (as-> on-list-tools-result $
-      (cs/destructure-result $ sd/result-key-tools)
-      (cs/on-result-callback $)
-      (cs/send-request-to-server client request $))))
+  "Synchronous version of `async-list-tools` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-list-tools client
+                      return reject)))
 
 
-(defn call-tool
-  "Call the MCP tool on the server."
+(defn async-call-tool
+  "Call the MCP tool on the server. Arguments:
+  `tool-name`  is the name of the tool to be called
+   `tool-args` is the map of args for calling the tool
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
   ([client tool-name tool-args
-    ^{:see [sd/CallToolResult]} on-call-tool-result
-    ^{:see [sd/JSONRPCError]} on-call-tool-error-response]
+    ^{:see [sd/CallToolResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
    (let [request (eg/make-call-tool-request tool-name
                                             tool-args)]
-     (as-> on-call-tool-result $
-       (cs/on-result-callback $ on-call-tool-error-response)
+     (as-> on-success-result $
+       (cs/on-result-callback $ on-error-response)
        (cs/send-request-to-server client request $))))
   ([client tool-name tool-args
     ^{:see [sd/CallToolResult]} on-call-tool-result]
@@ -216,39 +279,104 @@
           (u/throw! (get-in error-response [:error :message]
                             "Error calling tool")
                     error-response))
-        (call-tool client tool-name tool-args on-call-tool-result))))
+        (async-call-tool client
+                         tool-name tool-args
+                         on-call-tool-result))))
+
+
+(defn call-tool
+  "Synchronous version of `async-call-tool` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client tool-name tool-args & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-call-tool client
+                     tool-name tool-args
+                     return reject)))
+
+
+(defn async-list-resources
+  "Return the list of MCP resources supported by the server. Arguments:
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
+  ([client
+    ^{:see [sd/ListResourcesResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
+   (let [request (eg/make-list-resources-request)]
+     (as-> on-success-result $
+       (cs/destructure-result $ sd/result-key-resources)
+       (cs/on-result-callback $ on-error-response)
+       (cs/send-request-to-server client request $))))
+  ([client
+    ^{:see [sd/ListResourcesResult]} on-list-resources-result]
+   (->> (fn [error-response]
+          (u/throw! (get-in error-response [:error :message]
+                            "Error listing resources")
+                    error-response))
+        (async-list-resources client
+                              on-list-resources-result))))
 
 
 (defn list-resources
-  "Return the list of MCP resources supported by the server."
-  [client
-   ^{:see [sd/ListResourcesResult]} on-list-resources-result]
-  (let [request (eg/make-list-resources-request)]
-    (as-> on-list-resources-result $
-      (cs/destructure-result $ sd/result-key-resources)
-      (cs/on-result-callback $)
-      (cs/send-request-to-server client request $))))
+  "Synchronous version of `async-list-resources` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-list-resources client
+                          return reject)))
+
+
+(defn async-list-resource-templates
+  "Return the list of MCP resource templates supported by the server.
+   Arguments:
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
+  ([client
+    ^{:see [sd/ListResourceTemplatesResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
+   (let [request (eg/make-list-resource-templates-request)]
+     (as-> on-success-result $
+       (cs/destructure-result $ sd/result-key-resource-templates)
+       (cs/on-result-callback $ on-error-response)
+       (cs/send-request-to-server client request $))))
+  ([client
+    ^{:see [sd/ListResourceTemplatesResult]} on-list-resource-templates-result]
+   (->> (fn [error-response]
+          (u/throw! (get-in error-response [:error :message]
+                            "Error listing resource templates")
+                    error-response))
+        (async-list-resource-templates client
+                                       on-list-resource-templates-result))))
 
 
 (defn list-resource-templates
-  "Return the list of MCP resource templates supported by the server."
-  [client
-   ^{:see [sd/ListResourceTemplatesResult]} on-list-resource-templates-result]
-  (let [request (eg/make-list-resource-templates-request)]
-    (as-> on-list-resource-templates-result $
-      (cs/destructure-result $ sd/result-key-resource-templates)
-      (cs/on-result-callback $)
-      (cs/send-request-to-server client request $))))
+  "Synchronous version of `async-list-resource-templates` that returns
+   result (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-list-resource-templates client
+                                   return reject)))
 
 
-(defn read-resource
-  "Read the resourced identified by the URI on the server."
+(defn async-read-resource
+  "Read the resource identified by the URI on the server. Arguments:
+   `resource-uri` is the resource URI
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
   ([client resource-uri
-    ^{:see [sd/ReadResourceResult]} on-read-resource-result
-    ^{:see [sd/JSONRPCError]} on-read-resource-error-response]
+    ^{:see [sd/ReadResourceResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
    (let [request (eg/make-read-resource-request resource-uri)]
-     (as-> on-read-resource-result $
-       (cs/on-result-callback $ on-read-resource-error-response)
+     (as-> on-success-result $
+       (cs/on-result-callback $ on-error-response)
        (cs/send-request-to-server client request $))))
   ([client resource-uri
     ^{:see [sd/ReadResourceResult]} on-read-resource-result]
@@ -256,29 +384,71 @@
           (u/throw! (get-in error-response [:error :message]
                             "Error reading resource")
                     error-response))
-        (read-resource client resource-uri on-read-resource-result))))
+        (async-read-resource client
+                             resource-uri
+                             on-read-resource-result))))
+
+
+(defn read-resource
+  "Synchronous version of `async-read-resource` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client resource-uri & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-read-resource client
+                         resource-uri
+                         return reject)))
+
+
+(defn async-list-prompts
+  "List the MCP prompts supported by the server. Arguments:
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
+  ([client
+    ^{:see [sd/ListPromptsResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
+   (let [request (eg/make-list-prompts-request)]
+     (as-> on-success-result $
+       (cs/destructure-result $ sd/result-key-prompts)
+       (cs/on-result-callback $ on-error-response)
+       (cs/send-request-to-server client request $))))
+  ([client
+    ^{:see [sd/ListPromptsResult]} on-list-prompts-result]
+   (->> (fn [error-response]
+          (u/throw! (get-in error-response [:error :message]
+                            "Error listing prompts")
+                    error-response))
+        (async-list-prompts client
+                            on-list-prompts-result))))
 
 
 (defn list-prompts
-  "List the MCP prompts supported by the server."
-  [client
-   ^{:see [sd/ListPromptsResult]} on-list-prompts-result]
-  (let [request (eg/make-list-prompts-request)]
-    (as-> on-list-prompts-result $
-      (cs/destructure-result $ sd/result-key-prompts)
-      (cs/on-result-callback $)
-      (cs/send-request-to-server client request $))))
+  "Synchronous version of `async-list-prompts` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-list-prompts client
+                        return reject)))
 
 
-(defn get-prompt
-  "Get the MCP prompt identified by name on the server."
+(defn async-get-prompt
+  "Get the MCP prompt identified by name on the server. Arguments:
+   `prompt-or-template-name` is prompt or template name
+   `prompt-args` is the map of prompt/template args
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
   ([client prompt-or-template-name prompt-args
-    ^{:see [sd/GetPromptResult]} on-get-prompt-result
-    ^{:see [sd/JSONRPCError]} on-get-prompt-error-response]
+    ^{:see [sd/GetPromptResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
    (let [request (eg/make-get-prompt-request prompt-or-template-name
                                              {:args prompt-args})]
-     (as-> on-get-prompt-result $
-       (cs/on-result-callback $ on-get-prompt-error-response)
+     (as-> on-success-result $
+       (cs/on-result-callback $ on-error-response)
        (cs/send-request-to-server client request $))))
   ([client prompt-or-template-name prompt-args
     ^{:see [sd/GetPromptResult]} on-get-prompt-result]
@@ -286,18 +456,37 @@
           (u/throw! (get-in error-response [:error :message]
                             "Error getting prompt")
                     error-response))
-        (get-prompt client prompt-or-template-name prompt-args
-                    on-get-prompt-result))))
+        (async-get-prompt client
+                          prompt-or-template-name prompt-args
+                          on-get-prompt-result))))
 
 
-(defn complete
-  "Send a completion request to the server."
+(defn get-prompt
+  "Synchronous version of `async-get-prompt` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client prompt-or-template-name prompt-args & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-get-prompt client
+                      prompt-or-template-name prompt-args
+                      return reject)))
+
+
+(defn async-complete
+  "Send a completion request to the server. Arguments:
+   `the-ref`   is completion (prompt or resource template) reference
+   `arg-name`  is completion arg name
+   `arg-value` is completion arg value
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
   ([client ^{:see [eg/make-complete-request]} the-ref arg-name arg-value
-    ^{:see [sd/CompleteResult]} on-complete-result
-    ^{:see [sd/JSONRPCError]} on-complete-error-response]
+    ^{:see [sd/CompleteResult]} on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
    (let [request (eg/make-complete-request the-ref arg-name arg-value)]
-     (as-> on-complete-result $
-       (cs/on-result-callback $ on-complete-error-response)
+     (as-> on-success-result $
+       (cs/on-result-callback $ on-error-response)
        (cs/send-request-to-server client request $))))
   ([client ^{:see [eg/make-complete-request]} the-ref arg-name arg-value
     ^{:see [sd/CompleteResult]} on-complete-result]
@@ -305,17 +494,54 @@
           (u/throw! (get-in error-response [:error :message]
                             "Error completing argument")
                     error-response))
-        (complete client the-ref arg-name arg-value
-                  on-complete-result))))
+        (async-complete client
+                        the-ref arg-name arg-value
+                        on-complete-result))))
+
+
+(defn complete
+  "Synchronous version of `async-complete` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client ^{:see [eg/make-complete-request]} the-ref arg-name arg-value
+   & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-complete client
+                    the-ref arg-name arg-value
+                    return reject)))
+
+
+(defn async-ping
+  "Send a ping request to the server. Arguments:
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response"
+  ([client on-success-result
+    ^{:see [sd/JSONRPCError]} on-error-response]
+   (let [request (eg/make-ping-request)]
+     (as-> on-success-result $
+       (cs/on-result-callback $ on-error-response)
+       (cs/send-request-to-server client request $))))
+  ([client on-ping-result]
+   (->> (fn [error-response]
+          (u/throw! (get-in error-response [:error :message]
+                            "Error pinging MCP server")
+                    error-response))
+        (async-ping client
+                    on-ping-result))))
 
 
 (defn ping
-  "Send a ping request to the server"
-  [client on-ping-result]
-  (let [request (eg/make-ping-request)]
-    (->> on-ping-result
-         cs/on-result-callback
-         (cs/send-request-to-server client request))))
+  "Synchronous version of `async-ping` that returns result
+   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   Options: see plumcp.core.util.async-bridge/as-async"
+  [client & {:as options}]
+  (uab/as-async
+    [return reject]
+    options
+    (async-ping client
+                return reject)))
 
 
 ;; --- MCP requests NOT expecting result ---

@@ -21,7 +21,8 @@
    [plumcp.core.protocol :as p]
    [plumcp.core.server.zero-server :as zs]
    [plumcp.core.test.test-util :as tu]
-   [plumcp.core.util :as u]))
+   [plumcp.core.util :as u]
+   [plumcp.core.util.async-bridge :as uab]))
 
 
 (def client-capabilities cap/default-client-capabilities)
@@ -110,7 +111,7 @@
                               (stop-http-server))))
 
 
-(deftest test-transport
+(deftest test-async-transport
   (doseq [{:keys [tname
                   maker]} transport-makers]
     (testing tname
@@ -137,7 +138,7 @@
                      (tu/sleep-millis 10)  ; allow printing to finish
                      (is true "Initialize roundtrip should succeed")
                      (done!))
-                   (mc/initialize! client-context))))
+                   (mc/async-initialize! client-context))))
           ;;
           ;; MCP Request
           ;;
@@ -148,11 +149,34 @@
                      ;(tu/sleep-millis 10)  ; HANGs this test; commented
                      (is result "Tools list should be obtained")
                      (done!))
-                   (mc/list-tools client-context))))
+                   (mc/async-list-tools client-context))))
           ;;
           ;; Tests over
           ;;
-          (p/stop-client-transport! client-transport true))
+          (mc/disconnect! client-context))
         (catch #?(:cljs :default :clj Exception) e
           (u/print-stack-trace e)
           (throw e))))))
+
+
+(deftest test-transport
+  (tu/async-each [{:keys [tname
+                          maker]} transport-makers]
+    (testing tname
+      (u/eprintln "Testing transport:" tname)
+      (let [client-transport (maker)
+            client-context   (-> {:capabilities client-capabilities
+                                  :traffic-logger blogger/client-logger
+                                  :client-transport client-transport}
+                                 (merge client/client-options)
+                                 (mc/make-client))]
+        (testing "MCP Handshake"
+          (uab/let-await [result (mc/initialize-and-notify! client-context)]
+            (u/dprint "Initialize Result" result)
+            (is (= result (mc/get-initialize-result client-context)))
+            (testing "MCP Request sent, and result received"
+              (uab/let-await [tools (mc/list-tools client-context)]
+                (u/dprint "Tools-list (sync) result" tools)
+                (is (vector? tools))
+                ;; disconnect now
+                (mc/disconnect! client-context)))))))))
