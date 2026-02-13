@@ -18,7 +18,7 @@
    #?(:clj [plumcp.core.util.json :as json])
    [clojure.pprint :as pp]
    [clojure.string :as str])
-  #?(:cljs (:require-macros [plumcp.core.util])
+  #?(:cljs (:require-macros [plumcp.core.util :refer [catch!]])
      :clj (:import
            [clojure.lang ExceptionInfo]
            [java.net URLDecoder URLEncoder]
@@ -479,6 +479,28 @@
   (eprintln e)
   #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
      :clj (.printStackTrace ^Throwable e)))
+
+
+(defn wraptee
+  "Wrap a function with in/out/err fns, most commonly to debug-print."
+  ([f in out err]
+   (fn [& args]
+     (apply in args)
+     (let [[rv ex] (catch! (apply f args))]
+       (if ex
+         (do (err ex) (throw ex))
+         (do (out rv) rv)))))
+  ([f]
+   (wraptee f
+            (fn [& args]
+              (eprintln (format "[->>Entered %s]\n" f))
+              (apply eprn args) (eprintln))
+            (fn [rv]
+              (eprintln (format "[Exiting %s->>]\n" f))
+              (eprn rv) (eprintln))
+            (fn [ex]
+              (eprintln (format "[! THROWN %s !]\n" f))
+              (eprn ex) (eprintln)))))
 
 
 ;; --- UUID generation ---
