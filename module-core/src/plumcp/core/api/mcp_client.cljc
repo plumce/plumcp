@@ -476,26 +476,23 @@
 
 (defn async-complete
   "Send a completion request to the server. Arguments:
-   `the-ref`   is completion (prompt or resource template) reference
-   `arg-name`  is completion arg name
-   `arg-value` is completion arg value
+   `complete-request` is the completion request
    `on-success-result` is called with success result
    `on-error-response` is called with error response"
-  ([client ^{:see [eg/make-complete-request]} the-ref arg-name arg-value
+  ([client ^{:see [eg/make-complete-request]} complete-request
     ^{:see [sd/CompleteResult]} on-success-result
     ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-complete-request the-ref arg-name arg-value)]
-     (as-> on-success-result $
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client ^{:see [eg/make-complete-request]} the-ref arg-name arg-value
+   (as-> on-success-result $
+     (cs/on-result-callback $ on-error-response)
+     (cs/send-request-to-server client complete-request $)))
+  ([client ^{:see [eg/make-complete-request]} complete-request
     ^{:see [sd/CompleteResult]} on-complete-result]
    (->> (fn [error-response]
           (u/throw! (get-in error-response [:error :message]
                             "Error completing argument")
                     error-response))
         (async-complete client
-                        the-ref arg-name arg-value
+                        complete-request
                         on-complete-result))))
 
 
@@ -503,13 +500,13 @@
   "Synchronous version of `async-complete` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
-  [client ^{:see [eg/make-complete-request]} the-ref arg-name arg-value
+  [client ^{:see [eg/make-complete-request]} complete-request
    & {:as options}]
   (uab/as-async
     [return reject]
     options
     (async-complete client
-                    the-ref arg-name arg-value
+                    complete-request
                     return reject)))
 
 
