@@ -308,7 +308,14 @@
                          callback-start-server
                          open-browser-auth-url
                          ;;
-                         token-cache]}]
+                         token-cache
+                         ;; optional
+                         prm-request-middleware
+                         asm-request-middleware
+                         dcr-request-middleware]
+                  :or {prm-request-middleware identity
+                       asm-request-middleware identity
+                       dcr-request-middleware identity}}]
   (if-let [prm-request (get-resource-metadata headers-lower)]
     (let [>h> (fn [in-key post out-key]  ; shorthand: make HTTP call
                 (>!> in-key (fn [in-val f]
@@ -330,10 +337,12 @@
       (uab/as-async [p-resolve p-reject]
         (chain-> {:prm-request prm-request}
                  ;; fetch protected resource metadata
+                 (>-> :prm-request prm-request-middleware :prm-request)
                  (>h> :prm-request u/json-parse :prm-result)
                  ;; prepare to fetch authorization server metadata
                  (>-> :prm-result prm-result->asm-request :asm-request)
                  ;; fetch authorization server metadata
+                 (>-> :asm-request asm-request-middleware :asm-request)
                  (>h> :asm-request u/json-parse-str :asm-result-str)
                  (>-- :asm-result-str #(p/write-server! token-cache
                                                         mcp-server %))
@@ -343,6 +352,7 @@
                                         redirect-uris
                                         client-name) :register-client-request)
                  ;; dynamically register client
+                 (>-> :register-client-request dcr-request-middleware :register-client-request)
                  (>h> :register-client-request u/json-parse-str :register-client-result)
                  (>-- :register-client-result #(p/write-client! token-cache
                                                                 mcp-server %))
