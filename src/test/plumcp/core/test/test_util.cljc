@@ -87,11 +87,12 @@
   "Evaluate body of code. Catch and print stack trace for any exception
    thrown and rethrow."
   [& body]
-  `(try
-     ~@body
-     (catch #?(:cljs :default :clj Exception) e#
-       (u/print-stack-trace e#)
-       (throw e#))))
+  `(let [[v# e#] (u/catch! ~@body)]
+     (if e#
+       (do
+         (u/print-stack-trace e#)
+         (throw e#))
+       v#)))
 
 
 (defmacro async-test

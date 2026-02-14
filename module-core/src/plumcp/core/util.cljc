@@ -245,16 +245,16 @@
 
 (defmacro catch!
   "Evaluate given body of code, returning `[result nil]` on success,
-   or `[nil exception]` in case any exception is caught."
+   or `[nil caught]` in case any exception is caught."
   [& body]
   (if (:ns &env) ;; :ns only exists in CLJS
     `(try
        [(do ~@body) nil]
-       (catch js/Error ex#
-         [nil ex#]))
+       (catch :default ex#  ; catch everything, not just js/Error
+               [nil ex#]))
     `(try
        [(do ~@body) nil]
-       (catch Exception ex#
+       (catch Exception ex# ; Throwable is NOT meant to be handled
          [nil ex#]))))
 
 
