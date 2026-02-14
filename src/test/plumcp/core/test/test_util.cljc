@@ -117,8 +117,10 @@
 
 
 (defmacro async-each
+  "Like async-test, but for a collection of parameters, each of which
+   needs to be used to evaluate the body. The evaluations are chained
+   one after another."
   [[each coll] & body]
   `(async-each* ~coll (fn [next# ~each]
-                        (u/eprintln "Entered body")
                         (uab/may-await [_# (do ~@body)]
                           (next#)))))
