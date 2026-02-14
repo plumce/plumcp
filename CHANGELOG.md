@@ -7,7 +7,6 @@ All notable changes to this project will be documented in this file. This change
   - Options in `plumcp.core.client.stdio-client-transport/run-command`
     - Kwarg `:dir` - current directory for process
     - Kwarg `:env` - environment variables map
-  - [Todo] Ignore JSON parsing error on server (strict-check toggle as option)
 - Runtime override option
   - Server: Kwarg `:override` in `run-server`, `run-mcp-server`
   - Client: Kwarg `:override` in `make-client`, `make-mcp-client`
@@ -63,6 +62,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 - Options destructuring in base-client-context construction
+- Applying HTTP response middleware in CLJS HTTP Client
 
 ## [0.1.0] - 2026-01-29
 ### Added

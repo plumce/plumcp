@@ -13,9 +13,10 @@
    #?(:cljs [plumcp.core.support.http-client-cljs :as hcp]
       :clj [plumcp.core.support.http-client-java :as hcp])
    [plumcp.core.protocol :as p]
-   [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.support.support-util :as su]
-   [plumcp.core.util :as u])
+   [plumcp.core.support.traffic-logger :as stl]
+   [plumcp.core.util :as u]
+   [plumcp.core.util.async-bridge :as uab])
   #?(:cljs (:require-macros [plumcp.core.support.http-client])))
 
 
@@ -36,14 +37,18 @@
     (reify
       p/IHttpClient
       (client-info [_] {:default-uri default-uri})
-      (http-call [_ request] (-> request
-                                 (u/assoc-missing :uri default-uri)
-                                 request-middleware
-                                 make-call
-                                 response-middleware))
+      (http-call
+        [_ request] (uab/let-await
+                      [response (-> request
+                                    (u/assoc-missing :uri default-uri)
+                                    request-middleware
+                                    make-call)]
+                      (-> response
+                          response-middleware)))
       p/IStoppable
-      (stop! [_] #?(:cljs nil
-                    :clj (hcp/stop-client! (:client client-context)))))))
+      (stop!
+        [_] #?(:cljs nil
+               :clj (hcp/stop-client! (:client client-context)))))))
 
 
 (defn stop-http-client
