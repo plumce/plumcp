@@ -17,6 +17,7 @@
    [plumcp.core.dev.bling-logger :as blogger]
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.main.client :as client]
+   [plumcp.core.main.main-http-server :as mhs]
    [plumcp.core.main.server :as server]
    [plumcp.core.protocol :as p]
    [plumcp.core.server.zero-server :as zs]
@@ -88,12 +89,21 @@
 
 (defn run-http-server
   []
-  (tu/pst-rethrow
-   (u/eprintln "Starting HTTP server at port 3000")
-   (as-> server/server-options $
-     (assoc $ :transport :http :port 3000)
-     (ms/run-mcp-server $)
-     (reset! running-server-atom $))))
+  #_{:clj-kondo/ignore [:unused-binding]}
+  (let [[none auth0 scalekit workos] [u/nop
+                                      mhs/auth-auth0
+                                      mhs/auth-scalekit
+                                      mhs/auth-workos]
+        ;; auth-options-fn - uncomment any one
+        auth-options-fn none #_auth0 #_scalekit #_workos]
+    (tu/pst-rethrow
+     (u/eprintln "Starting HTTP server at port 3000")
+     (uab/may-await
+       [running-server (as-> server/server-options $
+                         (assoc $ :transport :http :port 3000)
+                         (assoc $ :auth-options (auth-options-fn))
+                         (ms/run-mcp-server $))]
+       (reset! running-server-atom running-server)))))
 
 
 (defn stop-http-server

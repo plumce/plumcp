@@ -38,7 +38,11 @@ All notable changes to this project will be documented in this file. This change
   - Function `p.c.a.entity-support/prompt-message->get-prompt-result`
 - Auth support
   - [Todo] Client: Support for Bearer token passed in options
-  - [Todo] Client: Extra headers in DCR call (Okta)
+  - Options in `plumcp.core.client.http-client-transport-auth/handle-authz-flow`
+    - Kwarg `:prm-request-middleware` - for Protected Resource Metadata request
+    - Kwarg `:asm-request-middleware` - for Authorization Server Metadata request
+    - Kwarg `:dcr-request-middleware` - for Dynamic Client Regitration request
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/659
 
 ### Changed
 - [BREAKING CHANGE] Replace protocol fn `log-mcp-notification` with
