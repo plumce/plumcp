@@ -20,19 +20,24 @@
 
 
 (defn make-streamable-http-transport
-  "Make Streamable-HTTP transport as a p/IClientTransport instance."
-  [http-client & {:keys [on-receive-message
-                         start-get-stream?
-                         auth-options
-                         get-auth-tokens
-                         on-other-response]
-                  :or {on-receive-message #(-> "[Streamable HTTP Message]"
-                                               (u/eprintln %))
-                       start-get-stream? true
-                       auth-options      {:auth-enabled? false}
-                       get-auth-tokens   hcta/get-tokens
-                       on-other-response #(-> "[Streamable HTTP Response]"
-                                              (u/eprintln %))}}]
+  "Make Streamable-HTTP transport as a p/IClientTransport instance.
+   Options:
+   :start-get-stream? - boolean (default: true), start GET stream?
+   :auth-options      - (default: auth disabled) OAuth handling options
+                        see p.c.c.h-c-t-a/make-client-auth-options
+   :get-auth-tokens   - (fn [headers-lower auth-options])->tokens
+                        see p.c.c.h-c-t-a/get-tokens
+   :on-other-response - (fn [response]) - unexpected response handler"
+  [http-client
+   & {:keys [start-get-stream?
+             ^{:see [hcta/make-client-auth-options]} auth-options
+             ^{:see [hcta/get-tokens]} get-auth-tokens
+             on-other-response]
+      :or {start-get-stream? true
+           auth-options      {:auth-enabled? false}
+           get-auth-tokens   hcta/get-tokens
+           on-other-response #(-> "[Streamable HTTP Response]"
+                                  (u/eprintln %))}}]
   (let [auth-enabled? (boolean (:auth-enabled? auth-options))
         tokens->hdrs  (fn [tokens]
                         {"Authorization" (str "Bearer "
@@ -50,7 +55,9 @@
         post-request {:request-method :post
                       :headers {"Accept" accept-header
                                 "Content-Type" "application/json"}}
-        msg-receiver (volatile! on-receive-message)
+        msg-receiver (volatile! (fn [msg] ; reset on transport start
+                                  (-> "[Streamable HTTP Message]"
+                                      (u/eprintln msg))))
         wrap-message (fn [jsonrpc-message headers-lower]
                        (if-let [session-id (->> sd/mcp-session-id-header-lower
                                                 (get headers-lower))]
