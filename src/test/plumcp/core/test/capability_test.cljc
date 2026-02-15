@@ -296,11 +296,11 @@
 
 
 (deftest completion-capability-test
-  (let [prompt-ref-item (cap/make-completions-reference-item
+  (let [prompt-ref-item (cs/make-completions-reference-item
                          (eg/make-prompt-reference "test-prompt-ref")
                          (fn [{:keys [ref argument]}]
                            [:prompt argument]))
-        resource-ref-item (cap/make-completions-reference-item
+        resource-ref-item (cs/make-completions-reference-item
                            (eg/make-resource-template-reference "res://test")
                            (fn [{:keys [ref argument]}]
                              [:resource argument]))

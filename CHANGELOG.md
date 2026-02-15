@@ -1,6 +1,22 @@
 # Change Log
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](https://keepachangelog.com/).
 
+## [TODO/IDEA] - ????-??-??
+### Added
+
+- MCP Server OAuth
+  - Support for non-DCR authorization servers
+    - https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/659
+    - A self-hosted authorization proxy endpoint for target server
+  - OAuth scope annotation in vars
+  - Enable:
+    - Token audience validation
+    - Scope enforcement
+    - Expiration validation
+    - HTTPS only
+  - Cache JWKS keys
+  - Log auth failures (but never log full tokens)
+
 ## [Unreleased] - 2026-??-??
 ### Added
 - STDIO Client Transport
@@ -23,7 +39,18 @@ All notable changes to this project will be documented in this file. This change
   - `complete`
   - `ping`
 - Capability API fns in new ns `plumcp.core.api.capability-support`
-  - "Capability item" making fns
+  - Capability item makers
+    - `make-root-item`
+    - `make-prompt-item`
+    - `make-resource-item`
+    - `make-resource-template-item`
+    - `make-tool-item`
+  - Primitives handlers
+    - `make-sampling-handler`
+    - `make-elicitation-handler`
+    - `primitives->client-capabilities` (moved from `p.c.i.var-support`)
+    - `make-completions-reference-item` (moved from `p.c.i.capability`)
+    - `primitives->fixed-server-capabilities` (moved from `p.c.i.var-support`)
 - Capability List-changed support
   - Capability-making fns from dereferenceable refs (eg. atom, volatile)
   - Send out notifications to all connected peers
@@ -36,15 +63,11 @@ All notable changes to this project will be documented in this file. This change
     - Add fn `p.c.a.mcp-client/get-initialize-result` to return the result
 - Convenience functions
   - Function `p.c.a.entity-support/prompt-message->get-prompt-result`
-- OAuth support
-  - [Todo] Server: Act as proxy authorization server for adding Okta headers
-  - [Fixme] Client: Browser not closing in CLJS after authorization
-  - [Todo] Client: Support for Bearer token passed in options
-  - Options in `plumcp.core.client.http-client-transport-auth/handle-authz-flow`
-    - Kwarg `:prm-request-middleware` - for Protected Resource Metadata request
-    - Kwarg `:asm-request-middleware` - for Authorization Server Metadata request
-    - Kwarg `:dcr-request-middleware` - for Dynamic Client Regitration request
-      - https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/659
+- OAuth options `plumcp.core.client.http-client-transport-auth/handle-authz-flow`
+  - Kwarg `:prm-request-middleware` - for Protected Resource Metadata request
+  - Kwarg `:asm-request-middleware` - for Authorization Server Metadata request
+  - Kwarg `:dcr-request-middleware` - for Dynamic Client Regitration request
+    - https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/659
 
 ### Changed
 - [BREAKING CHANGE] Replace protocol fn `log-mcp-notification` with
@@ -62,9 +85,6 @@ All notable changes to this project will be documented in this file. This change
   - `read-resource` to `async-read-resource`
   - `complete` to `async-complete`
   - `ping` to `async-ping`
-- [Todo] Move into `capability-support` ns
-  - capability/make-deref-xxxx-capability
-  - capability/make-fixed-xxxx-capability
 
 ### Fixed
 - MCP Client

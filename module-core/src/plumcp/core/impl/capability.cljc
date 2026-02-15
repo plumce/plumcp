@@ -450,19 +450,6 @@
       make-tools-capability))
 
 
-(defn make-completions-reference-item
-  "Make a completions capability reference item. A collection of such items
-   may be used to build completions capability. The capability item is made
-   by associating `(fn completion-handler [kwargs-map])->completion-result`
-   with a reference definition."
-  [^{:see [eg/make-prompt-reference
-           eg/make-resource-template-reference]} reference-definition
-   ^{:see [eg/make-complete-request
-           eg/make-complete-result]} completion-handler]
-  (-> reference-definition
-      (assoc :handler completion-handler)))
-
-
 (defn make-completions-capability
   "Make completion capability from given prompt/resource refs/factory-fns
    and respective completion handlers `(fn [ref arg])->completion-result`."

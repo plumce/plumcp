@@ -11,11 +11,10 @@
   "Var integration and support for capability primitives."
   (:require
    [clojure.set :as set]
+   [plumcp.core.api.capability-support :as cs]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.impl.method-handler :as mh]
-   [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 
@@ -314,20 +313,6 @@
 ;; ----- Sampling -----
 
 
-(defn make-sampling-handler
-  "Make sampling handler fn from the given
-   `(fn [kwargs]) -> sampling-result`."
-  [f]
-  (fn sampling-handler [kwargs]
-    (try
-      (f kwargs)
-      (catch #?(:cljs js/Error
-                :clj Exception) ex
-        (rs/log-mcpcall-failure kwargs ex)
-        (jr/jsonrpc-failure sd/error-code-internal-error
-                            (ex-message ex) (ex-data ex))))))
-
-
 (defn ^{:see [sd/CreateMessageRequest
               sd/CreateMessageResult]} make-sampling-handler-from-var
   "Given a var instance of a sampling function, extract metadata and
@@ -346,24 +331,10 @@
     (u/expected! var-instance "argument to be a var"))
   (-> var-instance
       var-handler
-      make-sampling-handler))
+      cs/make-sampling-handler))
 
 
 ;; ----- Elicitation -----
-
-
-(defn make-elicitation-handler
-  "Make elicitation handler fn from the given
-   `(fn [kwargs]) -> elicitation-result`."
-  [f]
-  (fn elicitation-handler [kwargs]
-    (try
-      (f kwargs)
-      (catch #?(:cljs js/Error
-                :clj Exception) ex
-        (rs/log-mcpcall-failure kwargs ex)
-        (jr/jsonrpc-failure sd/error-code-internal-error
-                            (ex-message ex) (ex-data ex))))))
 
 
 (defn ^{:see [sd/ElicitRequest
@@ -384,7 +355,7 @@
     (u/expected! var-instance "argument to be a var"))
   (-> var-instance
       var-handler
-      make-elicitation-handler))
+      cs/make-elicitation-handler))
 
 
 ;; ----- Vars -----
@@ -416,24 +387,6 @@
         (reduce merge {})))
   ([vars]
    (vars->client-primitives vars {})))
-
-
-(defn primitives->client-capabilities
-  "Make client capabilities from given MCP primitives in the following
-   input structure:
-   {:sampling    sampling-handler
-    :elicitation elicitation-handler}
-   See:
-   `vars->client-primitives`"
-  [{:keys [sampling
-           elicitation]}]
-  (let [cap-sampling (when sampling
-                       (cap/make-sampling-capability sampling))
-        cap-elicitation (when elicitation
-                          (cap/make-elicitation-capability elicitation))]
-    (-> cap/default-client-capabilities
-        (cap/update-sampling-capability cap-sampling)
-        (cap/update-elicitation-capability cap-elicitation))))
 
 
 ;; Servers
@@ -473,27 +426,3 @@
                    {})))
   ([vars]
    (vars->server-primitives vars {})))
-
-
-(defn primitives->fixed-server-capabilities
-  "Make server capabilities from given MCP primitives (or auto-discovered
-   from current namespace) in the following input structure:
-   {:prompts   [,,,]
-    :tools     [,,,]
-    :resources [,,,]
-    :resource-templates [,,,]}
-   See:
-   `make-primitives-from-vars`"
-  [{:keys [prompts
-           tools
-           resources
-           resource-templates]}]
-  (let [cap-prompts (cap/make-fixed-prompts-capability prompts)
-        cap-resources (cap/make-fixed-resources-capability
-                       resources
-                       resource-templates)
-        cap-tools (cap/make-fixed-tools-capability tools)]
-    (-> cap/default-server-capabilities
-        (cap/update-prompts-capability cap-prompts)
-        (cap/update-resources-capability cap-resources)
-        (cap/update-tools-capability cap-tools))))

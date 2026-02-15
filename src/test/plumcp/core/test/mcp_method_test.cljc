@@ -11,6 +11,7 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.api.capability-support :as cs]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.capability :as cap]
@@ -49,19 +50,19 @@
     (rt/get-runtime context)))
 
 
-(def missing-ref-item (cap/make-completions-reference-item
+(def missing-ref-item (cs/make-completions-reference-item
                        (eg/make-prompt-reference "missing-prompt-ref")
                        (fn [{:keys [ref argument]}]
                          [:prompt argument])))
 
 
-(def prompt-ref-item (cap/make-completions-reference-item
+(def prompt-ref-item (cs/make-completions-reference-item
                       (eg/make-prompt-reference "test-prompt-ref")
                       (fn [{:keys [ref argument]}]
                         [:prompt argument])))
 
 
-(def resource-ref-item (cap/make-completions-reference-item
+(def resource-ref-item (cs/make-completions-reference-item
                         (eg/make-resource-template-reference "res://test")
                         (fn [{:keys [ref argument]}]
                           [:resource argument])))
