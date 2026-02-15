@@ -98,11 +98,38 @@
       "xdg-open")))
 
 
+(defn launch-process-group
+  "Launch a process group indepent of Node. Used for running apps that
+   fork their own child processes, e.g. browsers."
+  ^ChildProcess [cmd args]
+  (let [^ChildProcess
+        proc (.spawn cp cmd
+                     (clj->js args)
+                     #js {; process group for tree-wide signal control
+                          :detached true
+                          ; remove IO ties to Node, so Node can exit
+                          :stdio "ignore"})]
+    (.unref proc)  ; as Node may not exit if busy tracking sub-process
+    proc))
+
+
+(defn kill-process-tree
+  "Kill process tree. Similar to Clojure/JVM `(.destroy ^Process proc)`"
+  [^ChildProcess subproc]
+  (let [pid (.-pid subproc)]
+    (if (= js/process.platform "win32")
+      ;; Windows - "/T" kills process tree, "/F" by force
+      (.spawn cp "taskkill"
+              #js ["/PID" (str pid) "/T" "/F"])
+      ;; Unix (Linux/macOS) - negative PID kills process tree
+      (.kill js/process (- pid) "SIGTERM"))))
+
+
 (defn browse-url
   "Open given URL in browser, returning Node.js ChildProcess object.
    See: https://stackoverflow.com/a/49013356"
-  ([url]
+  (^ChildProcess [url]
    (browse-url url (or (env-val "PLUMCP_BROWSER")
                        platform-opener)))
-  ([url browser-executable-name]
-   (.exec cp (str browser-executable-name " '" url "'"))))
+  (^ChildProcess [url browser-executable-name]
+   (launch-process-group browser-executable-name [url])))

@@ -580,7 +580,7 @@
   #?(:cljs (cond
              us/env-node-js? (let [^ChildProcess subproc (un/browse-url url)]
                                (reify p/IStoppable
-                                 (stop! [_] (.kill subproc "SIGHUP"))))
+                                 (stop! [_] (un/kill-process-tree subproc))))
              us/env-browser? (let [window-proxy (.open js/window url)]
                                (reify p/IStoppable
                                  (stop! [_] (when (some? window-proxy)

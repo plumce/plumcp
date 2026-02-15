@@ -36,7 +36,9 @@ All notable changes to this project will be documented in this file. This change
     - Add fn `p.c.a.mcp-client/get-initialize-result` to return the result
 - Convenience functions
   - Function `p.c.a.entity-support/prompt-message->get-prompt-result`
-- Auth support
+- OAuth support
+  - [Todo] Server: Act as proxy authorization server for adding Okta headers
+  - [Fixme] Client: Browser not closing in CLJS after authorization
   - [Todo] Client: Support for Bearer token passed in options
   - Options in `plumcp.core.client.http-client-transport-auth/handle-authz-flow`
     - Kwarg `:prm-request-middleware` - for Protected Resource Metadata request
@@ -65,8 +67,10 @@ All notable changes to this project will be documented in this file. This change
   - capability/make-fixed-xxxx-capability
 
 ### Fixed
-- Options destructuring in base-client-context construction
-- Applying HTTP response middleware in CLJS HTTP Client
+- MCP Client
+  - Options destructuring in base-client-context construction
+  - Applying HTTP response middleware in CLJS HTTP Client
+  - Closing browser in CLJS/Node.js Client OAuth authorization flow
 
 ## [0.1.0] - 2026-01-29
 ### Added
