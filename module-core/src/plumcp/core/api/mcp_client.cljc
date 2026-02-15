@@ -154,7 +154,8 @@
                            on-initialize-result))))
 
 
-(defn initialize!
+(defn ^{:see [sd/InitializeResult
+              sd/JSONRPCError]} initialize!
   "Synchronous version of `async-initialize!` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -192,7 +193,8 @@
                        (notify-initialized client))))
 
 
-(defn initialize-and-notify!
+(defn ^{:see [sd/InitializeResult
+              sd/JSONRPCError]} initialize-and-notify!
   "Synchronous version of `async-initialize-and-notify!` that returns
    result (value in CLJ, js/Promise in CLJS) on success, or throws on
    error.
@@ -205,7 +207,7 @@
     init-result))
 
 
-(defn get-initialize-result
+(defn ^{:see [sd/InitializeResult]} get-initialize-result
   "Return the initialization result from the server."
   [client]
   (-> (cs/?client-cache client)
@@ -247,7 +249,8 @@
         (async-list-tools client on-list-tools-result))))
 
 
-(defn list-tools
+(defn ^{:see [sd/ListToolsResult
+              sd/JSONRPCError]} list-tools
   "Synchronous version of `async-list-tools` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -284,7 +287,8 @@
                          on-call-tool-result))))
 
 
-(defn call-tool
+(defn ^{:see [sd/CallToolResult
+              sd/JSONRPCError]} call-tool
   "Synchronous version of `async-call-tool` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -319,7 +323,8 @@
                               on-list-resources-result))))
 
 
-(defn list-resources
+(defn ^{:see [sd/ListResourcesResult
+              sd/JSONRPCError]} list-resources
   "Synchronous version of `async-list-resources` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -354,7 +359,8 @@
                                        on-list-resource-templates-result))))
 
 
-(defn list-resource-templates
+(defn ^{:see [sd/ListResourceTemplatesResult
+              sd/JSONRPCError]} list-resource-templates
   "Synchronous version of `async-list-resource-templates` that returns
    result (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -389,7 +395,8 @@
                              on-read-resource-result))))
 
 
-(defn read-resource
+(defn ^{:see [sd/ReadResourceResult
+              sd/JSONRPCError]} read-resource
   "Synchronous version of `async-read-resource` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -424,7 +431,8 @@
                             on-list-prompts-result))))
 
 
-(defn list-prompts
+(defn ^{:see [sd/ListPromptsResult
+              sd/JSONRPCError]} list-prompts
   "Synchronous version of `async-list-prompts` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -461,7 +469,8 @@
                           on-get-prompt-result))))
 
 
-(defn get-prompt
+(defn ^{:see [sd/GetPromptResult
+              sd/JSONRPCError]} get-prompt
   "Synchronous version of `async-get-prompt` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -496,7 +505,8 @@
                         on-complete-result))))
 
 
-(defn complete
+(defn ^{:see [sd/CompleteResult
+              sd/JSONRPCError]} complete
   "Synchronous version of `async-complete` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
@@ -529,7 +539,7 @@
                     on-ping-result))))
 
 
-(defn ping
+(defn ^{:see [sd/JSONRPCError]} ping
   "Synchronous version of `async-ping` that returns result
    (value in CLJ, js/Promise in CLJS) on success, or throws on error.
    Options: see plumcp.core.util.async-bridge/as-async"
