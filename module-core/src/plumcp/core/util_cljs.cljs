@@ -138,16 +138,12 @@
 
 (defn make-timeout-promise
   "Make a js/Promise that you can js/Promise.race to effect a timeout."
-  [timeout-millis ex]
+  [timeout-millis timeout-value]
   (js/Promise.
-   (fn [_# reject]
-     (let [timeout (atom nil)]
-       (reset! timeout (js/setTimeout
-                        (fn []
-                          (when-let [id (deref timeout)]
-                            (js/clearTimeout id))
-                          (reject ex))
-                        timeout-millis))))))
+   (fn [resolve _]
+     (js/setTimeout
+      #(resolve timeout-value)
+      timeout-millis))))
 
 
 (defn race-promises

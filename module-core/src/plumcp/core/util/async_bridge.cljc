@@ -46,8 +46,8 @@
 
 #?(:cljs
    (defn timeout-promise
-     [task-promise timeout-millis ex]
-     (->> (us/make-timeout-promise timeout-millis ex)
+     [task-promise timeout-millis timeout-value]
+     (->> (us/make-timeout-promise timeout-millis timeout-value)
           (us/race-promises task-promise))))
 
 
@@ -58,11 +58,14 @@
    call (resolve <value>) to resolve the awaitable, or (reject <error>)
    to error out.
    Options:
-   :timeout-millis - (long) timeout in milliseconds awaiting result"
+   :timeout-millis - (long) timeout in milliseconds awaiting result
+   :timeout-value  - value to return on timeout awaiting result"
   [[resolve-sym reject-sym] & opts+body]
   (assert (symbol? resolve-sym) "resolve-sym must be a symbol")
-  (assert (symbol? reject-sym) "reject-sym must be a symbol")
-  (let [[options body] (if (and (> (count opts+body) 1)
+  (assert (or (symbol? reject-sym)
+              (nil? reject-sym)) "reject-sym must be a symbol")
+  (let [reject-sym (or reject-sym (gensym "reject"))
+        [options body] (if (and (> (count opts+body) 1)
                                 (map? (first opts+body)))
                          [(first opts+body) (rest opts+body)]
                          [{} opts+body])]
@@ -72,14 +75,13 @@
                                               ~@body
                                               (catch js/Error e#
                                                 (~reject-sym e#)))))
-             timeout-millis# (:timeout-millis ~options)]
+             options# ~options
+             timeout-millis# (:timeout-millis options#)]
          (if (nil? timeout-millis#)
            result-promise#
-           (let [ex# (ex-info "Timed out awaiting execution to end"
-                              {:timeout-millis timeout-millis#})]
-             (timeout-promise result-promise#
-                              timeout-millis#
-                              ex#))))
+           (timeout-promise result-promise#
+                            timeout-millis#
+                            (:timeout-value options#))))
       `(let [~resolve-sym (promise)
              ~reject-sym (fn [error#]
                            (cond
@@ -88,20 +90,17 @@
                              (string? error#) (u/throw! error#)
                              (map? error#) (u/throw! "Error" error#)
                              :else (u/throw! "Error" {:context error#})))
-             timeout-millis# (:timeout-millis ~options)]
+             options# ~options
+             timeout-millis# (:timeout-millis options#)]
          (u/background
            (try
              ~@body
              (catch Exception e#
                (~reject-sym e#))))
-         (let [retval# (if (nil? timeout-millis#)
-                         (deref ~resolve-sym)
-                         (deref ~resolve-sym timeout-millis#
-                                ::timed-out))]
-           (if (= retval# ::timed-out)
-             (throw (ex-info "Timed out awaiting execution to end"
-                             {:timeout-millis timeout-millis#}))
-             retval#))))))
+         (if (nil? timeout-millis#)
+           (deref ~resolve-sym)
+           (deref ~resolve-sym timeout-millis#
+                  (:timeout-value options#)))))))
 
 
 (defmacro let-await
