@@ -351,7 +351,7 @@
         get-capabilities (fn []
                            (or capabilities
                                (some-> (get-primitives)
-                                       cs/primitives->fixed-client-capabilities)
+                                       cs/primitives->client-capabilities)
                                cap/default-client-capabilities))
         get-runtime (fn []
                       (-> runtime

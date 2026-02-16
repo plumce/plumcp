@@ -199,6 +199,21 @@
   (get-listed-capabilities client-capabilities [:roots]))
 
 
+;; --- Listed capability helpers ---
+
+
+(defn items->list-applier
+  "Return list applier function for given capability items."
+  [items]
+  (condp u/invoke items
+    u/derefable? #(deref items)
+    u/sequence?  (constantly (vec items))
+    nil?         (constantly [])
+    fn?          items
+    (->> "items to be a vector, or deref'able or a no-arg function"
+         (u/expected! items))))
+
+
 ;; --- Client capability ---
 
 

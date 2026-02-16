@@ -15,7 +15,8 @@
    [plumcp.core.impl.capability :as cap]
    [plumcp.core.impl.method-handler :as mh]
    [plumcp.core.schema.json-rpc :as jr]
-   [plumcp.core.schema.schema-defs :as sd]))
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.util :as u]))
 
 
 ;; --- Client ---
@@ -125,10 +126,13 @@
                             (ex-message ex) (ex-data ex))))))
 
 
-(defn primitives->fixed-client-capabilities
+(defn primitives->client-capabilities
   "Make client capabilities from given MCP primitives in the following
    input structure:
-   {:roots       - vector of root capability items
+   {:roots       - root capability items (either of the following)
+                   - vector of root items
+                   - deref'able vector of root items (e.g. atom)
+                   - arity-0 function returning a vector of root items
     :sampling    - sampling-handler
     :elicitation - elicitation-handler}
    See:
@@ -137,7 +141,9 @@
            ^{:see [make-sampling-handler]} sampling
            ^{:see [make-elicitation-handler]} elicitation]}]
   (let [cap-roots (when roots
-                    (cap/make-fixed-roots-capability roots))
+                    (-> roots
+                        cap/items->list-applier
+                        cap/make-roots-capability))
         cap-sampling (when sampling
                        (cap/make-sampling-capability sampling))
         cap-elicitation (when elicitation
@@ -166,10 +172,23 @@
 
 (defn primitives->fixed-server-capabilities
   "Make server capabilities from given MCP primitives in this structure:
-   {:prompts   - vector of prompt capability items
-    :tools     - vector of tools capability items
-    :resources - vector of resource capability items
-    :resource-templates - vector of resource template capability items
+   {:prompts   - prompt capability items (either of the following)
+                 - vector of prompt items
+                 - deref'able vector of prompt items (e.g. atom)
+                 - arity-0 function returning a vector of prompt items
+    :resources - resource capability items (either of the following)
+                 - vector of resource items
+                 - deref'able vector of resource items (e.g. atom)
+                 - arity-0 function returning a vector of resource items
+    :resource-templates
+               - resource-template capability items (either of the following)
+                 - vector of resource-template items
+                 - deref'able vector of resource-template items (e.g. atom)
+                 - arity-0 fn returning a vector of resource-template items
+    :tools     - tool capability items (either of the following)
+                 - vector of tool items
+                 - deref'able vector of tool items (e.g. atom)
+                 - arity-0 function returning a vector of tool items
     :completion-prompt-refs - vector of prompt ref items
     :completion-resource-refs - vector of resource ref items}"
   [{:keys [^{:see [make-prompt-item]} prompts
@@ -179,13 +198,19 @@
            ^{:see [make-completions-reference-item]} completion-prompt-refs
            ^{:see [make-completions-reference-item]} completion-resource-refs]}]
   (let [cap-prompts (when prompts
-                      (cap/make-fixed-prompts-capability prompts))
+                      (-> prompts
+                          cap/items->list-applier
+                          cap/make-prompts-capability))
         cap-resources (when (or resources resource-templates)
-                        (cap/make-fixed-resources-capability
-                         resources
-                         resource-templates))
+                        (let [f-resources (cap/items->list-applier resources)
+                              f-resource-templates (-> resource-templates
+                                                       cap/items->list-applier)]
+                          (cap/make-resources-capability f-resources
+                                                         f-resource-templates)))
         cap-tools (when tools
-                    (cap/make-fixed-tools-capability tools))
+                    (-> tools
+                        cap/items->list-applier
+                        cap/make-tools-capability))
         cap-completion (when (or completion-prompt-refs
                                  completion-resource-refs)
                          (cap/make-completions-capability

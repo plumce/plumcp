@@ -91,10 +91,18 @@
 ;; --- Coercion/transformation ---
 
 
-(defn as-vec [x]
-  (if (or (vector? x)
-          (list? x)
-          (set? x))
+(defn sequence?
+  "Return true if argument is a sequence, flase otherwise."
+  [x]
+  (or (vector? x)
+      (list? x)
+      (set? x)))
+
+
+(defn as-vec
+  "Coerce sequence argument into a vector, wrap into vector otherwise."
+  [x]
+  (if (sequence? x)
     (vec x)
     [x]))
 
@@ -173,6 +181,13 @@
   [v]
   (and (vector? v)
        (seq v)))
+
+
+(defn derefable?
+  "Return true if (deref x) is allowed on the argument, false otherwise."
+  [x]
+  #?(:cljs (satisfies? IDeref x)
+     :clj (instance? clojure.lang.IDeref x)))
 
 
 ;; --- Map manipulation ---

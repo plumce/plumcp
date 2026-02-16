@@ -50,7 +50,7 @@ All notable changes to this project will be documented in this file. This change
     - `make-elicitation-handler`
     - `primitives->client-capabilities` (moved from `p.c.i.var-support`)
     - `make-completions-reference-item` (moved from `p.c.i.capability`)
-    - `primitives->fixed-server-capabilities` (moved from `p.c.i.var-support`)
+    - `primitives->server-capabilities` (moved from `p.c.i.var-support`)
 - Capability List-changed support
   - Capability-making fns from dereferenceable refs (eg. atom, volatile)
   - Send out notifications to all connected peers
