@@ -13,6 +13,7 @@
    [bling.explain :as be]
    [malli.core :as mc]
    [malli.error :as me]
+   [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
@@ -36,11 +37,10 @@
       (u/throw! "Malli-schema validation error" (explain schema data))))
 
 
-(defn request-validation-error [data request]
+(defn request-validation-error [data]
   {:error {:code sd/error-code-invalid-params
            :message "JSON-RPC Request validation error"
-           :data data
-           :request request}})
+           :data data}})
 
 
 (defn wrap-when-request-schema [request-schema handler]
@@ -48,8 +48,8 @@
     (fn mcp-request-valiating-handler [jsonrpc-request]
       (if (mc/validate request-schema jsonrpc-request)
         (handler jsonrpc-request)
-        (request-validation-error (explain request-schema jsonrpc-request)
-                                  jsonrpc-request)))
+        (-> (explain request-schema jsonrpc-request)
+            request-validation-error)))
     handler))
 
 
