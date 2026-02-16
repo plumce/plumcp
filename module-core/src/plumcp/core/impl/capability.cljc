@@ -228,10 +228,17 @@
 
 
 (defn make-roots-capability
-  "Make roots capability from given `(fn [])->roots-capability-items`."
+  "Make roots capability from the given root capability items coerced as
+   `(fn [])->roots-capability-items`:
+   - root capability items (either of the following)
+     - vector of root items
+     - deref'able vector of root items (e.g. atom)
+     - arity-0 function returning a vector of root items"
   [^{:see [make-roots-capability-item]} get-roots-capability-items]
-  (make-listed-capability (fn [] {sd/method-roots-list
-                                  (get-roots-capability-items)})))
+  (let [f-root-items (-> get-roots-capability-items
+                         items->list-applier)]
+    (make-listed-capability (fn [] {sd/method-roots-list
+                                    (f-root-items)}))))
 
 
 (defn make-deref-roots-capability
@@ -299,10 +306,17 @@
 
 
 (defn make-prompts-capability
-  "Make prompts capability from given `(fn [])->prompts-capability-items`."
+  "Make prompts capability from the given prompt capability items
+   coerced as `(fn [])->prompts-capability-items`:
+   - prompt capability items (either of the following)
+     - vector of prompt items
+     - deref'able vector of prompt items (e.g. atom)
+     - arity-0 function returning a vector of prompt items"
   [^{:see [make-prompts-capability-item]} get-prompts-capability-items]
-  (make-listed-capability (fn [] {sd/method-prompts-list
-                                  (get-prompts-capability-items)})))
+  (let [f-prompt-items (-> get-prompts-capability-items
+                           items->list-applier)]
+    (make-listed-capability (fn [] {sd/method-prompts-list
+                                    (f-prompt-items)}))))
 
 
 (defn make-deref-prompts-capability
@@ -370,9 +384,19 @@
 
 
 (defn make-resources-capability
-  "Make resources capability from the given args:
+  "Make resources capability from given resource and resource-template
+   capability items coerced as
    - `(fn [])->resources-capability-resource-items` and
-   - `(fn [])->resources-capability-resource-template-items`"
+   - `(fn [])->resources-capability-resource-template-items`
+   The arguments allowed are:
+   - resource items (either of the following)
+     - vector of resource items
+     - deref'able vector of resource items (e.g. atom)
+     - arity-0 function returning a vector of resource items
+   - resource-template items (either of the following)
+     - vector of resource-template items
+     - deref'able vector of resource-template items (e.g. atom)
+     - arity-0 function returning a vector of resource-template items"
   [^{:see [make-resources-capability-resource-item]}
    get-resources-capability-resource-items
    ^{:see [make-resources-capability-resource-template-item]}
@@ -382,12 +406,16 @@
       :or {declaration {:listChanged true
                         :subscribe true}
            find-handler find-uri-handler}}]
-  (-> (fn [] {sd/method-resources-list
-              (get-resources-capability-resource-items)
-              sd/method-resources-templates-list
-              (get-resources-capability-resource-template-items)})
-      (make-listed-capability {:declaration declaration
-                               :find-handler find-handler})))
+  (let [f-resource-items (-> get-resources-capability-resource-items
+                             items->list-applier)
+        f-template-items (-> get-resources-capability-resource-template-items
+                             items->list-applier)]
+    (-> (fn [] {sd/method-resources-list
+                (f-resource-items)
+                sd/method-resources-templates-list
+                (f-template-items)})
+        (make-listed-capability {:declaration declaration
+                                 :find-handler find-handler}))))
 
 
 (defn make-deref-resources-capability
@@ -442,11 +470,18 @@
 
 
 (defn make-tools-capability
-  "Make tools capability from `(fn [])->tools-capability-items`."
+  "Make tools capability from the given tool capability items
+   coerced as `(fn [])->tools-capability-items`:
+   - tool capability items (either of the following)
+     - vector of tool items
+     - deref'able vector of tool items (e.g. atom)
+     - arity-0 function returning a vector of tool items"
   [^{:see [make-tools-capability-item]} get-tools-capability-items]
-  (-> (fn [] {sd/method-tools-list
-              (get-tools-capability-items)})
-      (make-listed-capability {})))
+  (let [f-tool-items (-> get-tools-capability-items
+                         items->list-applier)]
+    (-> (fn [] {sd/method-tools-list
+                (f-tool-items)})
+        (make-listed-capability {}))))
 
 
 (defn make-deref-tools-capability
