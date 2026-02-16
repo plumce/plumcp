@@ -26,7 +26,7 @@ All notable changes to this project will be documented in this file. This change
 - Runtime override option
   - Server: Kwarg `:override` in `run-server`, `run-mcp-server`
   - Client: Kwarg `:override` in `make-client`, `make-mcp-client`
-- Synchronous MCP Client API functions
+- Synchronous MCP Client API functions in `p.c.a.mcp-client` ns
   - `initialize!`
   - `initialize-and-notify!`
   - `list-prompts`
@@ -85,6 +85,17 @@ All notable changes to this project will be documented in this file. This change
   - `read-resource` to `async-read-resource`
   - `complete` to `async-complete`
   - `ping` to `async-ping`
+- [BREAKING CHANGE] Change fn arity in `p.c.a.mcp-client` ns
+  - `async-initialize!` (result-handler -> response-handler)
+  - `async-list-tools` (result-handler -> response-handler)
+  - `async-call-tool` (result-handler -> response-handler)
+  - `async-list-resources` (result-handler -> response-handler)
+  - `async-list-resource-templates` (result-handler -> response-handler)
+  - `async-read-resource` (result-handler -> response-handler)
+  - `async-list-prompts` (result-handler -> response-handler)
+  - `async-get-prompt` (result-handler -> response-handler)
+  - `async-complete` (result-handler -> response-handler)
+  - `async-ping` (result-handler -> response-handler)
 - [BREAKING CHANGE] Drop capability making fns in `p.c.i.capability` ns
   - `make-fixed-roots-capability` (use `make-roots-capability` instead)
   - `make-fixed-prompts-capability` (use `make-prompts-capability` instead)
@@ -96,6 +107,8 @@ All notable changes to this project will be documented in this file. This change
   - Options destructuring in base-client-context construction
   - Applying HTTP response middleware in CLJS HTTP Client
   - Closing browser in CLJS/Node.js Client OAuth authorization flow
+- Dev module
+  - Do not emit `:request` entry in schema validation error responses
 
 ## [0.1.0] - 2026-01-29
 ### Added

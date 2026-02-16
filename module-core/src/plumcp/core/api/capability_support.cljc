@@ -166,7 +166,9 @@
 
 (defn primitives->server-capabilities
   "Make server capabilities from given MCP primitives in this structure:
-   {:prompts   - prompt capability items (either of the following)
+   {:callbacks - map of {<callback-name> <callback-handler>}
+                 - IGNORED here as a non-capability, used elsewhere
+    :prompts   - prompt capability items (either of the following)
                  - vector of prompt items
                  - deref'able vector of prompt items (e.g. atom)
                  - arity-0 function returning a vector of prompt items

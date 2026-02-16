@@ -89,12 +89,32 @@
        (:error m)))
 
 
+(defn jsonrpc-error
+  "Return error from a failure JSON-RPC response."
+  ([jsonrpc-response not-found]
+   (if (jsonrpc-error? jsonrpc-response)
+     (:error jsonrpc-response)
+     not-found))
+  ([jsonrpc-response]
+   (jsonrpc-error jsonrpc-response nil)))
+
+
 (defn jsonrpc-result?
   "Return true if given map is a JSON-RPC result, false otherwise."
   [m]
   (and (map? m)
        (not (:error m))
        (:result m)))
+
+
+(defn jsonrpc-result
+  "Return result from a success JSON-RPC response."
+  ([jsonrpc-response not-found]
+   (if (jsonrpc-result? jsonrpc-response)
+     (:result jsonrpc-response)
+     not-found))
+  ([jsonrpc-response]
+   (jsonrpc-result jsonrpc-response nil)))
 
 
 (defn jsonrpc-response?

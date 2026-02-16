@@ -14,15 +14,13 @@
    [plumcp.core.api.mcp-client :as mc]
    [plumcp.core.apps.everything :as ev]
    [plumcp.core.client.zero-client-transport :as zct]
+   [plumcp.core.deps.runtime :as rt]
    [plumcp.core.main.client :as client]
    [plumcp.core.main.server :as server]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.server.zero-server :as zs]
    [plumcp.core.test.test-util :as tu]
-   [plumcp.core.util :as u]
-   [plumcp.core.deps.runtime :as rt])
-  #?(:clj (:import
-           [clojure.lang ExceptionInfo])))
+   [plumcp.core.util :as u]))
 
 
 (defn ^{:mcp-type :sampling} sampling-handler
@@ -85,6 +83,8 @@
                                  (sort-by :name))]
                (is (= tl-tools ev-tools)
                    "retrieved/existing tools should match")))
+           mc/on-tools->on-result
+           mc/on-result->on-response
            (mc/async-list-tools client-context)))
     (testing sd/method-prompts-list
       (->> (fn [prompts-list]
@@ -97,6 +97,8 @@
                (is (= pl-prompts ev-prompts)
                    "retrieved/existing prompts should match"))
              (u/dprint "Prompts-list result" prompts-list))
+           mc/on-prompts->on-result
+           mc/on-result->on-response
            (mc/async-list-prompts client-context)))
     (testing sd/method-resources-list
       (->> (fn [resources-list]
@@ -108,6 +110,8 @@
                                      (sort-by :name))]
                (is (= rl-resources ev-resources)
                    "retrieved/existing resources should match")))
+           mc/on-resources->on-result
+           mc/on-result->on-response
            (mc/async-list-resources client-context)))
     (testing sd/method-resources-templates-list
       (->> (fn [resource-templates-list]
@@ -119,6 +123,8 @@
                                (sort-by :name))]
                (is (= rl-rts ev-rts)
                    "retrieved/existing resource-templates should match")))
+           mc/on-resource-templates->on-result
+           mc/on-result->on-response
            (mc/async-list-resource-templates client-context)))
     (mc/disconnect! client-context)))
 
@@ -130,6 +136,7 @@
              (is (= content [{:type "text"
                               :text "Hi there"}]))
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "echo"
                                {:message "Hi there"})))
     (testing "add"
@@ -137,6 +144,7 @@
              (is (= content [{:type "text"
                               :text "The sum of 10 and 20 is 30"}]))
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "add"
                                {:a 10 :b 20})))
     (testing "longRunningOperation"
@@ -146,6 +154,7 @@
                                 :text "Long running operation completed. Duration: 4 seconds, Steps: 4."}]))
                (is (not error?))
                (done!))
+             mc/on-result->on-response
              (mc/async-call-tool client-context "longRunningOperation"
                                  {:duration 4 :steps 4}))))
     (testing "printEnv"
@@ -156,6 +165,7 @@
                      (get "PATH")
                      string?))
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "printEnv"
                                {})))
     (testing "sampleLLM"
@@ -165,6 +175,7 @@
                                 :text "LLM sampling result: Canned sampling text"}]))
                (is (not error?))
                (done!))
+             mc/on-result->on-response
              (mc/async-call-tool client-context "sampleLLM"
                                  {:prompt "Make some hay" :maxTokens 100}))))
     (testing "getTinyImage"
@@ -174,6 +185,7 @@
                               :mimeType "image/png"}
                              {:type "text" :text "The image above is the MCP tiny image."}]))
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "getTinyImage"
                                {})))
     (testing "annotatedMessage"
@@ -182,6 +194,7 @@
                               :annotations {:audience ["user" "assistant"]
                                             :priority 1.0}}]))
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "annotatedMessage"
                                {:message-type "error"
                                 :include-image false}))
@@ -190,6 +203,7 @@
                               :annotations {:audience ["user"]
                                             :priority 0.7}}]))
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "annotatedMessage"
                                {:message-type "success"
                                 :include-image false})))
@@ -205,6 +219,7 @@
                               :text "You can access this resource using the URI: test://static/resource/1"}])
                  "odd numbered resource ID")
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "getResourceReference"
                                {:resource-id 1}))
       (->> (fn [{content :content error?  :isError}] ; call-tool-result
@@ -218,16 +233,18 @@
                               :text "You can access this resource using the URI: test://static/resource/2"}])
                  "even numbered resource ID")
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "getResourceReference"
                                {:resource-id 2}))
-      (is (thrown-with-msg?
-           ExceptionInfo #"\{:resource-id \[\"should be at most 100\"\]\}\n"
-           (->> (fn [{content :content error?  :isError}] ; call-tool-result
-                  (is (= content [])
-                      "out of range resource ID")
-                  (is error?))
-                (mc/async-call-tool client-context "getResourceReference"
-                                    {:resource-id 102})))))
+      (->> (fn [error-response] ; call-tool-result
+             (is (= {:jsonrpc "2.0"
+                     :error {:code -32602
+                             :message "{:resource-id [\"should be at most 100\"]}\n"
+                             :data {}}}
+                    (dissoc error-response :id))
+                 "out of range resource ID"))
+           (mc/async-call-tool client-context "getResourceReference"
+                               {:resource-id 102})))
     (testing "startElicitation"
       (tu/until-done [done! 10]
         (reset! elicit-action-atom sd/elicit-action-accept)
@@ -242,6 +259,7 @@
                    "elicitation accepted")
                (is (not error?))
                (done!))
+             mc/on-result->on-response
              (mc/async-call-tool client-context "startElicitation"
                                  {})))
       (tu/until-done [done! 10]
@@ -255,6 +273,7 @@
                    "elicitation cancelled")
                (is (not error?))
                (done!))
+             mc/on-result->on-response
              (mc/async-call-tool client-context "startElicitation"
                                  {})))
       (tu/until-done [done! 10]
@@ -268,6 +287,7 @@
                    "elicitation declined")
                (is (not error?))
                (done!))
+             mc/on-result->on-response
              (mc/async-call-tool client-context "startElicitation"
                                  {}))))
     (testing "getResourceLinks"
@@ -280,6 +300,7 @@
                      {:uri "test://static/resource/3", :name "Resource 3", :type "resource_link"}])
                  "default param value")
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "getResourceLinks"
                                {}))
       (->> (fn [{content :content error?  :isError}] ; call-tool-result
@@ -290,16 +311,18 @@
                      {:uri "test://static/resource/2", :name "Resource 2", :type "resource_link"}])
                  "specified param value")
              (is (not error?)))
+           mc/on-result->on-response
            (mc/async-call-tool client-context "getResourceLinks"
                                {:count 2}))
-      (is (thrown-with-msg?
-           ExceptionInfo #"\{:count \[\"should be at least 1\"\]\}\n"
-           (->> (fn [{content :content error?  :isError}] ; call-tool-result
-                  (is (= content [])
-                      "validated (erroneous) param value")
-                  (is (not error?)))
-                (mc/async-call-tool client-context "getResourceLinks"
-                                    {:count 0})))))))
+      (->> (fn [error-response] ; call-tool-result
+             (is (= {:jsonrpc "2.0"
+                     :error {:code -32602
+                             :message "{:count [\"should be at least 1\"]}\n"
+                             :data {}}}
+                    (dissoc error-response :id))
+                 "count should be atleast 1"))
+           (mc/async-call-tool client-context "getResourceLinks"
+                               {:count 0})))))
 
 
 (deftest read-server-resources-test
@@ -313,14 +336,19 @@
                         :mimeType "application/octet-stream"
                         :name "Resource 2"}]))
                (done!))
+             mc/on-result->on-response
              (mc/async-read-resource client-context
                                      "test://static/resource/1"))))
     (testing "resource-100"
-      (is (thrown-with-msg?
-           ExceptionInfo #"Unknown resource: test://static/resource/100"
-           (->> (fn [_] (u/throw! "Unreachable code"))
-                (mc/async-read-resource client-context
-                                        "test://static/resource/100")))))))
+      (->> (fn [error-response]
+             (is (= {:jsonrpc "2.0"
+                     :error {:code -32602
+                             :message "Unknown resource: test://static/resource/100"
+                             :data {}}}
+                    (dissoc error-response :id))
+                 "Unknown resource: test://static/resource/100"))
+           (mc/async-read-resource client-context
+                                   "test://static/resource/100")))))
 
 
 (deftest get-prompts-test
@@ -332,6 +360,7 @@
                       :content {:type "text"
                                 :text "This is a simple prompt without arguments."}}]))
              (is (nil? description)))
+           mc/on-result->on-response
            (mc/async-get-prompt client-context "simple_prompt"
                                 {})))
     (testing "complex-prompts"
@@ -349,6 +378,7 @@
                                 :mimeType "image/png"}}])
                  "success message")
              (is (nil? description)))
+           mc/on-result->on-response
            (mc/async-get-prompt client-context "complex_prompts"
                                 {:temperature "100"
                                  :style "modern"}))
@@ -366,6 +396,7 @@
                                 :mimeType "image/png"}}])
                  "success message without optional kwarg")
              (is (nil? description)))
+           mc/on-result->on-response
            (mc/async-get-prompt client-context "complex_prompts"
                                 {:temperature "100"})))
     (testing "resource-prompts"
@@ -382,20 +413,29 @@
                                            :name "Resource 50"}}}])
                  "success message")
              (is (nil? description)))
+           mc/on-result->on-response
            (mc/async-get-prompt client-context "resource_prompt"
                                 {:resourceId "50"}))
-      (is (thrown-with-msg?
-           ExceptionInfo #"JSON-RPC Request validation error"
-           (->> (fn [_] (u/throw! "Unreachable code"))
-                (mc/async-get-prompt client-context "resource_prompt"
-                                     {:resourceId 50})))
-          "invalid kwarg type (must be string)")
-      (is (thrown-with-msg?
-           ExceptionInfo #"Invalid resourceId: 200. Must be a number between 1 and 100."
-           (->> (fn [_] (u/throw! "Unreachable code"))
-                (mc/async-get-prompt client-context "resource_prompt"
-                                     {:resourceId "200"})))
-          "kwarg out of range (must be 1-100)"))))
+      (->> (fn [error-response]
+             (is (= {:jsonrpc "2.0"
+                     :error {:code -32602
+                             :message "JSON-RPC Request validation error"
+                             :data {:params {:arguments {:resourceId ["should be a string"]}}}}}
+                    (-> error-response
+                        (dissoc :id)))
+                 "invalid kwarg type (must be string)"))
+           (mc/async-get-prompt client-context "resource_prompt"
+                                {:resourceId 50}))
+      (->> (fn [error-response]
+             (is (= {:jsonrpc "2.0"
+                     :error {:code -32602
+                             :message "Invalid resourceId: 200. Must be a number between 1 and 100."
+                             :data {}}}
+                    (dissoc error-response :id))
+                 "kwarg out of range (must be 1-100)"))
+           ;mc/on-result->on-response
+           (mc/async-get-prompt client-context "resource_prompt"
+                                {:resourceId "200"})))))
 
 
 (deftest ping-test
@@ -405,6 +445,7 @@
         (->> (fn [result]
                (is (= result {}) "handler is called")
                (done!))
+             mc/on-result->on-response
              (mc/async-ping client-context))))))
 
 

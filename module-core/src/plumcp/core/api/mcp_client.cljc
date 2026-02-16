@@ -122,6 +122,38 @@
    `(make-client {})))
 
 
+;; --- Client utility ---
+
+
+(defn on-result->on-response
+  "Make a JSON-RPC response handler from given JSON-RPC result handler
+   (and JSON-RPC error handler)."
+  ([on-result on-error-response]
+   (fn jsonrpc-result-callback [jsonrpc-message]
+     (if (jr/jsonrpc-result? jsonrpc-message)
+       (on-result (:result jsonrpc-message))
+       (on-error-response jsonrpc-message))))
+  ([on-result]
+   (on-result->on-response on-result cs/error-logger)))
+
+
+(defn result-or-throw!
+  "Given a JSON-RPC response, return the result on success, or throw an
+   exception."
+  ([jsonrpc-response options]
+   (cond
+     (jr/jsonrpc-result? jsonrpc-response) (:result jsonrpc-response)
+     (jr/jsonrpc-error? jsonrpc-response) (-> jsonrpc-response
+                                              (get-in [:error :message])
+                                              (u/throw! jsonrpc-response))
+     (= (:timeout-value options)
+        jsonrpc-response)        (u/throw! "Operation timed out")
+     :else                       (u/throw! "Unexpected response"
+                                           {:response jsonrpc-response})))
+  ([jsonrpc-response]
+   (result-or-throw! jsonrpc-response {})))
+
+
 ;; --- initilization / de-initialization / handshake ---
 
 
@@ -131,40 +163,34 @@
    `on-success-result` is called with success result
    `on-error-response` is called with error response
    See: `initialize-and-notify!`"
-  ([client
-    ^{:see [sd/InitializeResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-initialize-request
-                  sd/protocol-version-max
-                  (-> (cs/?capabilities client)
-                      cap/get-client-capability-declaration)
-                  (rt/?client-info client))
-         setter (partial cs/set-session-context! client)]
-     (as-> on-success-result $
-       (cs/on-result-callback $ on-error-response)
-       (cs/wrap-session-setting $ setter)
-       (cs/send-request-to-server client request $))))
-  ([client
-    ^{:see [sd/InitializeResult]} on-initialize-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error initializing connection")
-                    error-response))
-        (async-initialize! client
-                           on-initialize-result))))
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/InitializeResult
+                  sd/JSONRPCError
+                  on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-initialize-request
+                 sd/protocol-version-max
+                 (-> (cs/?capabilities client)
+                     cap/get-client-capability-declaration)
+                 (rt/?client-info client))
+        setter (partial cs/set-session-context! client)]
+    (as-> on-jsonrpc-response $
+      (cs/wrap-session-setting $ setter)
+      (cs/send-request-to-server client request $))))
 
 
-(defn ^{:see [sd/InitializeResult
-              sd/JSONRPCError]} initialize!
-  "Synchronous version of `async-initialize!` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn ^{:see [sd/JSONRPCResponse
+              sd/InitializeResult
+              sd/JSONRPCError
+              result-or-throw!]} initialize!
+  "Synchronous version of `async-initialize!` that returns JSON-RPC
+   response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-initialize! client
-                       return reject)))
+                       return)))
 
 
 (defn notify-initialized
@@ -187,24 +213,27 @@
    session and notify the MCP server of a successful initialization."
   [client]
   (async-initialize! client
-                     (fn [result]
-                       (-> (cs/?client-cache client)
-                           (cs/?cc-initialize-result result))
-                       (notify-initialized client))))
+                     (-> (fn [result]
+                           (-> (cs/?client-cache client)
+                               (cs/?cc-initialize-result result))
+                           (notify-initialized client))
+                         on-result->on-response)))
 
 
-(defn ^{:see [sd/InitializeResult
-              sd/JSONRPCError]} initialize-and-notify!
+(defn ^{:see [sd/JSONRPCResponse
+              sd/InitializeResult
+              sd/JSONRPCError
+              result-or-throw!]} initialize-and-notify!
   "Synchronous version of `async-initialize-and-notify!` that returns
-   result (value in CLJ, js/Promise in CLJS) on success, or throws on
-   error.
+   JSON-RPC response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client & {:as options}]
-  (uab/let-await [init-result (initialize! client options)]
-    (-> (cs/?client-cache client)
-        (cs/?cc-initialize-result init-result))
-    (notify-initialized client)
-    init-result))
+  (uab/let-await [init-jsonrpc-response (initialize! client options)]
+    (when-let [init-result (jr/jsonrpc-result init-jsonrpc-response)]
+      (-> (cs/?client-cache client)
+          (cs/?cc-initialize-result init-result))
+      (notify-initialized client))
+    init-jsonrpc-response))
 
 
 (defn ^{:see [sd/InitializeResult]} get-initialize-result
@@ -228,327 +257,323 @@
 ;; --- MCP requests expecting result ---
 
 
+(defn on-tools->on-result
+  "Given a (fn [tools]) return (fn [jsonrpc-result])."
+  [f]
+  (cs/destructure-result f sd/result-key-tools))
+
+
 (defn async-list-tools
-  "Return the list of MCP tools supported by the server. Arguments:
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client
-    ^{:see [sd/ListToolsResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-list-tools-request)]
-     (as-> on-success-result $
-       (cs/destructure-result $ sd/result-key-tools)
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client
-    ^{:see [sd/ListToolsResult]} on-list-tools-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error listing tools")
-                    error-response))
-        (async-list-tools client on-list-tools-result))))
+  "Return the list of MCP tools supported by the server. The JSON-RPC
+   response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListToolsResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-tools->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-tools-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
 
 
-(defn ^{:see [sd/ListToolsResult
-              sd/JSONRPCError]} list-tools
-  "Synchronous version of `async-list-tools` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn tools-or-throw!
+  "Given a JSON-RPC list-tools response, return the tools on success, or
+   throw an exception."
+  ([jsonrpc-response options]
+   (-> (result-or-throw! jsonrpc-response options)
+       sd/result-key-tools))
+  ([jsonrpc-response]
+   (tools-or-throw! jsonrpc-response {})))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListToolsResult
+              sd/JSONRPCError
+              tools-or-throw!]} list-tools
+  "Synchronous version of `async-list-tools` that returns JSON-RPC
+   response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-list-tools client
-                      return reject)))
+                      return)))
 
 
 (defn async-call-tool
   "Call the MCP tool on the server. Arguments:
-  `tool-name`  is the name of the tool to be called
+   `tool-name`  is the name of the tool to be called
    `tool-args` is the map of args for calling the tool
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client tool-name tool-args
-    ^{:see [sd/CallToolResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-call-tool-request tool-name
-                                            tool-args)]
-     (as-> on-success-result $
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client tool-name tool-args
-    ^{:see [sd/CallToolResult]} on-call-tool-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error calling tool")
-                    error-response))
-        (async-call-tool client
-                         tool-name tool-args
-                         on-call-tool-result))))
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client tool-name tool-args
+   ^{:see [sd/JSONRPCResponse
+           sd/CallToolResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-call-tool-request tool-name
+                                           tool-args)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
 
 
-(defn ^{:see [sd/CallToolResult
-              sd/JSONRPCError]} call-tool
-  "Synchronous version of `async-call-tool` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn ^{:see [sd/JSONRPCResponse
+              sd/CallToolResult
+              sd/JSONRPCError
+              result-or-throw!]} call-tool
+  "Synchronous version of `async-call-tool` that returns JSON-RPC
+   response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client tool-name tool-args & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-call-tool client
                      tool-name tool-args
-                     return reject)))
+                     return)))
+
+
+(defn on-resources->on-result
+  "Given a (fn [resources]) return (fn [jsonrpc-result])."
+  [f]
+  (cs/destructure-result f sd/result-key-resources))
 
 
 (defn async-list-resources
-  "Return the list of MCP resources supported by the server. Arguments:
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client
-    ^{:see [sd/ListResourcesResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-list-resources-request)]
-     (as-> on-success-result $
-       (cs/destructure-result $ sd/result-key-resources)
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client
-    ^{:see [sd/ListResourcesResult]} on-list-resources-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error listing resources")
-                    error-response))
-        (async-list-resources client
-                              on-list-resources-result))))
+  "Return the list of MCP resources supported by the server. The
+   JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListResourcesResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-resources->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-resources-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
 
 
-(defn ^{:see [sd/ListResourcesResult
-              sd/JSONRPCError]} list-resources
-  "Synchronous version of `async-list-resources` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn resources-or-throw!
+  "Given a JSON-RPC list-resources response, return the resources on
+   success, or throw an exception."
+  ([jsonrpc-response options]
+   (-> (result-or-throw! jsonrpc-response options)
+       sd/result-key-resources))
+  ([jsonrpc-response]
+   (resources-or-throw! jsonrpc-response {})))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListResourcesResult
+              sd/JSONRPCError
+              resources-or-throw!]} list-resources
+  "Synchronous version of `async-list-resources` that returns JSON-RPC
+   response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-list-resources client
-                          return reject)))
+                          return)))
+
+
+(defn on-resource-templates->on-result
+  "Given a (fn [resource-templates]) return (fn [jsonrpc-result])."
+  [f]
+  (cs/destructure-result f sd/result-key-resource-templates))
 
 
 (defn async-list-resource-templates
   "Return the list of MCP resource templates supported by the server.
-   Arguments:
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client
-    ^{:see [sd/ListResourceTemplatesResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-list-resource-templates-request)]
-     (as-> on-success-result $
-       (cs/destructure-result $ sd/result-key-resource-templates)
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client
-    ^{:see [sd/ListResourceTemplatesResult]} on-list-resource-templates-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error listing resource templates")
-                    error-response))
-        (async-list-resource-templates client
-                                       on-list-resource-templates-result))))
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListResourceTemplatesResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-resource-templates->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-resource-templates-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
 
 
-(defn ^{:see [sd/ListResourceTemplatesResult
-              sd/JSONRPCError]} list-resource-templates
+(defn resource-templates-or-throw!
+  "Given a JSON-RPC list-resource-templates response, return the
+   resource-templates on success, or throw an exception."
+  ([jsonrpc-response options]
+   (-> (result-or-throw! jsonrpc-response options)
+       sd/result-key-resource-templates))
+  ([jsonrpc-response]
+   (resource-templates-or-throw! jsonrpc-response {})))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListResourceTemplatesResult
+              sd/JSONRPCError
+              resource-templates-or-throw!]} list-resource-templates
   "Synchronous version of `async-list-resource-templates` that returns
-   result (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+   JSON-RPC response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-list-resource-templates client
-                                   return reject)))
+                                   return)))
 
 
 (defn async-read-resource
   "Read the resource identified by the URI on the server. Arguments:
    `resource-uri` is the resource URI
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client resource-uri
-    ^{:see [sd/ReadResourceResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-read-resource-request resource-uri)]
-     (as-> on-success-result $
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client resource-uri
-    ^{:see [sd/ReadResourceResult]} on-read-resource-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error reading resource")
-                    error-response))
-        (async-read-resource client
-                             resource-uri
-                             on-read-resource-result))))
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client resource-uri
+   ^{:see [sd/JSONRPCResponse
+           sd/ReadResourceResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-read-resource-request resource-uri)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
 
 
-(defn ^{:see [sd/ReadResourceResult
-              sd/JSONRPCError]} read-resource
-  "Synchronous version of `async-read-resource` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ReadResourceResult
+              sd/JSONRPCError
+              result-or-throw!]} read-resource
+  "Synchronous version of `async-read-resource` that returns JSON-RPC
+   response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client resource-uri & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-read-resource client
                          resource-uri
-                         return reject)))
+                         return)))
+
+
+(defn on-prompts->on-result
+  "Given a (fn [prompts]) return (fn [jsonrpc-result])."
+  [f]
+  (cs/destructure-result f sd/result-key-prompts))
 
 
 (defn async-list-prompts
-  "List the MCP prompts supported by the server. Arguments:
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client
-    ^{:see [sd/ListPromptsResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-list-prompts-request)]
-     (as-> on-success-result $
-       (cs/destructure-result $ sd/result-key-prompts)
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client
-    ^{:see [sd/ListPromptsResult]} on-list-prompts-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error listing prompts")
-                    error-response))
-        (async-list-prompts client
-                            on-list-prompts-result))))
+  "List the MCP prompts supported by the server. The JSON-RPC response
+   is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListPromptsResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-prompts->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-prompts-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
 
 
-(defn ^{:see [sd/ListPromptsResult
-              sd/JSONRPCError]} list-prompts
-  "Synchronous version of `async-list-prompts` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn prompts-or-throw!
+  "Given a JSON-RPC list-prompts response, return the prompts on success
+   or throw an exception."
+  ([jsonrpc-response options]
+   (-> (result-or-throw! jsonrpc-response options)
+       sd/result-key-prompts))
+  ([jsonrpc-response]
+   (prompts-or-throw! jsonrpc-response {})))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListPromptsResult
+              sd/JSONRPCError
+              prompts-or-throw!]} list-prompts
+  "Synchronous version of `async-list-prompts` that returns JSON-RPC
+   response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-list-prompts client
-                        return reject)))
+                        return)))
 
 
 (defn async-get-prompt
   "Get the MCP prompt identified by name on the server. Arguments:
    `prompt-or-template-name` is prompt or template name
    `prompt-args` is the map of prompt/template args
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client prompt-or-template-name prompt-args
-    ^{:see [sd/GetPromptResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-get-prompt-request prompt-or-template-name
-                                             {:args prompt-args})]
-     (as-> on-success-result $
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client prompt-or-template-name prompt-args
-    ^{:see [sd/GetPromptResult]} on-get-prompt-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error getting prompt")
-                    error-response))
-        (async-get-prompt client
-                          prompt-or-template-name prompt-args
-                          on-get-prompt-result))))
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client prompt-or-template-name prompt-args
+   ^{:see [sd/JSONRPCResponse
+           sd/GetPromptResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-get-prompt-request prompt-or-template-name
+                                            {:args prompt-args})]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
 
 
-(defn ^{:see [sd/GetPromptResult
-              sd/JSONRPCError]} get-prompt
-  "Synchronous version of `async-get-prompt` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn ^{:see [sd/JSONRPCResponse
+              sd/GetPromptResult
+              sd/JSONRPCError
+              result-or-throw!]} get-prompt
+  "Synchronous version of `async-get-prompt` that returns JSON-RPC
+   response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client prompt-or-template-name prompt-args & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-get-prompt client
                       prompt-or-template-name prompt-args
-                      return reject)))
+                      return)))
 
 
 (defn async-complete
   "Send a completion request to the server. Arguments:
    `complete-request` is the completion request
    `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client ^{:see [eg/make-complete-request]} complete-request
-    ^{:see [sd/CompleteResult]} on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (as-> on-success-result $
-     (cs/on-result-callback $ on-error-response)
-     (cs/send-request-to-server client complete-request $)))
-  ([client ^{:see [eg/make-complete-request]} complete-request
-    ^{:see [sd/CompleteResult]} on-complete-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error completing argument")
-                    error-response))
-        (async-complete client
-                        complete-request
-                        on-complete-result))))
+   `on-error-response` is called with error response
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [eg/make-complete-request]} complete-request
+   ^{:see [sd/JSONRPCResponse
+           sd/CompleteResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (cs/send-request-to-server client complete-request
+                             on-jsonrpc-response))
 
 
-(defn ^{:see [sd/CompleteResult
-              sd/JSONRPCError]} complete
-  "Synchronous version of `async-complete` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn ^{:see [sd/JSONRPCResponse
+              sd/CompleteResult
+              sd/JSONRPCError
+              result-or-throw!]} complete
+  "Synchronous version of `async-complete` that returns JSON-RPC
+   response (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client ^{:see [eg/make-complete-request]} complete-request
    & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-complete client
                     complete-request
-                    return reject)))
+                    return)))
 
 
 (defn async-ping
-  "Send a ping request to the server. Arguments:
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response"
-  ([client on-success-result
-    ^{:see [sd/JSONRPCError]} on-error-response]
-   (let [request (eg/make-ping-request)]
-     (as-> on-success-result $
-       (cs/on-result-callback $ on-error-response)
-       (cs/send-request-to-server client request $))))
-  ([client on-ping-result]
-   (->> (fn [error-response]
-          (u/throw! (get-in error-response [:error :message]
-                            "Error pinging MCP server")
-                    error-response))
-        (async-ping client
-                    on-ping-result))))
+  "Send a ping request to the server. The JSON-RPC response is passed to
+   `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/JSONRPCError
+                  on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-ping-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
 
 
-(defn ^{:see [sd/JSONRPCError]} ping
-  "Synchronous version of `async-ping` that returns result
-   (value in CLJ, js/Promise in CLJS) on success, or throws on error.
+(defn ^{:see [sd/JSONRPCResponse
+              sd/JSONRPCError
+              result-or-throw!]} ping
+  "Synchronous version of `async-ping` that returns JSON-RPC response
+   (value in CLJ, js/Promise in CLJS).
    Options: see plumcp.core.util.async-bridge/as-async"
   [client & {:as options}]
   (uab/as-async
-    [return reject]
+    [return]
     options
     (async-ping client
-                return reject)))
+                return)))
 
 
 ;; --- MCP requests NOT expecting result ---

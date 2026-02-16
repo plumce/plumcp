@@ -266,16 +266,6 @@
       (u/expected! result (str "result to have key " k)))))
 
 
-(defn on-result-callback
-  ([on-result fallback]
-   (fn jsonrpc-result-callback [jsonrpc-message]
-     (if (jr/jsonrpc-result? jsonrpc-message)
-       (on-result (:result jsonrpc-message))
-       (fallback jsonrpc-message))))
-  ([on-result]
-   (on-result-callback on-result error-logger)))
-
-
 (defn wrap-session-setting
   [callback on-session-context]
   (fn session-setting-callback [jsonrpc-message]

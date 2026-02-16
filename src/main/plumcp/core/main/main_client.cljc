@@ -72,20 +72,18 @@
 (def commands
   {"info" (fn [client]
             (u/dprint "Client:" client))
-   "info pending-client-requests-atom" (fn [client]
-                                         (u/dprint "Client:"
-                                                   @(:pending-client-requests-atom client)))
    ;; ----
    "ping" command-ping
    "init" (fn [client]
             (tu/until-done [done! 10]
-              (mc/async-initialize! client
-                                    (fn [result]
-                                      (u/eprintln "Initialize response:" result)
-                                      (u/eprintln "Sending notifications/initialized")
-                                      (mc/notify-initialized client)
-                                      (u/eprintln "Done sending notifications/initialized")
-                                      (done!)))))
+              (->> (fn [result]
+                     (u/eprintln "Initialize response:" result)
+                     (u/eprintln "Sending notifications/initialized")
+                     (mc/notify-initialized client)
+                     (u/eprintln "Done sending notifications/initialized")
+                     (done!))
+                   mc/on-result->on-response
+                   (mc/async-initialize! client))))
    "prompts" (fn [client]
                (tu/until-done [done! 10]
                  (->> (fn [prompts]
