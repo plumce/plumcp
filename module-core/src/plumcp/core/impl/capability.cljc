@@ -241,22 +241,6 @@
                                     (f-root-items)}))))
 
 
-(defn make-deref-roots-capability
-  "Make a variable (list of) roots capability from a dereferenceable ref
-   (eg. atom, volatile)."
-  [^{:see [make-roots-capability-item]} roots-capability-items-ref]
-  (make-roots-capability (fn []
-                           (deref roots-capability-items-ref))))
-
-
-(defn make-fixed-roots-capability
-  "Make a fixed (list of) roots capability."
-  [^{:see [make-roots-capability-item]} roots-capability-items]
-  (-> roots-capability-items
-      constantly
-      make-roots-capability))
-
-
 (defn make-sampling-capability
   "Given function `(fn [create-message-request])->create-message-result`
    make sampling capability."
@@ -317,22 +301,6 @@
                            items->list-applier)]
     (make-listed-capability (fn [] {sd/method-prompts-list
                                     (f-prompt-items)}))))
-
-
-(defn make-deref-prompts-capability
-  "Make a variable (list of) prompts capability from a dereferenceable
-   ref (eg. atom, volatile)."
-  [^{:see [make-prompts-capability-item]} prompts-capability-items-ref]
-  (make-prompts-capability (fn []
-                             (deref prompts-capability-items-ref))))
-
-
-(defn make-fixed-prompts-capability
-  "Make a fixed (list of) prompts capability."
-  [^{:see [make-prompts-capability-item]} prompts-capability-items]
-  (-> prompts-capability-items
-      constantly
-      make-prompts-capability))
 
 
 (declare make-resources-capability)
@@ -418,42 +386,6 @@
                                  :find-handler find-handler}))))
 
 
-(defn make-deref-resources-capability
-  "Make a variable (list of) resources/templates capability from
-   dereferenceable resource/resource-template ref (eg. atom, volatile)."
-  [^{:see make-resources-capability-resource-item}
-   resources-capability-resource-items-ref
-   ^{:see make-resources-capability-resource-template-item}
-   resources-capability-resource-template-items-ref
-   & {:keys [declaration]
-      :or {declaration {:listChanged true
-                        :subscribe true}}}]
-  (let [r-items (fn [] (deref resources-capability-resource-items-ref))
-        rt-items (fn []
-                   (deref resources-capability-resource-template-items-ref))]
-    (make-resources-capability r-items
-                               rt-items
-                               {:declaration declaration
-                                :find-handler find-uri-handler})))
-
-
-(defn make-fixed-resources-capability
-  "Make a fixed (list of) resources/templates capability."
-  [^{:see make-resources-capability-resource-item}
-   resources-capability-resource-items
-   ^{:see make-resources-capability-resource-template-item}
-   resources-capability-resource-template-items
-   & {:keys [declaration]
-      :or {declaration {:listChanged true
-                        :subscribe true}}}]
-  (let [r-items (constantly resources-capability-resource-items)
-        rt-items (constantly resources-capability-resource-template-items)]
-    (make-resources-capability r-items
-                               rt-items
-                               {:declaration declaration
-                                :find-handler find-uri-handler})))
-
-
 (declare make-tools-capability)
 
 
@@ -482,22 +414,6 @@
     (-> (fn [] {sd/method-tools-list
                 (f-tool-items)})
         (make-listed-capability {}))))
-
-
-(defn make-deref-tools-capability
-  "Make a variable (list of) tools capability from a dereferenceable
-   ref (eg. atom, volatile)."
-  [^{:see [make-tools-capability-item]} tools-capability-items-ref]
-  (make-tools-capability (fn []
-                           (deref tools-capability-items-ref))))
-
-
-(defn make-fixed-tools-capability
-  "Make a fixed (list of) tools capability."
-  [^{:see [make-tools-capability-item]} tools-capability-items]
-  (-> tools-capability-items
-      constantly
-      make-tools-capability))
 
 
 (defn make-completions-capability

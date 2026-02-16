@@ -28,7 +28,7 @@
   (let [roots-cap (-> (eg/make-root "dir://a")
                       cap/make-roots-capability-item
                       vector
-                      cap/make-fixed-roots-capability)
+                      cap/make-roots-capability)
         sampling-cap (-> (fn [{messages :messages
                                max-tokens :maxTokens
                                :as kwargs}]
@@ -76,7 +76,7 @@
                         (cap/make-prompts-capability-item (fn [kwargs]
                                                             {:out :prompt1}))
                         vector
-                        cap/make-fixed-prompts-capability)
+                        cap/make-prompts-capability)
         resource-cap-item (-> (eg/make-resource "test://resource1" "resource1")
                               (cap/make-resources-capability-resource-item
                                (fn [{uri :uri
@@ -91,8 +91,8 @@
                                  {:out :template1
                                   :uri uri
                                   :id id})))
-        resources-cap (cap/make-fixed-resources-capability [resource-cap-item]
-                                                           [template-cap-item])
+        resources-cap (cap/make-resources-capability [resource-cap-item]
+                                                     [template-cap-item])
         tools-cap (-> (eg/make-tool "tool1"
                                     (-> {"a" {:type "number" :description "first number"}
                                          "b" {:type "number" :description "second number"}}
@@ -100,7 +100,7 @@
                       (cap/make-tools-capability-item (fn [{:keys [^long a ^long b]}]
                                                         {:out (+ a b)}))
                       vector
-                      cap/make-fixed-tools-capability)
+                      cap/make-tools-capability)
         server-caps (-> cap/default-server-capabilities
                         (cap/update-completions-capability completions-cap)
                         (cap/update-prompts-capability prompts-cap)

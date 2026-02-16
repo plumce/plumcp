@@ -138,7 +138,7 @@
         get-capabilities (fn []
                            (or capabilities
                                (some-> (get-primitives)
-                                       cs/primitives->fixed-server-capabilities)))
+                                       cs/primitives->server-capabilities)))
         get-runtime (fn []
                       (-> runtime
                           (or (-> {}

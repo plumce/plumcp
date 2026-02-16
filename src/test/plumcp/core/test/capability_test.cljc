@@ -33,7 +33,7 @@
 
 (deftest roots-capability-test
   (testing "empty/no roots"
-    (let [roots-cap (cap/make-fixed-roots-capability [])]
+    (let [roots-cap (cap/make-roots-capability [])]
       (is (= {:listChanged true}
              (p/get-capability-declaration roots-cap)))
       (is (= []
@@ -42,7 +42,7 @@
              (p/find-handler roots-cap {})))))
   (testing "1 root"
     (let [roots-cap (-> [root-one]
-                        (cap/make-fixed-roots-capability))]
+                        (cap/make-roots-capability))]
       (is (= {:listChanged true}
              (p/get-capability-declaration roots-cap)))
       (is (= [root-one]
@@ -52,7 +52,7 @@
   (testing "mutable roots"
     (let [roots-ref (atom [root-one])
           roots-cap (-> roots-ref
-                        (cap/make-deref-roots-capability))]
+                        cap/make-roots-capability)]
       (is (= {:listChanged true}
              (p/get-capability-declaration roots-cap)))
       (is (= [root-one]
@@ -86,7 +86,7 @@
              (cap/get-client-capability-declaration default-caps)))))
   (testing "all capabilities"
     (let [all-caps {:roots (-> [root-one]
-                               (cap/make-fixed-roots-capability))
+                               (cap/make-roots-capability))
                     :sampling (cap/make-sampling-capability identity)
                     :elicitation (cap/make-elicitation-capability identity)}]
       (is (= {:roots {:listChanged true}
@@ -105,7 +105,7 @@
 
 (deftest prompts-capability-test
   (testing "empty/no prompts"
-    (let [prompts-cap (cap/make-fixed-prompts-capability [])]
+    (let [prompts-cap (cap/make-prompts-capability [])]
       (is (= {:listChanged true}
              (p/get-capability-declaration prompts-cap)))
       (is (= []
@@ -118,7 +118,7 @@
                                 (es/make-text-prompt-message arg)
                                 (es/prompt-message->get-prompt-result)))
           prompt1 (cs/make-prompt-item prompt1-name prompt1-handler)
-          prompts-cap (cap/make-fixed-prompts-capability [prompt1])]
+          prompts-cap (cap/make-prompts-capability [prompt1])]
       (is (= {:listChanged true}
              (p/get-capability-declaration prompts-cap)))
       (is (= [(dissoc prompt1 :handler)]
@@ -142,8 +142,8 @@
                                 (es/make-text-prompt-message (+ 2 n))
                                 (es/prompt-message->get-prompt-result)))
           prompt2 (cs/make-prompt-item prompt2-name prompt2-handler)
-          prompts-cap (cap/make-fixed-prompts-capability [prompt1
-                                                          prompt2])
+          prompts-cap (cap/make-prompts-capability [prompt1
+                                                    prompt2])
           handler-map (p/find-handler prompts-cap prompt2-name)
           handler (:handler handler-map)]
       (is (fn? handler) "prompt2 handler is a function")
@@ -156,7 +156,7 @@
           prompt2 (cs/make-prompt-item prompt2-name identity)
           prompts-ref (atom [prompt1])
           prompts-cap (-> prompts-ref
-                          (cap/make-deref-prompts-capability))]
+                          (cap/make-prompts-capability))]
       (is (= {:listChanged true}
              (p/get-capability-declaration prompts-cap)))
       (is (= [(dissoc prompt1 :handler)]
@@ -169,7 +169,7 @@
 
 (deftest resources-capability-test
   (testing "empty/no resources"
-    (let [resources-cap (cap/make-fixed-resources-capability [] [])]
+    (let [resources-cap (cap/make-resources-capability [] [])]
       (is (= {:listChanged true
               :subscribe true}
              (p/get-capability-declaration resources-cap)))
@@ -191,7 +191,7 @@
                                                        (:id params)))
           tem1 (-> (eg/make-resource-template tem1-url-tem tem1-name)
                    (cap/make-resources-capability-resource-template-item tem1-handler))
-          the-cap (cap/make-fixed-resources-capability [res1] [tem1])
+          the-cap (cap/make-resources-capability [res1] [tem1])
           ;; resource
           res-handler-map (p/find-handler the-cap res1-url)
           res-handler (:handler res-handler-map)
@@ -221,7 +221,7 @@
           rt2 (cs/make-resource-template-item "test://rt2/{id}" "rt2" hh)
           rsref (atom [rs1])
           rtref (atom [rt1])
-          rcap (cap/make-deref-resources-capability rsref rtref)]
+          rcap (cap/make-resources-capability rsref rtref)]
       (is (= [(dissoc rs1 :handler :matcher)]
              (p/obtain-list rcap sd/method-resources-list)))
       (is (= [(dissoc rt1 :handler :matcher)]
@@ -264,14 +264,14 @@
 
 (deftest tools-capability-test
   (testing "empty/no tools"
-    (let [tools-cap (cap/make-fixed-tools-capability [])]
+    (let [tools-cap (cap/make-tools-capability [])]
       (is (= {:listChanged true}
              (p/get-capability-declaration tools-cap)))
       (is (= []
              (p/obtain-list tools-cap sd/method-tools-list)))
       (is (nil? (p/find-handler tools-cap "absent-tool")))))
   (testing "one tool"
-    (let [tools-cap (cap/make-fixed-tools-capability [tool-add])
+    (let [tools-cap (cap/make-tools-capability [tool-add])
           handler-map (p/find-handler tools-cap "add")
           handler (:handler handler-map)]
       (is (= {:listChanged true}
@@ -284,7 +284,7 @@
              (handler {:a 10 :b 20})) "tool handler works")))
   (testing "mutable tools"
     (let [tools-ref (atom [tool-add])
-          tools-cap (cap/make-deref-tools-capability tools-ref)]
+          tools-cap (cap/make-tools-capability tools-ref)]
       (is (= {:listChanged true}
              (p/get-capability-declaration tools-cap)))
       (is (= [(dissoc tool-add :handler)]
@@ -321,11 +321,11 @@
              (cap/get-server-capability-declaration default-caps)))))
   (testing "all capabilities"
     (let [all-caps (merge cap/default-server-capabilities
-                          {:prompts (cap/make-fixed-prompts-capability [])
-                           :resources (cap/make-fixed-resources-capability []
-                                                                           [])
+                          {:prompts (cap/make-prompts-capability [])
+                           :resources (cap/make-resources-capability []
+                                                                     [])
                            :tools (-> [tool-add]
-                                      (cap/make-fixed-tools-capability))})]
+                                      (cap/make-tools-capability))})]
       (is (= {:logging {}
               :prompts {:listChanged true}
               :resources {:listChanged true :subscribe true}
@@ -356,7 +356,7 @@
 (deftest list-changed-test
   (testing "no change, no notification"
     (let [root1 (cs/make-root-item "file:///tmp")
-          roots-cap (cap/make-fixed-roots-capability [root1])
+          roots-cap (cap/make-roots-capability [root1])
           received (atom [])
           notifier (cap/run-list-changed-notifier
                     {sd/method-roots-list roots-cap}
@@ -371,7 +371,7 @@
           root2 (cs/make-root-item "file:///tmp2")]
       (test-lc-notifier root1 root2
                         sd/method-roots-list
-                        cap/make-deref-roots-capability
+                        cap/make-roots-capability
                         sd/method-notifications-roots-list_changed)))
   (testing "prompts - change and notification"
     (let [ph (fn [{:keys [arg]}]
@@ -382,7 +382,7 @@
           prompt2 (cs/make-prompt-item "p1" ph)]
       (test-lc-notifier prompt1 prompt2
                         sd/method-prompts-list
-                        cap/make-deref-prompts-capability
+                        cap/make-prompts-capability
                         sd/method-notifications-prompts-list_changed)))
   (testing "resources - change and notification"
     (let [hh (fn [{:keys [uri]}]
@@ -393,7 +393,7 @@
           rt2 (cs/make-resource-template-item "test://rt2/{id}" "rt2" hh)
           rsref (atom [rs1])
           rtref (atom [rt1])
-          rcap (cap/make-deref-resources-capability rsref rtref)
+          rcap (cap/make-resources-capability rsref rtref)
           received (atom [])
           notifier (cap/run-list-changed-notifier
                     {sd/method-resources-list rcap
@@ -416,5 +416,5 @@
           tool2 tool-mul]
       (test-lc-notifier tool1 tool2
                         sd/method-tools-list
-                        cap/make-deref-tools-capability
+                        cap/make-tools-capability
                         sd/method-notifications-tools-list_changed))))

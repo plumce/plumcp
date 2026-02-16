@@ -52,7 +52,7 @@ All notable changes to this project will be documented in this file. This change
     - `make-completions-reference-item` (moved from `p.c.i.capability`)
     - `primitives->server-capabilities` (moved from `p.c.i.var-support`)
 - Capability List-changed support
-  - Capability-making fns from dereferenceable refs (eg. atom, volatile)
+  - Capability-making fns enhanced to support fixed items and mutable refs
   - Send out notifications to all connected peers
     - Core implementation to detect and send list-changed notification
     - Server: Integrate list-changed notifier with `run-server`, `run-mcp-server`
@@ -85,6 +85,11 @@ All notable changes to this project will be documented in this file. This change
   - `read-resource` to `async-read-resource`
   - `complete` to `async-complete`
   - `ping` to `async-ping`
+- [BREAKING CHANGE] Drop capability making fns in `p.c.i.capability` ns
+  - `make-fixed-roots-capability` (use `make-roots-capability` instead)
+  - `make-fixed-prompts-capability` (use `make-prompts-capability` instead)
+  - `make-fixed-resources-capability` (use `make-resources-capability` instead)
+  - `make-fixed-tools-capability` (use `make-tools-capability` instead)
 
 ### Fixed
 - MCP Client

@@ -35,8 +35,7 @@
 
 
 (defn ^{:see [eg/make-prompt
-              cap/make-deref-prompts-capability
-              cap/make-fixed-prompts-capability]} make-prompt-item
+              cap/make-prompts-capability]} make-prompt-item
   "Make a prompts capability item. A collection of such items is used
    to make prompts capability. The `handler` is an arity-1 function
    accepting prompt kwargs, returning get-prompt result."
@@ -51,8 +50,7 @@
 
 
 (defn ^{:see [eg/make-resource
-              cap/make-deref-resources-capability
-              cap/make-fixed-resources-capability]}  make-resource-item
+              cap/make-resources-capability]}  make-resource-item
   "Make a resources capability item. A collection of such items is used
    to make resources capability. The `handler` is an arity-1 function
    accepting resource kwargs, returning read-resource result."
@@ -65,8 +63,7 @@
 
 
 (defn ^{:see [eg/make-resource-template
-              cap/make-deref-resources-capability
-              cap/make-fixed-resources-capability]} make-resource-template-item
+              cap/make-resources-capability]} make-resource-template-item
   "Make a resource template item. A collection of such items is used
    to make resources capability. The `handler` is an arity-1 function
    accepting resource kwargs, returning read-resource result."
@@ -79,8 +76,7 @@
 
 
 (defn ^{:see [eg/make-tool
-              cap/make-deref-tools-capability
-              cap/make-fixed-tools-capability]} make-tool-item
+              cap/make-tools-capability]} make-tool-item
   "Make a tools capability item. A collection of such items is used
    to make tools capability. The `handler` is an arity-1 function
    accepting tool kwargs, returning call-tool result."
@@ -140,10 +136,8 @@
   [{:keys [^{:see [make-root-item]} roots
            ^{:see [make-sampling-handler]} sampling
            ^{:see [make-elicitation-handler]} elicitation]}]
-  (let [cap-roots (when roots
-                    (-> roots
-                        cap/items->list-applier
-                        cap/make-roots-capability))
+  (let [cap-roots (some-> roots
+                          cap/make-roots-capability)
         cap-sampling (when sampling
                        (cap/make-sampling-capability sampling))
         cap-elicitation (when elicitation
@@ -170,7 +164,7 @@
       (assoc :handler completion-handler)))
 
 
-(defn primitives->fixed-server-capabilities
+(defn primitives->server-capabilities
   "Make server capabilities from given MCP primitives in this structure:
    {:prompts   - prompt capability items (either of the following)
                  - vector of prompt items
@@ -197,20 +191,13 @@
            ^{:see [make-resource-template-item]} resource-templates
            ^{:see [make-completions-reference-item]} completion-prompt-refs
            ^{:see [make-completions-reference-item]} completion-resource-refs]}]
-  (let [cap-prompts (when prompts
-                      (-> prompts
-                          cap/items->list-applier
-                          cap/make-prompts-capability))
+  (let [cap-prompts (some-> prompts
+                            cap/make-prompts-capability)
         cap-resources (when (or resources resource-templates)
-                        (let [f-resources (cap/items->list-applier resources)
-                              f-resource-templates (-> resource-templates
-                                                       cap/items->list-applier)]
-                          (cap/make-resources-capability f-resources
-                                                         f-resource-templates)))
-        cap-tools (when tools
-                    (-> tools
-                        cap/items->list-applier
-                        cap/make-tools-capability))
+                        (cap/make-resources-capability resources
+                                                       resource-templates))
+        cap-tools (some-> tools
+                          cap/make-tools-capability)
         cap-completion (when (or completion-prompt-refs
                                  completion-resource-refs)
                          (cap/make-completions-capability
