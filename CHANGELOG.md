@@ -38,6 +38,9 @@ All notable changes to this project will be documented in this file. This change
   - `read-resource`
   - `complete`
   - `ping`
+  - `fetch-prompts` (useful for prompts-list-changed notification)
+  - `fetch-resources` (useful for resources-list-changed notification)
+  - `fetch-tools` (useful for tools-list-changed notification)
 - Capability API fns in new ns `plumcp.core.api.capability-support`
   - Capability item makers
     - `make-root-item`
@@ -57,6 +60,8 @@ All notable changes to this project will be documented in this file. This change
     - Core implementation to detect and send list-changed notification
     - Server: Integrate list-changed notifier with `run-server`, `run-mcp-server`
     - Client: Integrate list-changed notifier with `make-client`, `make-mcp-client`
+  - Provision for re-fetch on list-changed notification
+    - Client: Add option kwarg `:notification-listeners` to `make-client`
 - Make initialization info accessible
   - Server: Store initialization params in server session
   - Client: Store initialization result in client context

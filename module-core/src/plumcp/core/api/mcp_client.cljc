@@ -87,29 +87,34 @@
 
 (defmacro ^{:see [make-mcp-client]} make-client
   "Make MCP client (context map) using given (or deduced) options.
-   | Option keyword       | Default | Description                        |
-   |----------------------|---------|------------------------------------|
-   |:info                 |Required |see p.c.api.entity-support/make-info|
-   |:capabilities         |         |Supplied or made from :primitives   |
-   |:primitives           |         |Supplied or made from :vars         |
-   |:vars                 |         |Supplied/discovered from hinted vars|
-   |:ns (read literally)  |Caller ns|Supplied/discovered from hinted vars|
-   |:traffic-logger       |         |No-op by default                    |
-   |:runtime              |         |Made from :info,:capabilities,:tra..|
-   |:override             | {}      |Merged into final runtime           |
-   |:mcp-methods-wrapper  |         |No-op by default                    |
-   |:jsonrpc-handler      |         |Impl+made with :schema-check-wrapper|
-   |:client-transport     |Required |Protocol p/IClientTransport instance|
-   |:client-context       |         |Base client context                 |
-   |:print-banner?        |  True   |Print a library banner if true      |
-   |:run-list-notifier?   |  True   |Run list-changed notifier if true   |
-   |:list-notifier-options|  {}     |Option map for list-changed notifier|
+   | Option keyword        | Default | Description                        |
+   |-----------------------|---------|------------------------------------|
+   |:info                  |Required |see p.c.api.entity-support/make-info|
+   |:capabilities          |         |Supplied or made from :primitives   |
+   |:primitives            |         |Supplied or made from :vars         |
+   |:vars                  |         |Supplied/discovered from hinted vars|
+   |:ns (read literally)   |Caller ns|Supplied/discovered from hinted vars|
+   |:traffic-logger        |         |No-op by default                    |
+   |:notification-listeners| {}      |Map notific'n methodName->listenerFn|
+   |:runtime               |         |Made from :info,:capabilities,:tra..|
+   |:override              | {}      |Merged into final runtime           |
+   |:mcp-methods-wrapper   |         |No-op by default                    |
+   |:jsonrpc-handler       |         |Impl+made with :schema-check-wrapper|
+   |:client-transport      |Required |Protocol p/IClientTransport instance|
+   |:client-context        |         |Base client context                 |
+   |:print-banner?         |  True   |Print a library banner if true      |
+   |:run-list-notifier?    |  True   |Run list-changed notifier if true   |
+   |:list-notifier-options |  {}     |Option map for list-changed notifier|
 
    Dependency map (left/key depends upon the right/vals):
    {:ring-handler    [:runtime :jsonrpc-handler]
     :stdio-handler   [:runtime :jsonrpc-handler]
     :runtime         [:info :capabilities :traffic-logger]
-    :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}"
+    :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}
+
+   Notification listeners example:
+   {on-tools-list-changed #(fetch-tools % {:on-tools (fn [tools]
+                                                       ...)})}"
   ([options]
    `(let [default-vars# (or (:vars ~options)
                             ~(if-let [nses (:ns options)]
@@ -702,3 +707,110 @@
                        (jr/jsonrpc-failure "Elicitation capability is unsupported")
                        (jr/add-jsonrpc-id request-id))]
       (cs/send-message-to-server client response))))
+
+
+;; --- Notification listener helper fns ---
+
+
+(defn jsonrpc-message-with-deps->client
+  "Given a jsonrpc-message with dependencies, extractreturn the client."
+  [jsonrpc-message-with-deps]
+  (-> (cs/?client-cache jsonrpc-message-with-deps)
+      cs/?cc-client-context))
+
+
+(defn fetch-prompts
+  "Given a JSON-RPC message with dependencies fetch and return a list of
+   prompts (value in CLJ, js/Promise in CLJS). Useful to fetch prompts
+   on list-changed notification."
+  [jsonrpc-message-with-deps & {:keys [on-prompts]
+                                :or {on-prompts identity}
+                                :as options}]
+  (uab/let-await [prompts (-> jsonrpc-message-with-deps
+                              jsonrpc-message-with-deps->client
+                              (list-prompts options))]
+    (on-prompts prompts)))
+
+
+(defn fetch-resources
+  "Given a JSON-RPC message with dependencies fetch and return a vector
+   of [resources resource-templates] (value in CLJ, js/Promise in CLJS).
+   Useful to fetch resources and resource-templates on list-changed
+   notification."
+  [jsonrpc-message-with-deps & {:keys [on-resources
+                                       on-resource-templates]
+                                :or {on-resources identity
+                                     on-resource-templates identity}
+                                :as options}]
+  (let [client (-> jsonrpc-message-with-deps
+                   jsonrpc-message-with-deps->client)]
+    (uab/let-await [resources (list-resources client options)
+                    templates (list-resource-templates client options)]
+      [(on-resources resources)
+       (on-resource-templates templates)])))
+
+
+(defn fetch-tools
+  "Given a JSON-RPC message with dependencies fetch and return a list of
+   tools (value in CLJ, js/Promise in CLJS). Useful to fetch tools on
+   list-changed notification."
+  [jsonrpc-message-with-deps & {:keys [on-tools]
+                                :or {on-tools identity}
+                                :as options}]
+  (uab/let-await [tools (-> jsonrpc-message-with-deps
+                            jsonrpc-message-with-deps->client
+                            (list-tools options))]
+    (on-tools tools)))
+
+
+;; --- Notification listener keys ---
+
+
+;; Common for both client and server
+
+
+(def ^{:see [sd/CancelledNotification]} on-cancelled
+  "Key for `cancelled` notification listener fn: (fn [params])"
+  sd/method-notifications-cancelled)
+
+
+(def ^{:see [sd/ProgressNotification]} on-progress
+  "Key for `progress` notification listener fn: (fn [params])"
+  sd/method-notifications-progress)
+
+
+;; Client only
+
+
+(def ^{:see [sd/LoggingMessageNotification]} on-log-message
+  "Key for `message` notification listener fn: (fn [params])"
+  sd/method-notifications-message)
+
+
+(def ^{:see [sd/PromptListChangedNotification
+             sd/ListPromptsResult
+             fetch-prompts]} on-prompts-list-changed
+  "Key for `prompts/list_changed` notification listener fn:
+   (fn [prompts])"
+  sd/method-notifications-prompts-list_changed)
+
+
+(def ^{:see [sd/ResourceListChangedNotification
+             sd/ListResourcesResult
+             sd/ListResourceTemplatesResult
+             fetch-resources]} on-resources-list-changed
+  "Key for `resources/list_changed` notification listener fn:
+   (fn [resources resource-templates])"
+  sd/method-notifications-resources-list_changed)
+
+
+(def ^{:see [sd/ResourceUpdatedNotification]} on-resource-updated
+  "Key for `resources/updated` notification listener fn: (fn [params])"
+  sd/method-notifications-resources-updated)
+
+
+(def ^{:see [sd/ToolListChangedNotification
+             sd/ListToolsResult
+             fetch-tools]} on-tools-list-changed
+  "Key for `tools/list_changed` notification listener fn: (fn [tools])"
+  sd/method-notifications-tools-list_changed)

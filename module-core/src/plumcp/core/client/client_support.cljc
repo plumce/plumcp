@@ -374,17 +374,18 @@
 
 (defn make-client-options
   "Make client options from given input map, returning an output map:
-   | Keyword-option          | Default | Description                        |
-   |-------------------------|---------|------------------------------------|
-   |:info                    |         | see p.c.a.entity-support/make-info |
-   |:capabilities            | Default | Given/made from :primitives        |
-   |:primitives              | --      | Given/made from :vars              |
-   |:vars                    | --      | To make primitives                 |
-   |:traffic-logger          | No-op   | MCP transport traffic logger       |
-   |:runtime                 | --      | Made from :impl,:capabilities,:tr..|
-   |:override                | {}      | Merged into final runtime          |
-   |:mcp-methods-wrapper     | No-op   | Wraper for MCP-methods impl        |
-   |:jsonrpc-handler         | --      | Made from impl and options         |
+   | Keyword-option        |Default| Description                           |
+   |-----------------------|-------|---------------------------------------|
+   |:info                  |       |see p.c.a.entity-support/make-info     |
+   |:capabilities          |Default|Given/made from :primitives            |
+   |:primitives            |--     |Given/made from :vars                  |
+   |:vars                  |--     |To make primitives                     |
+   |:traffic-logger        |No-op  |MCP transport traffic logger           |
+   |:notification-listeners|{}     |Map notification methodName->listenerFn|
+   |:runtime               |--     |Made from :impl,:capabilities,:traffi..|
+   |:override              |{}     |Merged into final runtime              |
+   |:mcp-methods-wrapper   |No-op  |Wraper for MCP-methods impl            |
+   |:jsonrpc-handler       |--     |Made from impl and options             |
 
    Option kwargs when JSON-RPC handler is constructed:
    | Keyword option              | Default | Description                      |
@@ -401,11 +402,13 @@
            primitives
            vars
            traffic-logger
+           notification-listeners
            runtime
            override
            jsonrpc-handler
            mcp-methods-wrapper]
     :or {traffic-logger stl/compact-client-traffic-logger
+         notification-listeners {}
          override {}
          mcp-methods-wrapper identity}
     :as client-options}]
@@ -425,6 +428,8 @@
                                   (cond-> info (rt/?client-info info))
                                   (rt/?client-capabilities (get-capabilities))
                                   (rt/?traffic-logger traffic-logger)
+                                  (rt/?notification-listeners merge
+                                                              notification-listeners)
                                   (rt/get-runtime)))
                           (merge override)))
         get-jsonrpc-handler (fn []

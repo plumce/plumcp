@@ -421,18 +421,17 @@
 
 
 (defn call-notification-listener
-  [context method-name params]
+  [context method-name]
   (when-let [listener (rs/get-notification-listener context method-name)]
-    (listener params)))
+    (listener context)))
 
 
 (defn ^{:see [sd/InitializedNotification
               eg/make-initialized-notification]} notifications-initialized
-  [{params :params
-    :as jsonrpc-notification}]
+  [{:as jsonrpc-notification}]
   (rs/set-initialized-timestamp jsonrpc-notification)
   (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-initialized params)
+                              sd/method-notifications-initialized)
   {:result {}})
 
 
@@ -449,7 +448,7 @@
                            :request-id request-id}
                           (u/assoc-some :reason reason))))
     (call-notification-listener jsonrpc-notification
-                                sd/method-notifications-cancelled params))
+                                sd/method-notifications-cancelled))
   {:result {}})
 
 
@@ -461,70 +460,59 @@
     (rs/update-peer-progress jsonrpc-notification
                              (:progressToken progress) progress))
   (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-progress progress)
+                              sd/method-notifications-progress)
   {:result {}})
 
 
 (defn ^{:see [sd/LoggingMessageNotification
               eg/make-logging-message-notification]}
   notifications-message
-  [{params :params
-    :as jsonrpc-notification}]
+  [{:as jsonrpc-notification}]
   (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-message params)
+                              sd/method-notifications-message)
   {:result {}})
 
 
 (defn ^{:see [sd/ResourceListChangedNotification
               eg/make-resource-list-changed-notification]}
   notifications-resources-list_changed
-  [{params :params
-    :as jsonrpc-notification}]
+  [{:as jsonrpc-notification}]
   (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-resources-list_changed
-                              params)
+                              sd/method-notifications-resources-list_changed)
   {:result {}})
 
 
 (defn ^{:see [sd/ResourceUpdatedNotification
               eg/make-resource-updated-notification]}
   notifications-resources-updated
-  [{params :params
-    :as jsonrpc-notification}]
+  [{:as jsonrpc-notification}]
   (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-resources-updated
-                              params)
+                              sd/method-notifications-resources-updated)
   {:result {}})
 
 
 (defn ^{:see [sd/PromptListChangedNotification
               eg/make-prompt-list-changed-notification]}
   notifications-prompts-list_changed
-  [{params :params
-    :as jsonrpc-notification}]
+  [{:as jsonrpc-notification}]
   (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-prompts-list_changed
-                              params)
+                              sd/method-notifications-prompts-list_changed)
   {:result {}})
 
 
 (defn ^{:see [sd/ToolListChangedNotification
               eg/make-tool-list-changed-notification]}
   notifications-tools-list_changed
-  [{params :params
-    :as jsonrpc-notification}]
+  [{:as jsonrpc-notification}]
   (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-tools-list_changed
-                              params)
+                              sd/method-notifications-tools-list_changed)
   {:result {}})
 
 
 (defn ^{:see [sd/RootsListChangedNotification
               eg/make-roots-list-changed-notification]}
   notifications-roots-list_changed
-  [{params :params
-    :as jsonrpc-notification}]
+  [{:as jsonrpc-notification}]
   (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-roots-list_changed
-                              params)
+                              sd/method-notifications-roots-list_changed)
   {:result {}})

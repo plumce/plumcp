@@ -180,14 +180,17 @@
 (defrtkey ?server-capabilities {:default cap/default-server-capabilities})
 (defrtkey ?notification-listeners
   {:default (zipmap
-             [sd/method-notifications-initialized
+             [;; received by both client and server
               sd/method-notifications-cancelled
               sd/method-notifications-progress
-              sd/method-notifications-resources-list_changed
-              sd/method-notifications-resources-updated
+              ;; received by client
               sd/method-notifications-message
               sd/method-notifications-prompts-list_changed
+              sd/method-notifications-resources-list_changed
+              sd/method-notifications-resources-updated
               sd/method-notifications-tools-list_changed
+              ;; received by server
+              sd/method-notifications-initialized
               sd/method-notifications-roots-list_changed]
              (repeat u/nop))})
 (defrtkey ?session-store {:default (sm/make-in-memory-server-session-store)})
