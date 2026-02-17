@@ -41,7 +41,12 @@
   (def box-4-top "╓─╥╖")
   (def box-4-hol "║ ║║")
   (def box-4-mid "╟─╫╢")
-  (def box-4-bot "╙─╨╜"))
+  (def box-4-bot "╙─╨╜")
+
+  (def new-top "╭────╮")
+  (def new-mid "│ yo │")
+  (def new-bot "╰────╯")
+  )
 
 
 (defn boxed-banner-string
@@ -62,9 +67,9 @@
         lines (->> lines
                    (map padit)
                    (map boxit))
-        head (fn [n] (str "┌" (u/repeat-str n "─") "┐"))
+        head (fn [n] (str "╭" (u/repeat-str n "─") "╮"))
         mark (fn [n] (str "├" (u/repeat-str n "─") "┤"))
-        foot (fn [n] (str "└" (u/repeat-str n "─") "┘"))]
+        foot (fn [n] (str "╰" (u/repeat-str n "─") "╯"))]
     (->> (concat [(head (+ ^long space ^long width ^long space))
                   (first lines)
                   (second lines)
