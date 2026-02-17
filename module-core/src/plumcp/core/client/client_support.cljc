@@ -19,7 +19,7 @@
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.support.traffic-logger :as stl]
-   [plumcp.core.util :as u]
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
    [plumcp.core.util.key-lookup :as kl])
   #?(:cljs (:require-macros [plumcp.core.client.client-support
@@ -74,6 +74,82 @@
     (?cc-pending-server-requests {})
     (?cc-session-context {})
     (?cc-client-context nil)))
+
+
+;; ----- Client operation utility -----
+
+
+(defn on-error-throw!
+  "Given the :error strucure of an JSON-RPC error response, throw an
+   exception."
+  [{:keys [code message data]} client-op-name]
+  (u/throw! (-> "Client operation % error:"
+                (format client-op-name)
+                (str message))
+            (merge {:error-code code}
+                   data)))
+
+
+(defn on-timeout-throw!
+  "Throw a client-operation timeout exception."
+  [_ client-op-name]
+  (u/throw! (-> "Client operation %s timed out"
+                (format client-op-name))))
+
+
+(defn on-unknown-throw!
+  [unknown-response client-op-name]
+  (-> "[on-jsonrpc-response] Unknwon response in client operation"
+      (str client-op-name)
+      (u/throw! {:unknown-response unknown-response})))
+
+
+(def on-jsonrpc-response-throw!
+  "Options to use when you want to throw exceptions on error."
+  {:on-error on-error-throw!
+   :on-timeout on-timeout-throw!
+   :on-unknown on-unknown-throw!})
+
+
+(defn on-jsonrpc-response
+  "Process JSON-RPC response to derive the final output.
+   :on-result     - (fn [result])
+   :on-error      - (fn [client-op-name jsonrpc-error])
+   :timeout-value - same value that you pass to `uab/as-async`
+   :on-timeout    - (fn [client-op-name timeout-value])
+   :on-unknown    - (fn [client-op-name unknown-response])"
+  [async-jsonrpc-response
+   client-op-name
+   & ^{:see [on-jsonrpc-response-throw!]}
+   {:keys [on-result
+           ^{:see [on-error-throw!]} on-error
+           ^{:see [uab/as-async]} timeout-value
+           ^{:see [on-timeout-throw!]} on-timeout
+           ^{:see [on-unknown-throw!]} on-unknown]
+    :or {on-result identity
+         on-error (fn [jsonrpc-response client-op-name]
+                    (-> "[on-jsonrpc-response] Client operation %s error"
+                        (format client-op-name)
+                        (u/eprintln jsonrpc-response)))
+         timeout-value ::not-found
+         on-timeout (fn [_ client-op-name]
+                      (-> "[on-jsonrpc-response] Client operation %s timed out"
+                          (format client-op-name)
+                          u/eprintln))
+         on-unknown (fn [jsonrpc-response client-op-name]
+                      (-> "[on-jsonrpc-response] Unknwon response in client operation"
+                          (str client-op-name)
+                          (u/eprintln jsonrpc-response)))}}]
+  (uab/let-await [jsonrpc-response async-jsonrpc-response]
+    (condp u/invoke jsonrpc-response
+      jr/jsonrpc-result? (-> jsonrpc-response
+                             jr/jsonrpc-result
+                             on-result)
+      jr/jsonrpc-error? (-> jsonrpc-response
+                            jr/jsonrpc-error
+                            (on-error client-op-name))
+      #(= % timeout-value) (on-timeout jsonrpc-response client-op-name)
+      (on-unknown jsonrpc-response client-op-name))))
 
 
 ;; ----- Client operations -----

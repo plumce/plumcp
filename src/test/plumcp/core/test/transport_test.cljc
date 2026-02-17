@@ -183,15 +183,13 @@
                                  (merge client/client-options)
                                  (mc/make-client))]
         (testing "MCP Handshake"
-          (uab/let-await [response (mc/initialize-and-notify! client-context)]
-            (u/dprint "Initialize Result" response)
-            (is (= (jr/jsonrpc-result response)
+          (uab/let-await [init-result (mc/initialize-and-notify! client-context)]
+            (u/dprint "Initialize Result" init-result)
+            (is (= init-result
                    (mc/get-initialize-result client-context)))
             (testing "MCP Request sent, and result received"
-              (uab/let-await [tools-response (mc/list-tools client-context)]
-                (let [tools (-> tools-response
-                                mc/tools-or-throw!)]
-                  (u/dprint "Tools-list (sync) result" tools)
-                  (is (vector? tools)))
+              (uab/let-await [tools (mc/list-tools client-context)]
+                (u/dprint "Tools-list (sync) result" tools)
+                (is (vector? tools))
                 ;; disconnect now
                 (mc/disconnect! client-context)))))))))
