@@ -38,7 +38,7 @@
                           :mcp-server "http://localhost:3000"
                           :callback-redirect-uri "http://localhost:6277/"
                           :callback-start-server #(hs/run-http-server % {:port 6277})
-                          ;:token-cache mt-http-auth/local-token-cache
+                          ;:token-cache hcta/local-token-cache
                           ;;
                           }
                          (u/copy-keys client-options [:info]) ; for :client-name
