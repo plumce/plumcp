@@ -420,18 +420,18 @@
 ;; --- Notifications ---
 
 
-(defn call-notification-listener
+(defn call-notification-handler
   [context method-name]
-  (when-let [listener (rs/get-notification-listener context method-name)]
-    (listener context)))
+  (when-let [handler (rs/get-notification-handler context method-name)]
+    (handler context)))
 
 
 (defn ^{:see [sd/InitializedNotification
               eg/make-initialized-notification]} notifications-initialized
   [{:as jsonrpc-notification}]
   (rs/set-initialized-timestamp jsonrpc-notification)
-  (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-initialized)
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-initialized)
   {:result {}})
 
 
@@ -447,8 +447,8 @@
                       (-> {:message "Cancel requested for task"
                            :request-id request-id}
                           (u/assoc-some :reason reason))))
-    (call-notification-listener jsonrpc-notification
-                                sd/method-notifications-cancelled))
+    (call-notification-handler jsonrpc-notification
+                               sd/method-notifications-cancelled))
   {:result {}})
 
 
@@ -459,8 +459,8 @@
   (when (rt/has-session? jsonrpc-notification)  ; this is true on server
     (rs/update-peer-progress jsonrpc-notification
                              (:progressToken progress) progress))
-  (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-progress)
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-progress)
   {:result {}})
 
 
@@ -468,8 +468,8 @@
               eg/make-logging-message-notification]}
   notifications-message
   [{:as jsonrpc-notification}]
-  (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-message)
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-message)
   {:result {}})
 
 
@@ -477,8 +477,8 @@
               eg/make-resource-list-changed-notification]}
   notifications-resources-list_changed
   [{:as jsonrpc-notification}]
-  (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-resources-list_changed)
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-resources-list_changed)
   {:result {}})
 
 
@@ -486,8 +486,8 @@
               eg/make-resource-updated-notification]}
   notifications-resources-updated
   [{:as jsonrpc-notification}]
-  (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-resources-updated)
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-resources-updated)
   {:result {}})
 
 
@@ -495,8 +495,8 @@
               eg/make-prompt-list-changed-notification]}
   notifications-prompts-list_changed
   [{:as jsonrpc-notification}]
-  (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-prompts-list_changed)
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-prompts-list_changed)
   {:result {}})
 
 
@@ -504,8 +504,8 @@
               eg/make-tool-list-changed-notification]}
   notifications-tools-list_changed
   [{:as jsonrpc-notification}]
-  (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-tools-list_changed)
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-tools-list_changed)
   {:result {}})
 
 
@@ -513,6 +513,6 @@
               eg/make-roots-list-changed-notification]}
   notifications-roots-list_changed
   [{:as jsonrpc-notification}]
-  (call-notification-listener jsonrpc-notification
-                              sd/method-notifications-roots-list_changed)
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-roots-list_changed)
   {:result {}})

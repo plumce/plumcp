@@ -87,24 +87,24 @@
 
 (defmacro ^{:see [make-mcp-client]} make-client
   "Make MCP client (context map) using given (or deduced) options.
-   | Option keyword        | Default | Description                        |
-   |-----------------------|---------|------------------------------------|
-   |:info                  |Required |see p.c.api.entity-support/make-info|
-   |:capabilities          |         |Supplied or made from :primitives   |
-   |:primitives            |         |Supplied or made from :vars         |
-   |:vars                  |         |Supplied/discovered from hinted vars|
-   |:ns (read literally)   |Caller ns|Supplied/discovered from hinted vars|
-   |:traffic-logger        |         |No-op by default                    |
-   |:notification-listeners| {}      |Map notific'n methodName->listenerFn|
-   |:runtime               |         |Made from :info,:capabilities,:tra..|
-   |:override              | {}      |Merged into final runtime           |
-   |:mcp-methods-wrapper   |         |No-op by default                    |
-   |:jsonrpc-handler       |         |Impl+made with :schema-check-wrapper|
-   |:client-transport      |Required |Protocol p/IClientTransport instance|
-   |:client-context        |         |Base client context                 |
-   |:print-banner?         |  True   |Print a library banner if true      |
-   |:run-list-notifier?    |  True   |Run list-changed notifier if true   |
-   |:list-notifier-options |  {}     |Option map for list-changed notifier|
+   | Option keyword       | Default | Description                        |
+   |----------------------|---------|------------------------------------|
+   |:info                 |Required |see p.c.api.entity-support/make-info|
+   |:capabilities         |         |Supplied or made from :primitives   |
+   |:primitives           |         |Supplied or made from :vars         |
+   |:vars                 |         |Supplied/discovered from hinted vars|
+   |:ns (read literally)  |Caller ns|Supplied/discovered from hinted vars|
+   |:traffic-logger       |         |No-op by default                    |
+   |:notification-handlers| {}      |Map notifica'n methodName->handlerFn|
+   |:runtime              |         |Made from :info,:capabilities,:tra..|
+   |:override             | {}      |Merged into final runtime           |
+   |:mcp-methods-wrapper  |         |No-op by default                    |
+   |:jsonrpc-handler      |         |Impl+made with :schema-check-wrapper|
+   |:client-transport     |Required |Protocol p/IClientTransport instance|
+   |:client-context       |         |Base client context                 |
+   |:print-banner?        |  True   |Print a library banner if true      |
+   |:run-list-notifier?   |  True   |Run list-changed notifier if true   |
+   |:list-notifier-options|  {}     |Option map for list-changed notifier|
 
    Dependency map (left/key depends upon the right/vals):
    {:ring-handler    [:runtime :jsonrpc-handler]
@@ -112,7 +112,7 @@
     :runtime         [:info :capabilities :traffic-logger]
     :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}
 
-   Notification listeners example:
+   Notification handlers example:
    {on-tools-list-changed #(fetch-tools % {:on-tools (fn [tools]
                                                        ...)})}"
   ([options]
@@ -709,7 +709,7 @@
       (cs/send-message-to-server client response))))
 
 
-;; --- Notification listener helper fns ---
+;; --- Notification handler helper fns ---
 
 
 (defn jsonrpc-message-with-deps->client
@@ -763,19 +763,19 @@
     (on-tools tools)))
 
 
-;; --- Notification listener keys ---
+;; --- Notification handler keys ---
 
 
 ;; Common for both client and server
 
 
 (def ^{:see [sd/CancelledNotification]} on-cancelled
-  "Key for `cancelled` notification listener fn: (fn [params])"
+  "Key for `cancelled` notification handler fn: (fn [params])"
   sd/method-notifications-cancelled)
 
 
 (def ^{:see [sd/ProgressNotification]} on-progress
-  "Key for `progress` notification listener fn: (fn [params])"
+  "Key for `progress` notification handler fn: (fn [params])"
   sd/method-notifications-progress)
 
 
@@ -783,14 +783,14 @@
 
 
 (def ^{:see [sd/LoggingMessageNotification]} on-log-message
-  "Key for `message` notification listener fn: (fn [params])"
+  "Key for `message` notification handler fn: (fn [params])"
   sd/method-notifications-message)
 
 
 (def ^{:see [sd/PromptListChangedNotification
              sd/ListPromptsResult
              fetch-prompts]} on-prompts-list-changed
-  "Key for `prompts/list_changed` notification listener fn:
+  "Key for `prompts/list_changed` notification handler fn:
    (fn [prompts])"
   sd/method-notifications-prompts-list_changed)
 
@@ -799,18 +799,18 @@
              sd/ListResourcesResult
              sd/ListResourceTemplatesResult
              fetch-resources]} on-resources-list-changed
-  "Key for `resources/list_changed` notification listener fn:
+  "Key for `resources/list_changed` notification handler fn:
    (fn [resources resource-templates])"
   sd/method-notifications-resources-list_changed)
 
 
 (def ^{:see [sd/ResourceUpdatedNotification]} on-resource-updated
-  "Key for `resources/updated` notification listener fn: (fn [params])"
+  "Key for `resources/updated` notification handler fn: (fn [params])"
   sd/method-notifications-resources-updated)
 
 
 (def ^{:see [sd/ToolListChangedNotification
              sd/ListToolsResult
              fetch-tools]} on-tools-list-changed
-  "Key for `tools/list_changed` notification listener fn: (fn [tools])"
+  "Key for `tools/list_changed` notification handler fn: (fn [tools])"
   sd/method-notifications-tools-list_changed)

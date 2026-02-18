@@ -285,10 +285,10 @@
       (p/request-cancellation request-id)))
 
 
-;; --- Notification listeners ---
+;; --- Notification handlers ---
 
 
-(defn get-notification-listener
+(defn get-notification-handler
   [context method-name]
-  (-> (rt/?notification-listeners context)
+  (-> (rt/?notification-handlers context)
       (get method-name)))

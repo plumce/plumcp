@@ -61,7 +61,7 @@ All notable changes to this project will be documented in this file. This change
     - Server: Integrate list-changed notifier with `run-server`, `run-mcp-server`
     - Client: Integrate list-changed notifier with `make-client`, `make-mcp-client`
   - Provision for re-fetch on list-changed notification
-    - Client: Add option kwarg `:notification-listeners` to `make-client`
+    - Client: Add option kwarg `:notification-handlers` to `make-client`
 - Make initialization info accessible
   - Server: Store initialization params in server session
   - Client: Store initialization result in client context

@@ -178,7 +178,7 @@
 (defrtkey ?traffic-logger      {:default stl/nop-traffic-logger})
 (defrtkey ?client-capabilities {:default cap/default-client-capabilities})
 (defrtkey ?server-capabilities {:default cap/default-server-capabilities})
-(defrtkey ?notification-listeners
+(defrtkey ?notification-handlers
   {:default (zipmap
              [;; received by both client and server
               sd/method-notifications-cancelled
