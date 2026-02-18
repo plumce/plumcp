@@ -82,7 +82,7 @@
 (defn on-error-throw!
   "Given the :error strucure of an JSON-RPC error response, throw an
    exception."
-  [{:keys [code message data]} client-op-name]
+  [client-op-name {:keys [code message data]}]
   (u/throw! (-> "Client operation % error:"
                 (format client-op-name)
                 (str message))
@@ -92,23 +92,25 @@
 
 (defn on-timeout-throw!
   "Throw a client-operation timeout exception."
-  [_ client-op-name]
+  [client-op-name _]
   (u/throw! (-> "Client operation %s timed out"
                 (format client-op-name))))
 
 
 (defn on-unknown-throw!
-  [unknown-response client-op-name]
+  "Throw exception when unknown response is passed."
+  [client-op-name unknown-response]
   (-> "[on-jsonrpc-response] Unknwon response in client operation"
       (str client-op-name)
       (u/throw! {:unknown-response unknown-response})))
 
 
-(def on-jsonrpc-response-throw!
+(defn on-jsonrpc-response-throw!
   "Options to use when you want to throw exceptions on error."
-  {:on-error on-error-throw!
-   :on-timeout on-timeout-throw!
-   :on-unknown on-unknown-throw!})
+  [client-op-name]
+  {:on-error (partial on-error-throw! client-op-name)
+   :on-timeout (partial on-timeout-throw! client-op-name)
+   :on-unknown (partial on-unknown-throw! client-op-name)})
 
 
 (defn on-jsonrpc-response
@@ -127,16 +129,16 @@
            ^{:see [on-timeout-throw!]} on-timeout
            ^{:see [on-unknown-throw!]} on-unknown]
     :or {on-result identity
-         on-error (fn [jsonrpc-response client-op-name]
+         on-error (fn [jsonrpc-response]
                     (-> "[on-jsonrpc-response] Client operation %s error"
                         (format client-op-name)
                         (u/eprintln jsonrpc-response)))
-         timeout-value ::not-found
-         on-timeout (fn [_ client-op-name]
+         timeout-value ::not-found  ; only caller-supplied value matches
+         on-timeout (fn [_]
                       (-> "[on-jsonrpc-response] Client operation %s timed out"
                           (format client-op-name)
                           u/eprintln))
-         on-unknown (fn [jsonrpc-response client-op-name]
+         on-unknown (fn [jsonrpc-response]
                       (-> "[on-jsonrpc-response] Unknwon response in client operation"
                           (str client-op-name)
                           (u/eprintln jsonrpc-response)))}}]
@@ -147,9 +149,9 @@
                              on-result)
       jr/jsonrpc-error? (-> jsonrpc-response
                             jr/jsonrpc-error
-                            (on-error client-op-name))
-      #(= % timeout-value) (on-timeout jsonrpc-response client-op-name)
-      (on-unknown jsonrpc-response client-op-name))))
+                            on-error)
+      #(= % timeout-value) (on-timeout jsonrpc-response)
+      (on-unknown jsonrpc-response))))
 
 
 ;; ----- Client operations -----
