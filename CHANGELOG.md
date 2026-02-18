@@ -17,7 +17,7 @@ All notable changes to this project will be documented in this file. This change
   - Cache JWKS keys
   - Log auth failures (but never log full tokens)
 
-## [Unreleased] - 2026-??-??
+## [0.2.0-alpha1] - 2026-Feb-18
 ### Added
 - STDIO Client Transport
   - Options in `plumcp.core.client.stdio-client-transport/run-command`
@@ -115,7 +115,7 @@ All notable changes to this project will be documented in this file. This change
 - Dev module
   - Do not emit `:request` entry in schema validation error responses
 
-## [0.1.0] - 2026-01-29
+## [0.1.0] - 2026-Jan-29
 ### Added
 - MCP Protocol spec implementation
   - 2025-06-18, 2025-03-26
