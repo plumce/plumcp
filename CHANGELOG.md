@@ -17,6 +17,12 @@ All notable changes to this project will be documented in this file. This change
   - Cache JWKS keys
   - Log auth failures (but never log full tokens)
 
+## [Unreleased] - 2026-???-??
+### Added
+- [Todo] Client: Caching layer for prompts, resources, tools
+- [Todo] Client: Auto-refetch prompts, resources, tools on list-changed
+- [Todo] Server: List-changed listening support for roots
+
 ## [0.2.0-alpha1] - 2026-Feb-18
 ### Added
 - STDIO Client Transport
