@@ -10,5 +10,6 @@
                  [com.cnuernber/charred "1.037"]]
   :repl-options {:init-ns plumcp.core}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}}
+  :scm {:dir ".."}
   :deploy-repositories [["releases" {:url "https://clojars.org"
                                      :creds :gpg}]])
