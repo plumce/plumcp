@@ -12,6 +12,7 @@
    Ref: https://github.com/cyanheads/model-context-protocol-resources/blob/main/guides/mcp-client-development-guide.md"
   (:require
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.client.client-method :as cm]
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.capability :as cap]
@@ -169,8 +170,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/InitializeResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} initialize!
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} initialize!
   "Synchronous version of `async-initialize!` that returns initialize
    result (value in CLJ, js/Promise in CLJS) on success, nil on error
    (printed to STDERR).
@@ -178,13 +179,13 @@
    - see plumcp.core.util.async-bridge/as-async
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
+                    cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-initialize! client
                            return))
-      (cs/on-jsonrpc-response "initialize"
+      (cm/on-jsonrpc-response "initialize"
                               options)))
 
 
@@ -218,8 +219,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/InitializeResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} initialize-and-notify!
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} initialize-and-notify!
   "Synchronous version of `async-initialize-and-notify!` that returns
    initialize result (value in CLJ, js/Promise in CLJS) on success, nil
    on error (printed to STDERR).
@@ -227,7 +228,7 @@
    - see plumcp.core.util.async-bridge/as-async
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
+                    cm/on-jsonrpc-response]} {:as options}]
   (uab/let-await [init-result (initialize! client options)]
     (when init-result
       (-> (cs/?client-cache client)
@@ -278,8 +279,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListToolsResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} list-tools
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} list-tools
   "Synchronous version of `async-list-tools` that returns tools (value
    in CLJ, js/Promise in CLJS) on success, nil on error (printed to
    STDERR).
@@ -288,13 +289,13 @@
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client
    & ^{:see [uab/as-async
-             cs/on-jsonrpc-response]} {:as options}]
+             cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-list-tools client
                           return))
-      (cs/on-jsonrpc-response "list-tools"
+      (cm/on-jsonrpc-response "list-tools"
                               (-> {:on-result sd/result-key-tools}
                                   (merge options)))))
 
@@ -317,8 +318,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/CallToolResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} call-tool
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} call-tool
   "Synchronous version of `async-call-tool` that returns call-tool
    result (value in CLJ, js/Promise in CLJS) on success, nil on error
    (printed to STDERR).
@@ -327,14 +328,14 @@
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client tool-name tool-args
    & ^{:see [uab/as-async
-             cs/on-jsonrpc-response]} {:as options}]
+             cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-call-tool client
                          tool-name tool-args
                          return))
-      (cs/on-jsonrpc-response "call-tool"
+      (cm/on-jsonrpc-response "call-tool"
                               options)))
 
 
@@ -359,8 +360,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListResourcesResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} list-resources
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} list-resources
   "Synchronous version of `async-list-resources` that returns resources
    (value in CLJ, js/Promise in CLJS) on success, nil on error (printed
    to STDERR).
@@ -368,13 +369,13 @@
    - see plumcp.core.util.async-bridge/as-async
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
+                    cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-list-resources client
                               return))
-      (cs/on-jsonrpc-response "list-resources"
+      (cm/on-jsonrpc-response "list-resources"
                               (-> {:on-result sd/result-key-resources}
                                   (merge options)))))
 
@@ -400,8 +401,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListResourceTemplatesResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} list-resource-templates
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} list-resource-templates
   "Synchronous version of `async-list-resource-templates` that returns
    resource templates (value in CLJ, js/Promise in CLJS) on success, nil
    on error (printed to STDERR).
@@ -409,13 +410,13 @@
    - see plumcp.core.util.async-bridge/as-async
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
+                    cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-list-resource-templates client
                                        return))
-      (cs/on-jsonrpc-response "list-resource-templates"
+      (cm/on-jsonrpc-response "list-resource-templates"
                               (-> {:on-result sd/result-key-resource-templates}
                                   (merge options)))))
 
@@ -436,8 +437,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/ReadResourceResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} read-resource
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} read-resource
   "Synchronous version of `async-read-resource` that returns
    read-resource result (value in CLJ, js/Promise in CLJS) on success,
    nil on error (printed to STDERR).
@@ -446,14 +447,14 @@
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client resource-uri
    & ^{:see [uab/as-async
-             cs/on-jsonrpc-response]} {:as options}]
+             cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-read-resource client
                              resource-uri
                              return))
-      (cs/on-jsonrpc-response "read-resource"
+      (cm/on-jsonrpc-response "read-resource"
                               options)))
 
 
@@ -478,8 +479,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListPromptsResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} list-prompts
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} list-prompts
   "Synchronous version of `async-list-prompts` that returns prompts
    (value in CLJ, js/Promise in CLJS) on success, nil on error (printed
    to STDERR).
@@ -487,13 +488,13 @@
    - see plumcp.core.util.async-bridge/as-async
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
+                    cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-list-prompts client
                             return))
-      (cs/on-jsonrpc-response "list-prompts"
+      (cm/on-jsonrpc-response "list-prompts"
                               (-> {:on-result sd/result-key-prompts}
                                   (merge options)))))
 
@@ -516,8 +517,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/GetPromptResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} get-prompt
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} get-prompt
   "Synchronous version of `async-get-prompt` that returns get-prompt
    result (value in CLJ, js/Promise in CLJS) on success, nil on error
    (printed to STDERR).
@@ -526,14 +527,14 @@
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client prompt-or-template-name prompt-args
    & ^{:see [uab/as-async
-             cs/on-jsonrpc-response]} {:as options}]
+             cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-get-prompt client
                           prompt-or-template-name prompt-args
                           return))
-      (cs/on-jsonrpc-response "get-prompt"
+      (cm/on-jsonrpc-response "get-prompt"
                               options)))
 
 
@@ -555,8 +556,8 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/CompleteResult
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} complete
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} complete
   "Synchronous version of `async-complete` that returns completion
    result (value in CLJ, js/Promise in CLJS) on success, nil on error
    (printed to STDERR).
@@ -565,14 +566,14 @@
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client ^{:see [eg/make-complete-request]} complete-request
    & ^{:see [uab/as-async
-             cs/on-jsonrpc-response]} {:as options}]
+             cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-complete client
                         complete-request
                         return))
-      (cs/on-jsonrpc-response "complete"
+      (cm/on-jsonrpc-response "complete"
                               options)))
 
 
@@ -588,8 +589,8 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/JSONRPCError
-              cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} ping
+              cm/on-jsonrpc-response
+              cm/on-jsonrpc-response-throw!]} ping
   "Synchronous version of `async-ping` that returns ping result
    (value in CLJ, js/Promise in CLJS) on success, nil on error
    (printed to STDERR).
@@ -597,13 +598,13 @@
    - see plumcp.core.util.async-bridge/as-async
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
+                    cm/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
         [return]
         options
         (async-ping client
                     return))
-      (cs/on-jsonrpc-response "ping"
+      (cm/on-jsonrpc-response "ping"
                               options)))
 
 
