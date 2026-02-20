@@ -10,7 +10,12 @@
 (ns plumcp.core.client.client-method
   "MCP Client methods implementation."
   (:require
+   [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.client.client-support :as cs]
+   [plumcp.core.deps.runtime :as rt]
+   [plumcp.core.impl.capability :as cap]
    [plumcp.core.schema.json-rpc :as jr]
+   [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]))
 
@@ -124,3 +129,200 @@
                             on-error)
       #(= % timeout-value) (on-timeout jsonrpc-response)
       (on-unknown jsonrpc-response))))
+
+
+;; --- ASYNC client functions ---
+
+
+;; ASYNC result/response utility
+
+
+(defn on-result->on-response
+  "Make a JSON-RPC response handler from given JSON-RPC result handler
+   (and JSON-RPC error handler)."
+  ([on-result on-error-response]
+   (fn jsonrpc-result-callback [jsonrpc-message]
+     (if (jr/jsonrpc-result? jsonrpc-message)
+       (on-result (:result jsonrpc-message))
+       (on-error-response jsonrpc-message))))
+  ([on-result]
+   (on-result->on-response on-result cs/error-logger)))
+
+
+;; ASYNC initilization / de-initialization / handshake
+
+
+(defn async-initialize!
+  "Send initialize request to the MCP server, and setup a session on
+   success result. Arguments:
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response
+   See: `initialize-and-notify!`"
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/InitializeResult
+                  sd/JSONRPCError
+                  on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-initialize-request
+                 sd/protocol-version-max
+                 (-> (cs/?capabilities client)
+                     cap/get-client-capability-declaration)
+                 (rt/?client-info client))
+        setter (partial cs/set-session-context! client)]
+    (as-> on-jsonrpc-response $
+      (cs/wrap-session-setting $ setter)
+      (cs/send-request-to-server client request $))))
+
+
+(defn async-initialize-and-notify!
+  "Send initialize request to the MCP server and on success, setup a
+   session and notify the MCP server of a successful initialization."
+  [client notify-initialized]
+  (async-initialize! client
+                     (-> (fn [result]
+                           (-> (cs/?client-cache client)
+                               (cs/?cc-initialize-result result))
+                           (notify-initialized client))
+                         on-result->on-response)))
+
+
+;; ASYNC MCP requests expecting result
+
+
+(defn on-tools->on-result
+  "Given a (fn [tools]) return (fn [jsonrpc-result])."
+  [f]
+  (cs/destructure-result f sd/result-key-tools))
+
+
+(defn async-list-tools
+  "Return the list of MCP tools supported by the server. The JSON-RPC
+   response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListToolsResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-tools->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-tools-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn async-call-tool
+  "Call the MCP tool on the server. Arguments:
+   `tool-name`  is the name of the tool to be called
+   `tool-args` is the map of args for calling the tool
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client tool-name tool-args
+   ^{:see [sd/JSONRPCResponse
+           sd/CallToolResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-call-tool-request tool-name
+                                           tool-args)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn on-resources->on-result
+  "Given a (fn [resources]) return (fn [jsonrpc-result])."
+  [f]
+  (cs/destructure-result f sd/result-key-resources))
+
+
+(defn async-list-resources
+  "Return the list of MCP resources supported by the server. The
+   JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListResourcesResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-resources->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-resources-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn on-resource-templates->on-result
+  "Given a (fn [resource-templates]) return (fn [jsonrpc-result])."
+  [f]
+  (cs/destructure-result f sd/result-key-resource-templates))
+
+
+(defn async-list-resource-templates
+  "Return the list of MCP resource templates supported by the server.
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListResourceTemplatesResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-resource-templates->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-resource-templates-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn async-read-resource
+  "Read the resource identified by the URI on the server. Arguments:
+   `resource-uri` is the resource URI
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client resource-uri
+   ^{:see [sd/JSONRPCResponse
+           sd/ReadResourceResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-read-resource-request resource-uri)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn on-prompts->on-result
+  "Given a (fn [prompts]) return (fn [jsonrpc-result])."
+  [f]
+  (cs/destructure-result f sd/result-key-prompts))
+
+
+(defn async-list-prompts
+  "List the MCP prompts supported by the server. The JSON-RPC response
+   is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListPromptsResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-prompts->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-prompts-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn async-get-prompt
+  "Get the MCP prompt identified by name on the server. Arguments:
+   `prompt-or-template-name` is prompt or template name
+   `prompt-args` is the map of prompt/template args
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client prompt-or-template-name prompt-args
+   ^{:see [sd/JSONRPCResponse
+           sd/GetPromptResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-get-prompt-request prompt-or-template-name
+                                            {:args prompt-args})]
+    (cs/send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn async-complete
+  "Send a completion request to the server. Arguments:
+   `complete-request` is the completion request
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [eg/make-complete-request]} complete-request
+   ^{:see [sd/JSONRPCResponse
+           sd/CompleteResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (cs/send-request-to-server client complete-request
+                             on-jsonrpc-response))
+
+
+(defn async-ping
+  "Send a ping request to the server. The JSON-RPC response is passed to
+   `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/JSONRPCError
+                  on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-ping-request)]
+    (cs/send-request-to-server client request on-jsonrpc-response)))

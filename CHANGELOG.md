@@ -20,8 +20,27 @@ All notable changes to this project will be documented in this file. This change
 ## [Unreleased] - 2026-???-??
 ### Added
 - [Todo] Client: Caching layer for prompts, resources, tools
-- [Todo] Client: Auto-refetch prompts, resources, tools on list-changed
-- [Todo] Server: List-changed listening support for roots
+  - [Todo] Auto-refetch prompts/resources/tools on list-changed
+  - [Todo] Expose API to read prompts/resources/tools at all times
+- [Todo] Server: Caching layer for roots
+  - [Todo] List-changed listening support for roots
+  - [Todo] Cache roots in the session
+  - [Todo] API for reading roots
+
+### Changed
+
+- [BREAKING] Move async fns `p.c.a.mcp-client` to `p.c.c.client-method` ns
+  - `async-initialize!`
+  - `async-initialize-and-notify!` (arity also changed)
+  - `async-list-tools`
+  - `async-call-tool`
+  - `async-list-resources`
+  - `async-list-resource-templates`
+  - `async-read-resource`
+  - `async-list-prompts`
+  - `async-get-prompt`
+  - `async-complete`
+  - `async-ping`
 
 ### Fixed
 - Git/SCM coordinates in module `pom.xml`, which reflects on Clojars

@@ -12,6 +12,7 @@
    [clojure.test :refer [deftest is testing use-fixtures]]
    [plumcp.core.api.mcp-client :as mc]
    [plumcp.core.api.mcp-server :as ms]
+   [plumcp.core.client.client-method :as cm]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.dev.bling-logger :as blogger]
@@ -23,8 +24,7 @@
    [plumcp.core.server.zero-server :as zs]
    [plumcp.core.test.test-util :as tu]
    [plumcp.core.util :as u]
-   [plumcp.core.util.async-bridge :as uab]
-   [plumcp.core.schema.json-rpc :as jr]))
+   [plumcp.core.util.async-bridge :as uab]))
 
 
 (def client-capabilities cap/default-client-capabilities)
@@ -121,7 +121,6 @@
                               (f)
                               (stop-http-server))))
 
-
 (deftest test-async-transport
   (doseq [{:keys [tname
                   maker]} transport-makers]
@@ -149,7 +148,7 @@
                      (tu/sleep-millis 10)  ; allow printing to finish
                      (is true "Initialize roundtrip should succeed")
                      (done!))
-                   (mc/async-initialize! client-context))))
+                   (cm/async-initialize! client-context))))
           ;;
           ;; MCP Request
           ;;
@@ -160,8 +159,8 @@
                      ;(tu/sleep-millis 10)  ; HANGs this test; commented
                      (is result "Tools list should be obtained")
                      (done!))
-                   mc/on-result->on-response
-                   (mc/async-list-tools client-context))))
+                   cm/on-result->on-response
+                   (cm/async-list-tools client-context))))
           ;;
           ;; Tests over
           ;;
