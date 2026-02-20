@@ -19,9 +19,14 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased] - 2026-???-??
 ### Added
-- [Todo] Client: Caching layer for prompts, resources, tools
+- [WIP] Client: Cache primitives (prompts, resources, tools)
+  - Kwarg `:cache-primitives?` in `make-client` for primitives caching
+  - Functions reading primitives list transparently apply caching
   - [Todo] Auto-refetch prompts/resources/tools on list-changed
-  - [Todo] Expose API to read prompts/resources/tools at all times
+- [Todo] Heartbeat mechanism to scope-limit caching
+  - [Todo] A defined key to cache every access timestamp
+  - [Todo] Fall back to ping (which updates timestamp)
+  - [Todo] Fn `healthy?` or `alive?` to report/detect
 - [Todo] Server: Caching layer for roots
   - [Todo] List-changed listening support for roots
   - [Todo] Cache roots in the session
@@ -29,9 +34,9 @@ All notable changes to this project will be documented in this file. This change
 
 ### Changed
 
-- [BREAKING] Move async fns `p.c.a.mcp-client` to `p.c.c.client-method` ns
+- [BREAKING] Move fns `p.c.a.mcp-client` to `p.c.c.client-method` ns
   - `async-initialize!`
-  - `async-initialize-and-notify!` (arity also changed)
+  - `async-initialize-and-notify!`
   - `async-list-tools`
   - `async-call-tool`
   - `async-list-resources`
@@ -41,6 +46,8 @@ All notable changes to this project will be documented in this file. This change
   - `async-get-prompt`
   - `async-complete`
   - `async-ping`
+  - `initialize!`
+  - `notify-initialized`
 
 ### Fixed
 - Git/SCM coordinates in module `pom.xml`, which reflects on Clojars

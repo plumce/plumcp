@@ -35,6 +35,7 @@
 (kl/defkey ?on-message {})
 (kl/defkey ?client-cache {})  ; English word meaning, is (atom <map>)
 (kl/defkey ?run-list-notifier {:default nil})
+(kl/defkey ?cache-primitives? {:default true})
 
 
 ;; ----- Client K/V cache -----
@@ -62,6 +63,10 @@
                               :update kl/?atom-update-thunk})
 (defcckey ?cc-initialize-result {:default nil})
 (defcckey ?cc-session-context {:default {}})
+(defcckey ?cc-prompts-list {:default nil})
+(defcckey ?cc-resources-list {:default nil})
+(defcckey ?cc-resource-templates-list {:default nil})
+(defcckey ?cc-tools-list {:default nil})
 (defcckey ?cc-pending-client-requests {:default {}}) ; {<req-id> {:ts <ms> :callback <fn>}}
 (defcckey ?cc-pending-server-requests {:default {}}) ; {<req-id> {:ts <ms>}}
 (defcckey ?cc-list-notifier {:default nil})

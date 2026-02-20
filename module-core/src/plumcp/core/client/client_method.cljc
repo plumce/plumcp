@@ -14,6 +14,7 @@
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.capability :as cap]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
@@ -131,6 +132,24 @@
       (on-unknown jsonrpc-response))))
 
 
+;; --- Client utility functions ---
+
+
+(defn notify-initialized
+  "Notify the MCP server of a successful initialization.
+   See: `initialize-and-notify!`"
+  [client]
+  (let [notification (eg/make-initialized-notification)]
+    (cs/send-notification-to-server client notification)
+    (p/upon-handshake-success (cs/?transport client)
+                              (cs/get-session-context client))
+    ;; run list-change notifier for this connection
+    (when-let [run-list-notifier (cs/?run-list-notifier client)]
+      (let [client-cache-atom (cs/?client-cache client)
+            list-notifier (run-list-notifier)]
+        (cs/?cc-list-notifier client-cache-atom list-notifier)))))
+
+
 ;; --- ASYNC client functions ---
 
 
@@ -154,9 +173,7 @@
 
 (defn async-initialize!
   "Send initialize request to the MCP server, and setup a session on
-   success result. Arguments:
-   `on-success-result` is called with success result
-   `on-error-response` is called with error response
+   success. The JSON-RPC response is passed to `on-jsonrpc-response`.
    See: `initialize-and-notify!`"
   [client ^{:see [sd/JSONRPCResponse
                   sd/InitializeResult
@@ -175,8 +192,9 @@
 
 (defn async-initialize-and-notify!
   "Send initialize request to the MCP server and on success, setup a
-   session and notify the MCP server of a successful initialization."
-  [client notify-initialized]
+   session and notify the MCP server of a successful initialization
+   after caching the initialize result."
+  [client]
   (async-initialize! client
                      (-> (fn [result]
                            (-> (cs/?client-cache client)
@@ -195,7 +213,7 @@
 
 
 (defn async-list-tools
-  "Return the list of MCP tools supported by the server. The JSON-RPC
+  "Fetch the list of MCP tools supported by the server. The JSON-RPC
    response is passed to `on-jsonrpc-response`."
   [client ^{:see [sd/JSONRPCResponse
                   sd/ListToolsResult
@@ -326,3 +344,51 @@
                   on-result->on-response]} on-jsonrpc-response]
   (let [request (eg/make-ping-request)]
     (cs/send-request-to-server client request on-jsonrpc-response)))
+
+
+;; --- Synchronous client functions ---
+
+
+;; Utilities
+
+
+(defn get-from-cache
+  [client getter]
+  (-> (cs/?client-cache client)
+      getter))
+
+
+(defn set-into-cache
+  [payload client setter]
+  (when (-> client
+            cs/?cache-primitives?)  ; is caching primitives allowed?
+    (-> (cs/?client-cache client)
+        (setter payload))))
+
+
+;; Operations
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/InitializeResult
+              sd/JSONRPCError
+              async-initialize!
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} initialize!
+  "Send initialize request to the MCP server and setup a session
+   returning initialize result (value in CLJ, js/Promise in CLJS) on
+   success, nil on error (printed to STDERR).
+   Options:
+   - see plumcp.core.util.async-bridge/as-async
+   - see plumcp.core.client.client-support/on-jsonrpc-response
+   - kwarg `:on-result` is ignored"
+  [client & ^{:see [uab/as-async
+                    on-jsonrpc-response]} {:as options}]
+  (-> (uab/as-async
+        [return]
+        options
+        (async-initialize! client
+                           return))
+      (on-jsonrpc-response "initialize"
+                           (-> options
+                               (dissoc :on-result)))))

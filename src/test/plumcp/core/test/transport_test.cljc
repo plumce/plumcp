@@ -144,7 +144,7 @@
                      ;; Notification sent
                      ;;
                      (testing "Sending notification"
-                       (mc/notify-initialized client-context))
+                       (cm/notify-initialized client-context))
                      (tu/sleep-millis 10)  ; allow printing to finish
                      (is true "Initialize roundtrip should succeed")
                      (done!))

@@ -69,7 +69,7 @@
   (-> {:client-transport (make-zero-transport server/server-options)}
       (merge client/client-options)
       mc/make-client
-      (doto (cm/async-initialize-and-notify! mc/notify-initialized))))
+      (doto cm/async-initialize-and-notify!)))
 
 
 (deftest list-server-primitives-test
