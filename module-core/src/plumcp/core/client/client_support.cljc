@@ -483,7 +483,8 @@
                   on-result->on-response
                   on-tools->on-result]} on-jsonrpc-response]
   (let [request (eg/make-list-tools-request)]
-    (send-request-to-server client request on-jsonrpc-response)))
+    (send-request-to-server client request
+                            on-jsonrpc-response)))
 
 
 (defn async-call-tool
@@ -498,7 +499,8 @@
            on-result->on-response]} on-jsonrpc-response]
   (let [request (eg/make-call-tool-request tool-name
                                            tool-args)]
-    (send-request-to-server client request on-jsonrpc-response)))
+    (send-request-to-server client request
+                            on-jsonrpc-response)))
 
 
 (defn on-resources->on-result
@@ -516,7 +518,8 @@
                   on-result->on-response
                   on-resources->on-result]} on-jsonrpc-response]
   (let [request (eg/make-list-resources-request)]
-    (send-request-to-server client request on-jsonrpc-response)))
+    (send-request-to-server client request
+                            on-jsonrpc-response)))
 
 
 (defn on-resource-templates->on-result
@@ -534,7 +537,8 @@
                   on-result->on-response
                   on-resource-templates->on-result]} on-jsonrpc-response]
   (let [request (eg/make-list-resource-templates-request)]
-    (send-request-to-server client request on-jsonrpc-response)))
+    (send-request-to-server client request
+                            on-jsonrpc-response)))
 
 
 (defn async-read-resource
@@ -547,7 +551,8 @@
            sd/JSONRPCError
            on-result->on-response]} on-jsonrpc-response]
   (let [request (eg/make-read-resource-request resource-uri)]
-    (send-request-to-server client request on-jsonrpc-response)))
+    (send-request-to-server client request
+                            on-jsonrpc-response)))
 
 
 (defn on-prompts->on-result
@@ -565,7 +570,8 @@
                   on-result->on-response
                   on-prompts->on-result]} on-jsonrpc-response]
   (let [request (eg/make-list-prompts-request)]
-    (send-request-to-server client request on-jsonrpc-response)))
+    (send-request-to-server client request
+                            on-jsonrpc-response)))
 
 
 (defn async-get-prompt
@@ -580,7 +586,8 @@
            on-result->on-response]} on-jsonrpc-response]
   (let [request (eg/make-get-prompt-request prompt-or-template-name
                                             {:args prompt-args})]
-    (send-request-to-server client request on-jsonrpc-response)))
+    (send-request-to-server client request
+                            on-jsonrpc-response)))
 
 
 (defn async-complete
@@ -595,7 +602,7 @@
            sd/JSONRPCError
            on-result->on-response]} on-jsonrpc-response]
   (send-request-to-server client complete-request
-                             on-jsonrpc-response))
+                          on-jsonrpc-response))
 
 
 (defn async-ping
@@ -605,7 +612,8 @@
                   sd/JSONRPCError
                   on-result->on-response]} on-jsonrpc-response]
   (let [request (eg/make-ping-request)]
-    (send-request-to-server client request on-jsonrpc-response)))
+    (send-request-to-server client request
+                            on-jsonrpc-response)))
 
 
 ;; --- Synchronous client functions ---
@@ -795,7 +803,8 @@
 (defn jsonrpc-message-with-deps->client
   "Given a jsonrpc-message with dependencies, extractreturn the client."
   [jsonrpc-message-with-deps]
-  (-> (?client-cache jsonrpc-message-with-deps)
+  (-> (rt/?client-context jsonrpc-message-with-deps)
+      ?client-cache
       ?cc-client-context))
 
 
