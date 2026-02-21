@@ -13,7 +13,7 @@
    #?(:cljs ["readline" :as readline])
    [clojure.string :as str]
    [plumcp.core.api.mcp-client :as mc]
-   [plumcp.core.client.client-method :as cm]
+   [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.main.client :as client]
    [plumcp.core.protocol :as p]
@@ -67,7 +67,7 @@
   (tu/until-done [done! 10]
     (->> (fn [result]
            (done!))
-         (cm/async-ping client))))
+         (cs/async-ping client))))
 
 
 (def commands
@@ -80,35 +80,35 @@
               (->> (fn [result]
                      (u/eprintln "Initialize response:" result)
                      (u/eprintln "Sending notifications/initialized")
-                     (cm/notify-initialized client)
+                     (cs/notify-initialized client)
                      (u/eprintln "Done sending notifications/initialized")
                      (done!))
-                   cm/on-result->on-response
-                   (cm/async-initialize! client))))
+                   cs/on-result->on-response
+                   (cs/async-initialize! client))))
    "prompts" (fn [client]
                (tu/until-done [done! 10]
                  (->> (fn [prompts]
                         (u/dprint "Prompts:" prompts)
                         (done!))
-                      (cm/async-list-prompts client))))
+                      (cs/async-list-prompts client))))
    "resources" (fn [client]
                  (tu/until-done [done! 10]
                    (->> (fn [resources]
                           (u/dprint "Resources:" resources)
                           (done!))
-                        (cm/async-list-resources client))))
+                        (cs/async-list-resources client))))
    "templates" (fn [client]
                  (tu/until-done [done! 10]
                    (->> (fn [templates]
                           (u/dprint "Resource templates:" templates)
                           (done!))
-                        (cm/async-list-resource-templates client))))
+                        (cs/async-list-resource-templates client))))
    "tools" (fn [client]
              (tu/until-done [done! 10]
                (->> (fn [tools]
                       (u/dprint "Tools:" tools)
                       (done!))
-                    (cm/async-list-tools client))))
+                    (cs/async-list-tools client))))
    "quit" (fn [client]
             (exit-app))})
 

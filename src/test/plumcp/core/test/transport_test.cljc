@@ -12,7 +12,7 @@
    [clojure.test :refer [deftest is testing use-fixtures]]
    [plumcp.core.api.mcp-client :as mc]
    [plumcp.core.api.mcp-server :as ms]
-   [plumcp.core.client.client-method :as cm]
+   [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.dev.bling-logger :as blogger]
@@ -144,11 +144,11 @@
                      ;; Notification sent
                      ;;
                      (testing "Sending notification"
-                       (cm/notify-initialized client-context))
+                       (cs/notify-initialized client-context))
                      (tu/sleep-millis 10)  ; allow printing to finish
                      (is true "Initialize roundtrip should succeed")
                      (done!))
-                   (cm/async-initialize! client-context))))
+                   (cs/async-initialize! client-context))))
           ;;
           ;; MCP Request
           ;;
@@ -159,8 +159,8 @@
                      ;(tu/sleep-millis 10)  ; HANGs this test; commented
                      (is result "Tools list should be obtained")
                      (done!))
-                   cm/on-result->on-response
-                   (cm/async-list-tools client-context))))
+                   cs/on-result->on-response
+                   (cs/async-list-tools client-context))))
           ;;
           ;; Tests over
           ;;

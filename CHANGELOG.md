@@ -19,10 +19,10 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased] - 2026-???-??
 ### Added
-- [WIP] Client: Cache primitives (prompts, resources, tools)
+- Client: Cache primitives (prompts, resources, tools)
   - Kwarg `:cache-primitives?` in `make-client` for primitives caching
   - Functions reading primitives list transparently apply caching
-  - [Todo] Auto-refetch prompts/resources/tools on list-changed
+  - Refetch prompts/resources/tools on list-changed
 - [Todo] Heartbeat mechanism to scope-limit caching
   - [Todo] A defined key to cache every access timestamp
   - [Todo] Fall back to ping (which updates timestamp)

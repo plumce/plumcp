@@ -10,6 +10,7 @@
 (ns plumcp.core.client.client-support
   (:require
    [plumcp.core.api.capability-support :as cs]
+   [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
@@ -18,6 +19,7 @@
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
+   [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
@@ -281,6 +283,631 @@
     (callback jsonrpc-message)))
 
 
+;; --- JSON-RPC Response-handling utility ---
+
+
+;; Print to STDERR
+
+
+(defn on-error-print
+  "Given the :error strucure of an JSON-RPC error response, print the
+   error to STDERR."
+  [client-op-name jsonrpc-error]
+  (-> "[%s] Client operation error:"
+      (format client-op-name)
+      (u/eprintln jsonrpc-error)))
+
+
+(defn on-timeout-print
+  "Print a client-operation timeout error message to STDERR."
+  [client-op-name _]
+  (-> "[%] Client operation timed out"
+      (format client-op-name)
+      u/eprintln))
+
+
+(defn on-unknown-print
+  "Print error message, because unknown response is passed, to STDERR."
+  [client-op-name unknown-response]
+  (-> "[%s] Unknwon response in client operation:"
+      (format client-op-name)
+      (u/eprintln unknown-response)))
+
+
+(defn on-jsonrpc-response-print
+  "Options to use when you want to simply print error."
+  [client-op-name]
+  {:on-error (partial on-error-print client-op-name)
+   :on-timeout (partial on-timeout-print client-op-name)
+   :on-unknown (partial on-unknown-print client-op-name)})
+
+
+;; Throw exception
+
+
+(defn on-error-throw!
+  "Given the :error strucure of an JSON-RPC error response, throw an
+   exception."
+  [client-op-name {:keys [code message data]}]
+  (u/throw! (-> "Client operation % error:"
+                (format client-op-name)
+                (str message))
+            (merge {:error-code code}
+                   data)))
+
+
+(defn on-timeout-throw!
+  "Throw a client-operation timeout exception."
+  [client-op-name _]
+  (u/throw! (-> "Client operation %s timed out"
+                (format client-op-name))))
+
+
+(defn on-unknown-throw!
+  "Throw exception because an unknown response is passed."
+  [client-op-name unknown-response]
+  (-> "[on-jsonrpc-response] Unknwon response in client operation"
+      (str client-op-name)
+      (u/throw! {:unknown-response unknown-response})))
+
+
+(defn on-jsonrpc-response-throw!
+  "Options to use when you want to throw exceptions on error."
+  [client-op-name]
+  {:on-error (partial on-error-throw! client-op-name)
+   :on-timeout (partial on-timeout-throw! client-op-name)
+   :on-unknown (partial on-unknown-throw! client-op-name)})
+
+
+;; On JSON-RPC response
+
+
+(defn on-jsonrpc-response
+  "Process JSON-RPC response to derive the final output.
+   :on-result     - (fn [result])
+   :on-error      - (fn [client-op-name jsonrpc-error])
+   :timeout-value - same value that you pass to `uab/as-async`
+   :on-timeout    - (fn [client-op-name timeout-value])
+   :on-unknown    - (fn [client-op-name unknown-response])"
+  [async-jsonrpc-response
+   client-op-name
+   & ^{:see [on-jsonrpc-response-throw!]}
+   {:keys [on-result
+           ^{:see [on-error-throw!]} on-error
+           ^{:see [uab/as-async]} timeout-value
+           ^{:see [on-timeout-throw!]} on-timeout
+           ^{:see [on-unknown-throw!]} on-unknown]
+    :or {on-result identity
+         on-error (partial on-error-print client-op-name)
+         timeout-value (u/uuid-v4) ; only caller-supplied value matches
+         on-timeout (partial on-timeout-print client-op-name)
+         on-unknown (partial on-unknown-print client-op-name)}}]
+  (uab/let-await [jsonrpc-response async-jsonrpc-response]
+    (condp u/invoke jsonrpc-response
+      jr/jsonrpc-result? (-> jsonrpc-response
+                             jr/jsonrpc-result
+                             on-result)
+      jr/jsonrpc-error? (-> jsonrpc-response
+                            jr/jsonrpc-error
+                            on-error)
+      #(= % timeout-value) (on-timeout jsonrpc-response)
+      (on-unknown jsonrpc-response))))
+
+
+;; --- Client utility functions ---
+
+
+(defn notify-initialized
+  "Notify the MCP server of a successful initialization.
+   See: `initialize-and-notify!`"
+  [client]
+  (let [notification (eg/make-initialized-notification)]
+    (send-notification-to-server client notification)
+    (p/upon-handshake-success (?transport client)
+                              (get-session-context client))
+    ;; run list-change notifier for this connection
+    (when-let [run-list-notifier (?run-list-notifier client)]
+      (let [client-cache-atom (?client-cache client)
+            list-notifier (run-list-notifier)]
+        (?cc-list-notifier client-cache-atom list-notifier)))))
+
+
+;; --- ASYNC client functions ---
+
+
+;; ASYNC result/response utility
+
+
+(defn on-result->on-response
+  "Make a JSON-RPC response handler from given JSON-RPC result handler
+   (and JSON-RPC error handler)."
+  ([on-result on-error-response]
+   (fn jsonrpc-result-callback [jsonrpc-message]
+     (if (jr/jsonrpc-result? jsonrpc-message)
+       (on-result (:result jsonrpc-message))
+       (on-error-response jsonrpc-message))))
+  ([on-result]
+   (on-result->on-response on-result error-logger)))
+
+
+;; ASYNC initilization / de-initialization / handshake
+
+
+(defn async-initialize!
+  "Send initialize request to the MCP server, and setup a session on
+   success. The JSON-RPC response is passed to `on-jsonrpc-response`.
+   See: `initialize-and-notify!`"
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/InitializeResult
+                  sd/JSONRPCError
+                  on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-initialize-request
+                 sd/protocol-version-max
+                 (-> (?capabilities client)
+                     cap/get-client-capability-declaration)
+                 (rt/?client-info client))
+        setter (partial set-session-context! client)]
+    (as-> on-jsonrpc-response $
+      (wrap-session-setting $ setter)
+      (send-request-to-server client request $))))
+
+
+(defn async-initialize-and-notify!
+  "Send initialize request to the MCP server and on success, setup a
+   session and notify the MCP server of a successful initialization
+   after caching the initialize result."
+  [client]
+  (async-initialize! client
+                     (-> (fn [result]
+                           (-> (?client-cache client)
+                               (?cc-initialize-result result))
+                           (notify-initialized client))
+                         on-result->on-response)))
+
+
+;; ASYNC MCP requests expecting result
+
+
+(defn on-tools->on-result
+  "Given a (fn [tools]) return (fn [jsonrpc-result])."
+  [f]
+  (destructure-result f sd/result-key-tools))
+
+
+(defn async-list-tools
+  "Fetch the list of MCP tools supported by the server. The JSON-RPC
+   response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListToolsResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-tools->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-tools-request)]
+    (send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn async-call-tool
+  "Call the MCP tool on the server. Arguments:
+   `tool-name`  is the name of the tool to be called
+   `tool-args` is the map of args for calling the tool
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client tool-name tool-args
+   ^{:see [sd/JSONRPCResponse
+           sd/CallToolResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-call-tool-request tool-name
+                                           tool-args)]
+    (send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn on-resources->on-result
+  "Given a (fn [resources]) return (fn [jsonrpc-result])."
+  [f]
+  (destructure-result f sd/result-key-resources))
+
+
+(defn async-list-resources
+  "Return the list of MCP resources supported by the server. The
+   JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListResourcesResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-resources->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-resources-request)]
+    (send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn on-resource-templates->on-result
+  "Given a (fn [resource-templates]) return (fn [jsonrpc-result])."
+  [f]
+  (destructure-result f sd/result-key-resource-templates))
+
+
+(defn async-list-resource-templates
+  "Return the list of MCP resource templates supported by the server.
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListResourceTemplatesResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-resource-templates->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-resource-templates-request)]
+    (send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn async-read-resource
+  "Read the resource identified by the URI on the server. Arguments:
+   `resource-uri` is the resource URI
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client resource-uri
+   ^{:see [sd/JSONRPCResponse
+           sd/ReadResourceResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-read-resource-request resource-uri)]
+    (send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn on-prompts->on-result
+  "Given a (fn [prompts]) return (fn [jsonrpc-result])."
+  [f]
+  (destructure-result f sd/result-key-prompts))
+
+
+(defn async-list-prompts
+  "List the MCP prompts supported by the server. The JSON-RPC response
+   is passed to `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/ListPromptsResult
+                  sd/JSONRPCError
+                  on-result->on-response
+                  on-prompts->on-result]} on-jsonrpc-response]
+  (let [request (eg/make-list-prompts-request)]
+    (send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn async-get-prompt
+  "Get the MCP prompt identified by name on the server. Arguments:
+   `prompt-or-template-name` is prompt or template name
+   `prompt-args` is the map of prompt/template args
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client prompt-or-template-name prompt-args
+   ^{:see [sd/JSONRPCResponse
+           sd/GetPromptResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-get-prompt-request prompt-or-template-name
+                                            {:args prompt-args})]
+    (send-request-to-server client request on-jsonrpc-response)))
+
+
+(defn async-complete
+  "Send a completion request to the server. Arguments:
+   `complete-request` is the completion request
+   `on-success-result` is called with success result
+   `on-error-response` is called with error response
+   The JSON-RPC response is passed to `on-jsonrpc-response`."
+  [client ^{:see [eg/make-complete-request]} complete-request
+   ^{:see [sd/JSONRPCResponse
+           sd/CompleteResult
+           sd/JSONRPCError
+           on-result->on-response]} on-jsonrpc-response]
+  (send-request-to-server client complete-request
+                             on-jsonrpc-response))
+
+
+(defn async-ping
+  "Send a ping request to the server. The JSON-RPC response is passed to
+   `on-jsonrpc-response`."
+  [client ^{:see [sd/JSONRPCResponse
+                  sd/JSONRPCError
+                  on-result->on-response]} on-jsonrpc-response]
+  (let [request (eg/make-ping-request)]
+    (send-request-to-server client request on-jsonrpc-response)))
+
+
+;; --- Synchronous client functions ---
+
+
+;; Utilities
+
+
+(defn get-from-cache
+  [client getter]
+  (-> (?client-cache client)
+      getter))
+
+
+(defn set-into-cache
+  [payload client setter]
+  (when (-> client
+            ?cache-primitives?)  ; is caching primitives allowed?
+    (-> (?client-cache client)
+        (setter payload))))
+
+
+;; Operations
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/InitializeResult
+              sd/JSONRPCError
+              async-initialize!
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-initialize!
+  "Send initialize request to the MCP server and setup a session
+   returning initialize result (value in CLJ, js/Promise in CLJS) on
+   success, nil on error (printed to STDERR). Initialize result is
+   cached is caching is enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client & ^{:see [uab/as-async
+                    on-jsonrpc-response]} {:as options}]
+  (-> (uab/as-async
+        [return]
+        options
+        (async-initialize! client
+                           return))
+      (on-jsonrpc-response "initialize"
+                           (-> options
+                               (dissoc :on-result)))))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListPromptsResult
+              sd/JSONRPCError
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-list-prompts
+  "Fetch (from server) and return the list of MCP prompts (value in CLJ,
+   js/Promise in CLJS) supported by the server on success, nil on error
+   (printed to STDERR). On success, prompts list is cached if caching is
+   enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client & ^{:see [uab/as-async
+                    on-jsonrpc-response]} {:as options}]
+  (let [cache-it! (fn [prompts]
+                    (->> ?cc-prompts-list
+                         (set-into-cache prompts client)))
+        on-result (fn [result]
+                    (-> result
+                        sd/result-key-prompts
+                        (doto cache-it!)))]
+    (-> (uab/as-async
+          [return]
+          options
+          (async-list-prompts client
+                              return))
+        (on-jsonrpc-response "list-prompts"
+                             (-> options
+                                 (assoc :on-result on-result))))))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListResourcesResult
+              sd/JSONRPCError
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-list-resources
+  "Fetch (from server) and return the list of MCP resources (value in
+   CLJ, js/Promise in CLJS) supported by the server on success, nil on
+   error (printed to STDERR). On success, resources list is cached if
+   caching is enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client & ^{:see [uab/as-async
+                    on-jsonrpc-response]} {:as options}]
+  (let [cache-it! (fn [resources]
+                    (->> ?cc-resources-list
+                         (set-into-cache resources client)))
+        on-result (fn [result]
+                    (-> result
+                        sd/result-key-resources
+                        (doto cache-it!)))]
+    (-> (uab/as-async
+          [return]
+          options
+          (async-list-resources client
+                                return))
+        (on-jsonrpc-response "list-resources"
+                             (-> options
+                                 (assoc :on-result on-result))))))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListResourceTemplatesResult
+              sd/JSONRPCError
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-list-resource-templates
+  "Fetch (from server) and return the list of MCP resource templates
+   (value in CLJ, js/Promise in CLJS) supported by the server on success,
+   nil on error (printed to STDERR). On success, resource templates list
+   is cached if caching is enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client & ^{:see [uab/as-async
+                    on-jsonrpc-response]} {:as options}]
+  (let [cache-it! (fn [templates]
+                    (->> ?cc-resource-templates-list
+                         (set-into-cache templates client)))
+        on-result (fn [result]
+                    (-> result
+                        sd/result-key-resource-templates
+                        (doto cache-it!)))]
+    (-> (uab/as-async
+          [return]
+          options
+          (async-list-resource-templates client
+                                         return))
+        (on-jsonrpc-response "list-resource-templates"
+                             (-> options
+                                 (assoc :on-result on-result))))))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListToolsResult
+              sd/JSONRPCError
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-list-tools
+  "Fetch (from server) and return the list of MCP tools (value in CLJ,
+   js/Promise in CLJS) supported by the server on success, nil on error
+   (printed to STDERR). On success, tools list is cached if caching is
+   enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client
+   & ^{:see [uab/as-async
+             on-jsonrpc-response]} {:as options}]
+  (let [cache-it! (fn [tools]
+                    (->> ?cc-tools-list
+                         (set-into-cache tools client)))
+        on-result (fn [result]
+                    (-> result
+                        sd/result-key-tools
+                        (doto cache-it!)))]
+    (-> (uab/as-async
+          [return]
+          options
+          (async-list-tools client
+                            return))
+        (on-jsonrpc-response "list-tools"
+                             (-> options
+                                 (assoc :on-result on-result))))))
+
+
+;; --- Notification Handling ---
+
+
+;; Helper fns
+
+
+(defn jsonrpc-message-with-deps->client
+  "Given a jsonrpc-message with dependencies, extractreturn the client."
+  [jsonrpc-message-with-deps]
+  (-> (?client-cache jsonrpc-message-with-deps)
+      ?cc-client-context))
+
+
+(defn fetch-prompts
+  "Given a JSON-RPC message with dependencies fetch and return a list of
+   prompts (value in CLJ, js/Promise in CLJS). Useful to fetch prompts
+   on list-changed notification."
+  [jsonrpc-message-with-deps & {:keys [on-prompts]
+                                :or {on-prompts identity}
+                                :as options}]
+  (uab/let-await [prompts (-> jsonrpc-message-with-deps
+                              jsonrpc-message-with-deps->client
+                              (caching-list-prompts options))]
+    (on-prompts prompts)))
+
+
+(defn fetch-resources
+  "Given a JSON-RPC message with dependencies fetch and return a vector
+   of [resources resource-templates] (value in CLJ, js/Promise in CLJS).
+   Useful to fetch resources and resource-templates on list-changed
+   notification."
+  [jsonrpc-message-with-deps & {:keys [on-resources
+                                       on-resource-templates]
+                                :or {on-resources identity
+                                     on-resource-templates identity}
+                                :as options}]
+  (let [client (-> jsonrpc-message-with-deps
+                   jsonrpc-message-with-deps->client)]
+    (uab/let-await [resources (caching-list-resources client options)
+                    templates (caching-list-resource-templates client
+                                                               options)]
+      [(on-resources resources)
+       (on-resource-templates templates)])))
+
+
+(defn fetch-tools
+  "Given a JSON-RPC message with dependencies fetch and return a list of
+   tools (value in CLJ, js/Promise in CLJS). Useful to fetch tools on
+   list-changed notification."
+  [jsonrpc-message-with-deps & {:keys [on-tools]
+                                :or {on-tools identity}
+                                :as options}]
+  (uab/let-await [tools (-> jsonrpc-message-with-deps
+                            jsonrpc-message-with-deps->client
+                            (caching-list-tools options))]
+    (on-tools tools)))
+
+
+;; Notification handler map
+
+(def client-notification-handlers
+  {sd/method-notifications-prompts-list_changed fetch-prompts
+   sd/method-notifications-resources-list_changed fetch-resources
+   sd/method-notifications-tools-list_changed fetch-tools})
+
+
+;; --- Notification handler keys ---
+
+
+;; Common for both client and server
+
+
+(def ^{:see [sd/CancelledNotification]} on-cancelled
+  "Key for `cancelled` notification handler fn: (fn [params])"
+  sd/method-notifications-cancelled)
+
+
+(def ^{:see [sd/ProgressNotification]} on-progress
+  "Key for `progress` notification handler fn: (fn [params])"
+  sd/method-notifications-progress)
+
+
+;; Client only
+
+
+(def ^{:see [sd/LoggingMessageNotification]} on-log-message
+  "Key for `message` notification handler fn: (fn [params])"
+  sd/method-notifications-message)
+
+
+(def ^{:see [sd/PromptListChangedNotification
+             sd/ListPromptsResult
+             fetch-prompts]} on-prompts-list-changed
+  "Key for `prompts/list_changed` notification handler fn:
+   (fn [prompts])"
+  sd/method-notifications-prompts-list_changed)
+
+
+(def ^{:see [sd/ResourceListChangedNotification
+             sd/ListResourcesResult
+             sd/ListResourceTemplatesResult
+             fetch-resources]} on-resources-list-changed
+  "Key for `resources/list_changed` notification handler fn:
+   (fn [resources resource-templates])"
+  sd/method-notifications-resources-list_changed)
+
+
+(def ^{:see [sd/ResourceUpdatedNotification]} on-resource-updated
+  "Key for `resources/updated` notification handler fn: (fn [params])"
+  sd/method-notifications-resources-updated)
+
+
+(def ^{:see [sd/ToolListChangedNotification
+             sd/ListToolsResult
+             fetch-tools]} on-tools-list-changed
+  "Key for `tools/list_changed` notification handler fn: (fn [tools])"
+  sd/method-notifications-tools-list_changed)
+
+
+;; --- Client options making ---
+
+
 (defn make-client-jsonrpc-message-handler
   "Create a function `(fn [jsonrpc-message])->jsonrpc-return-value` to
    accept and handle JSON-RPC messages (request/notification/response)
@@ -358,6 +985,7 @@
                                   (rt/?client-capabilities (get-capabilities))
                                   (rt/?traffic-logger traffic-logger)
                                   (rt/?notification-handlers merge
+                                                             client-notification-handlers
                                                              notification-handlers)
                                   (rt/get-runtime)))
                           (merge override)))
