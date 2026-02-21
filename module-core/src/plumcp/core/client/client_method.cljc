@@ -374,13 +374,14 @@
               sd/JSONRPCError
               async-initialize!
               on-jsonrpc-response
-              on-jsonrpc-response-throw!]} initialize!
+              on-jsonrpc-response-throw!]} caching-initialize!
   "Send initialize request to the MCP server and setup a session
    returning initialize result (value in CLJ, js/Promise in CLJS) on
-   success, nil on error (printed to STDERR).
+   success, nil on error (printed to STDERR). Initialize result is
+   cached is caching is enabled.
    Options:
-   - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
    - kwarg `:on-result` is ignored"
   [client & ^{:see [uab/as-async
                     on-jsonrpc-response]} {:as options}]
@@ -392,3 +393,132 @@
       (on-jsonrpc-response "initialize"
                            (-> options
                                (dissoc :on-result)))))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListPromptsResult
+              sd/JSONRPCError
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-list-prompts
+  "Fetch (from server) and return the list of MCP prompts (value in CLJ,
+   js/Promise in CLJS) supported by the server on success, nil on error
+   (printed to STDERR). On success, prompts list is cached if caching is
+   enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client & ^{:see [uab/as-async
+                    on-jsonrpc-response]} {:as options}]
+  (let [cache-it! (fn [prompts]
+                    (->> cs/?cc-prompts-list
+                         (set-into-cache prompts client)))
+        on-result (fn [result]
+                    (-> result
+                        sd/result-key-prompts
+                        (doto cache-it!)))]
+    (-> (uab/as-async
+          [return]
+          options
+          (async-list-prompts client
+                              return))
+        (on-jsonrpc-response "list-prompts"
+                             (-> options
+                                 (assoc :on-result on-result))))))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListResourcesResult
+              sd/JSONRPCError
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-list-resources
+  "Fetch (from server) and return the list of MCP resources (value in
+   CLJ, js/Promise in CLJS) supported by the server on success, nil on
+   error (printed to STDERR). On success, resources list is cached if
+   caching is enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client & ^{:see [uab/as-async
+                    on-jsonrpc-response]} {:as options}]
+  (let [cache-it! (fn [resources]
+                    (->> cs/?cc-resources-list
+                         (set-into-cache resources client)))
+        on-result (fn [result]
+                    (-> result
+                        sd/result-key-resources
+                        (doto cache-it!)))]
+    (-> (uab/as-async
+          [return]
+          options
+          (async-list-resources client
+                                return))
+        (on-jsonrpc-response "list-resources"
+                             (-> options
+                                 (assoc :on-result on-result))))))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListResourceTemplatesResult
+              sd/JSONRPCError
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-list-resource-templates
+  "Fetch (from server) and return the list of MCP resource templates
+   (value in CLJ, js/Promise in CLJS) supported by the server on success,
+   nil on error (printed to STDERR). On success, resource templates list
+   is cached if caching is enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client & ^{:see [uab/as-async
+                    on-jsonrpc-response]} {:as options}]
+  (let [cache-it! (fn [templates]
+                    (->> cs/?cc-resource-templates-list
+                         (set-into-cache templates client)))
+        on-result (fn [result]
+                    (-> result
+                        sd/result-key-resource-templates
+                        (doto cache-it!)))]
+    (-> (uab/as-async
+          [return]
+          options
+          (async-list-resource-templates client
+                                         return))
+        (on-jsonrpc-response "list-resource-templates"
+                             (-> options
+                                 (assoc :on-result on-result))))))
+
+
+(defn ^{:see [sd/JSONRPCResponse
+              sd/ListToolsResult
+              sd/JSONRPCError
+              on-jsonrpc-response
+              on-jsonrpc-response-throw!]} caching-list-tools
+  "Fetch (from server) and return the list of MCP tools (value in CLJ,
+   js/Promise in CLJS) supported by the server on success, nil on error
+   (printed to STDERR). On success, tools list is cached if caching is
+   enabled.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`
+   - kwarg `:on-result` is ignored"
+  [client
+   & ^{:see [uab/as-async
+             on-jsonrpc-response]} {:as options}]
+  (let [cache-it! (fn [tools]
+                    (->> cs/?cc-tools-list
+                         (set-into-cache tools client)))
+        on-result (fn [result]
+                    (-> result
+                        sd/result-key-tools
+                        (doto cache-it!)))]
+    (-> (uab/as-async
+          [return]
+          options
+          (async-list-tools client
+                            return))
+        (on-jsonrpc-response "list-tools"
+                             (-> options
+                                 (assoc :on-result on-result))))))

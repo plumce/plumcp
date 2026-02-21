@@ -152,7 +152,7 @@
    - kwarg `:on-result` is ignored"
   [client & ^{:see [uab/as-async
                     cm/on-jsonrpc-response]} {:as options}]
-  (uab/let-await [init-result (cm/initialize! client options)]
+  (uab/let-await [init-result (cm/caching-initialize! client options)]
     (when init-result
       (-> (cs/?client-cache client)
           (cs/?cc-initialize-result init-result))
@@ -186,32 +186,19 @@
               sd/JSONRPCError
               cm/on-jsonrpc-response
               cm/on-jsonrpc-response-throw!]} list-prompts
-  "Return the list of MCP prompts (value in CLJ, js/Promise in CLJS)
-   supported by the server on success, nil on error (printed to
-   STDERR). Caching is applied only if enabled.
+  "Return (from cache if available, else fetch from server) the list of
+   MCP prompts (value in CLJ, js/Promise in CLJS) supported by the
+   server on success, nil on error (printed to STDERR). Caching is
+   applied only if enabled.
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
+   - see plumcp.core.client.client-method/on-jsonrpc-response
    - kwarg `:on-result` is ignored"
   [client & ^{:see [uab/as-async
                     cm/on-jsonrpc-response]} {:as options}]
   (if-let [prompts (cm/get-from-cache client cs/?cc-prompts-list)]
     (uab/async-val prompts)
-    (let [cache-it! (fn [prompts]
-                      (->> cs/?cc-prompts-list
-                           (cm/set-into-cache prompts client)))
-          on-result (fn [result]
-                      (-> result
-                          sd/result-key-prompts
-                          (doto cache-it!)))]
-      (-> (uab/as-async
-            [return]
-            options
-            (cm/async-list-prompts client
-                                   return))
-          (cm/on-jsonrpc-response "list-prompts"
-                                  (-> options
-                                      (assoc :on-result on-result)))))))
+    (cm/caching-list-prompts client options)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -245,32 +232,19 @@
               sd/JSONRPCError
               cm/on-jsonrpc-response
               cm/on-jsonrpc-response-throw!]} list-resources
-  "Return the list of MCP resources (value in CLJ, js/Promise in CLJS)
-   supported by the server on success, nil on error (printed to
-   STDERR). Caching is applied only if enabled.
+  "Return (from cache if available, else fetch from server) the list of
+   MCP resources (value in CLJ, js/Promise in CLJS) supported by the
+   server on success, nil on error (printed to STDERR). Caching is
+   applied only if enabled.
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
+   - see plumcp.core.client.client-method/on-jsonrpc-response
    - kwarg `:on-result` is ignored"
   [client & ^{:see [uab/as-async
                     cm/on-jsonrpc-response]} {:as options}]
   (if-let [resources (cm/get-from-cache client cs/?cc-resources-list)]
     (uab/async-val resources)
-    (let [cache-it! (fn [resources]
-                      (->> cs/?cc-resources-list
-                           (cm/set-into-cache resources client)))
-          on-result (fn [result]
-                      (-> result
-                          sd/result-key-resources
-                          (doto cache-it!)))]
-     (-> (uab/as-async
-           [return]
-           options
-           (cm/async-list-resources client
-                                    return))
-         (cm/on-jsonrpc-response "list-resources"
-                                 (-> options
-                                     (assoc :on-result on-result)))))))
+    (cm/caching-list-resources client options)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -278,33 +252,20 @@
               sd/JSONRPCError
               cm/on-jsonrpc-response
               cm/on-jsonrpc-response-throw!]} list-resource-templates
-  "Return the list of MCP resource templates (value in CLJ, js/Promise
-   in CLJS) supported by the server on success, nil on error (printed to
-   STDERR). Caching is applied only if enabled.
+  "Return (from cache if available, else fetch from server) the list of
+   MCP resource templates (value in CLJ, js/Promise in CLJS) supported
+   by the server on success, nil on error (printed to STDERR). Caching
+   is applied only if enabled.
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
+   - see plumcp.core.client.client-method/on-jsonrpc-response
    - kwarg `:on-result` is ignored"
   [client & ^{:see [uab/as-async
                     cm/on-jsonrpc-response]} {:as options}]
   (if-let [templates (cm/get-from-cache client
                                         cs/?cc-resource-templates-list)]
     (uab/async-val templates)
-    (let [cache-it! (fn [templates]
-                      (->> cs/?cc-resource-templates-list
-                           (cm/set-into-cache templates client)))
-          on-result (fn [result]
-                      (-> result
-                          sd/result-key-resource-templates
-                          (doto cache-it!)))]
-      (-> (uab/as-async
-            [return]
-            options
-            (cm/async-list-resource-templates client
-                                              return))
-          (cm/on-jsonrpc-response "list-resource-templates"
-                                  (-> options
-                                      (assoc :on-result on-result)))))))
+    (cm/caching-list-resource-templates client options)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -340,33 +301,20 @@
               sd/JSONRPCError
               cm/on-jsonrpc-response
               cm/on-jsonrpc-response-throw!]} list-tools
-  "Return the list of MCP tools (value in CLJ, js/Promise in CLJS)
-   supported by the server on success, nil on error (printed to
-   STDERR). Caching is applied only if enabled.
+  "Return (from cache if available, else fetch from server) the list of
+   MCP tools (value in CLJ, js/Promise in CLJS) supported by the server
+   on success, nil on error (printed to STDERR). Caching is applied only
+   if enabled.
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
+   - see plumcp.core.client.client-method/on-jsonrpc-response
    - kwarg `:on-result` is ignored"
   [client
    & ^{:see [uab/as-async
              cm/on-jsonrpc-response]} {:as options}]
   (if-let [tools (cm/get-from-cache client cs/?cc-tools-list)]
     (uab/async-val tools)
-    (let [cache-it! (fn [tools]
-                      (->> cs/?cc-tools-list
-                           (cm/set-into-cache tools client)))
-          on-result (fn [result]
-                      (-> result
-                          sd/result-key-tools
-                          (doto cache-it!)))]
-      (-> (uab/as-async
-            [return]
-            options
-            (cm/async-list-tools client
-                                 return))
-          (cm/on-jsonrpc-response "list-tools"
-                                  (-> options
-                                      (assoc :on-result on-result)))))))
+    (cm/caching-list-tools client options)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -564,7 +512,7 @@
                                 :as options}]
   (uab/let-await [prompts (-> jsonrpc-message-with-deps
                               jsonrpc-message-with-deps->client
-                              (list-prompts options))]
+                              (cm/caching-list-prompts options))]
     (on-prompts prompts)))
 
 
@@ -580,8 +528,9 @@
                                 :as options}]
   (let [client (-> jsonrpc-message-with-deps
                    jsonrpc-message-with-deps->client)]
-    (uab/let-await [resources (list-resources client options)
-                    templates (list-resource-templates client options)]
+    (uab/let-await [resources (cm/caching-list-resources client options)
+                    templates (cm/caching-list-resource-templates client
+                                                                  options)]
       [(on-resources resources)
        (on-resource-templates templates)])))
 
@@ -595,7 +544,7 @@
                                 :as options}]
   (uab/let-await [tools (-> jsonrpc-message-with-deps
                             jsonrpc-message-with-deps->client
-                            (list-tools options))]
+                            (cm/caching-list-tools options))]
     (on-tools tools)))
 
 
