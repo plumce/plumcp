@@ -44,9 +44,8 @@
 
 
 (defn report-error
-  "Report the error encountered durin testing."
+  "Report the error encountered during testing."
   ([on-done err]
-   (u/dprint "Arity-2" {:on-done on-done :err err})
    (let [v *current-test-var*]
      (if v
        (do
