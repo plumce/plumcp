@@ -128,6 +128,20 @@
                           (next#)))))
 
 
+(defmacro async-do
+  "Given a body of code containing several S-exprs, evaluate each S-expr
+   with `may-await`, weaving all S-exprs into a `let` chain in CLJ, or
+   js/Promise chain in CLJS.
+   This is useful for running several `(testing ...)` exprs in one test.
+   WARNING:
+   In CLJS too many S-exprs may cause 'Out of heap space' memory error."
+  [& forms]
+  (let [bindings (interleave (repeat '_)
+                             forms)]
+    `(uab/may-await [~@bindings]
+       nil)))
+
+
 #?(:cljs (do
            (tun/replace-reporter)  ; required for next steps
            ;; Enable only one of the following

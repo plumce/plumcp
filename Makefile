@@ -52,8 +52,6 @@ cljs-test:
 	@# Help: Run CLJS tests
 	NODE_OPTIONS=--enable-source-maps clj -M:cljs-test \
 	  -c test-compiler.edn
-	  #--compile-opts '{:source-map true :source-map-detail-level :all :pretty-print true :optimizations :none}' \
-	  #-V
 
 lint:
 	@# Help: Run linter
