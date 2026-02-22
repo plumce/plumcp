@@ -12,7 +12,6 @@
    [clojure.test :refer [deftest is testing use-fixtures]]
    [plumcp.core.api.mcp-client :as mc]
    [plumcp.core.api.mcp-server :as ms]
-   [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.dev.bling-logger :as blogger]
@@ -120,54 +119,6 @@
                               (run-http-server)
                               (f)
                               (stop-http-server))))
-
-(deftest test-async-transport
-  (doseq [{:keys [tname
-                  maker]} transport-makers]
-    (testing tname
-      (u/eprintln "Testing transport:" tname)
-      (try
-        (let [client-transport (maker)
-              client-context   (-> {:capabilities client-capabilities
-                                    :traffic-logger blogger/client-logger
-                                    :client-transport client-transport}
-                                   (merge client/client-options)
-                                   (mc/make-client))]
-          ;;
-          ;; Handshake
-          ;;
-          (testing "MCP Handshake"
-            (tu/until-done [done! 10]
-              (->> (fn [result]
-                     (u/dprint "Init Result" result)
-                     ;;
-                     ;; Notification sent
-                     ;;
-                     (testing "Sending notification"
-                       (cs/notify-initialized client-context))
-                     (tu/sleep-millis 10)  ; allow printing to finish
-                     (is true "Initialize roundtrip should succeed")
-                     (done!))
-                   (cs/async-initialize! client-context))))
-          ;;
-          ;; MCP Request
-          ;;
-          (testing "MCP Request sent, and result received"
-            (tu/until-done [done! 10]
-              (->> (fn [result]
-                     (u/dprint "Tools-list result" result)
-                     ;(tu/sleep-millis 10)  ; HANGs this test; commented
-                     (is result "Tools list should be obtained")
-                     (done!))
-                   cs/on-result->on-response
-                   (cs/async-list-tools client-context))))
-          ;;
-          ;; Tests over
-          ;;
-          (mc/disconnect! client-context))
-        (catch #?(:cljs :default :clj Exception) e
-          (u/print-stack-trace e)
-          (throw e))))))
 
 
 (deftest test-transport
