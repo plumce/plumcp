@@ -12,7 +12,7 @@
   (:require
    [clojure.test :as t :include-macros true]
    [plumcp.core.test.test-constant :as tc]
-   [plumcp.core.util :as u]))
+   [plumcp.core.util :as u :refer [format]]))
 
 
 (def ^:dynamic *current-test-var* nil)  ; updated as and when test runs
@@ -32,12 +32,12 @@
               (let [test-var (:var m)]
                 (when tc/verbose?
                   (let [meta (meta test-var)]
-                    (println "Running Test:"
-                             (:name meta)
-                             "at"
-                             (:file meta)
-                             ":"
-                             (:line meta))))
+                    (u/eprintln "Running Test:"
+                                (:name meta)
+                                "at"
+                                (:file meta)
+                                ":"
+                                (:line meta))))
                 (set! *current-test-var* test-var)))
             ;; Forward event to original reporter
             (orig-report m)))))
@@ -50,7 +50,9 @@
      (if v
        (do
          ;; Print stack trace immediately
-         (println "FAIL in" (:name (meta v)) "stack:\n" (.-stack err))
+         (-> "FAIL in %s\nError-mesg: %s\nError-data: %s\n%s"
+             (format (:name (meta v)) (ex-message err) (ex-data err) (.-stack err))
+             u/eprintln)
          ;; Report to cljs.test as an error
          (t/report {:type :error
                     :var v

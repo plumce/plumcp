@@ -43,5 +43,6 @@
                           (rt/?session-id session-id)
                           handler-fn ; may return nil
                           (some-> on-message))
-                      (u/throw! "ZERO Transport not initialized yet")))
+                      (u/throw! "ZERO Transport not initialized yet"
+                                {:message message})))
       (upon-handshake-success [_ _] nil))))
