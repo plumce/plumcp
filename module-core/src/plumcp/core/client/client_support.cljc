@@ -903,6 +903,8 @@
 
 
 (defn update-client-request-progress
+  "Update progress of pending client request based on the received
+   ProgressNotification."
   [^{:see [sd/ProgressNotification]} jsonrpc-message-with-deps]
   (let [client-cache-atom (-> jsonrpc-message-with-deps
                               jsonrpc-message-with-deps->client
@@ -922,14 +924,31 @@
                                    assoc :progress progress))))
 
 
+(defn log-message
+  "Log server-sent message."
+  [^{:see [sd/LoggingMessageNotification]} jsonrpc-message-with-deps]
+  (let [{:keys [level logger data]} jsonrpc-message-with-deps
+        message (if (string? data) data (u/pprint-str data))]
+    (if (some? logger)
+      (-> "[%s] %s"
+          (format level message)
+          u/eprintln)
+      (-> "[%s][%s] %s"
+          (format level logger message)
+          u/eprintln))))
+
+
 ;; Notification handler map
 
 
 (def client-notification-handlers
-  {;; received by both client and server
+  {;; -- received by both client and server --
    sd/method-notifications-cancelled cancel-server-request
    sd/method-notifications-progress update-client-request-progress
-   ;; received by client
+   ;; -- received by client --
+   sd/method-notifications-message log-message
+   sd/method-notifications-resources-updated u/nop  ; ignore
+   ;; list-changed
    sd/method-notifications-prompts-list_changed fetch-prompts
    sd/method-notifications-resources-list_changed fetch-resources
    sd/method-notifications-tools-list_changed fetch-tools})

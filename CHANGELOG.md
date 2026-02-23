@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file. This change
   - Cancellation: Cancel server request (to client)
   - Progress update: Update progress of pending client request
     - Function `p.c.a.mcp-client/get-request-progress` to read progress
+  - Logging message: Log the server-sent message
   - List changed (prompts, resources, tools): Re-fetch by default
 - Client: Cache primitives (prompts, resources, tools)
   - Kwarg `:cache-primitives?` in `make-client` for primitives caching
