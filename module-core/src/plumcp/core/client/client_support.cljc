@@ -890,10 +890,26 @@
     (on-tools tools)))
 
 
+(defn cancel-server-request
+  "Cancel server request (to client) based on a CanelledNotification
+   received from server."
+  [^{:see [sd/CancelledNotification]} jsonrpc-message-with-deps]
+  (let [client-cache-atom (-> jsonrpc-message-with-deps
+                              jsonrpc-message-with-deps->client
+                              ?client-cache)
+        id (get-in jsonrpc-message-with-deps [:params :requestId])]
+    (?cc-pending-server-requests client-cache-atom
+                                 dissoc id)))
+
+
 ;; Notification handler map
 
+
 (def client-notification-handlers
-  {sd/method-notifications-prompts-list_changed fetch-prompts
+  {;; received by both client and server
+   sd/method-notifications-cancelled cancel-server-request
+   ;; received by client
+   sd/method-notifications-prompts-list_changed fetch-prompts
    sd/method-notifications-resources-list_changed fetch-resources
    sd/method-notifications-tools-list_changed fetch-tools})
 

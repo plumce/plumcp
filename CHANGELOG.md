@@ -19,10 +19,13 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Unreleased] - 2026-???-??
 ### Added
+- Client: Notification handling
+  - Cancellation: Cancel server request (to client)
+  - [Todo] Progress update
+  - List changed (prompts, resources, tools): Re-fetch by default
 - Client: Cache primitives (prompts, resources, tools)
   - Kwarg `:cache-primitives?` in `make-client` for primitives caching
   - Functions reading primitives list transparently apply caching
-  - Refetch prompts/resources/tools on list-changed
 - Client: Heartbeat mechanism to keep connection alive
 - [Todo] Server: Caching layer for roots
   - [Todo] List-changed listening support for roots
