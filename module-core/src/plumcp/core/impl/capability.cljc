@@ -108,6 +108,7 @@
    - (fn notification-sender [])->nil
    and options:
    - :idle-mills
+   - :condition-fn -- (fn condition-fn [])->boolean  -- continue loop?
    - :notification-options
    start a non-stop 'detect and send list-changed notifications' loop
    using the `notification-sender` fn, observing an idle period between
@@ -117,8 +118,10 @@
   [listed-capability-map
    notification-sender
    & {:keys [^long idle-millis
+             condition-fn
              notification-options]
       :or {idle-millis 100
+           condition-fn (constantly true)
            notification-options {}}}]
   (let [meth-names (keys listed-capability-map)
         fetch-caps (fn []
@@ -130,7 +133,8 @@
         loop? (volatile! true)
         cache (atom (fetch-caps))
         check (fn thisfn []
-                (when (deref loop?)
+                (when (and (deref loop?)
+                           (condition-fn))
                   (let [cache-caps (deref cache)
                         fresh-caps (fetch-caps)]
                     (if (= fresh-caps cache-caps)

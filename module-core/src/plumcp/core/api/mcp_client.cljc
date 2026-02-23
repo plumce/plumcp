@@ -436,7 +436,11 @@
                                    (cs/send-notification-to-server
                                     client
                                     notification))
-                                 list-notifier-options)))
+                                 (-> list-notifier-options
+                                     (assoc :condition-fn
+                                            #(-> client
+                                                 get-initialize-result
+                                                 some?))))))
           run-heartbeat-chk (when (and (int? heartbeat-seconds)
                                        (pos? heartbeat-seconds))
                               (fn [client]
