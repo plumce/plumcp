@@ -18,6 +18,7 @@
            [clojure.edn :as edn]
            [clojure.string :as str]
            [clojure.test :as t]
+           [plumcp.core.test.test-util-java :as tuj]
            [plumcp.core.util :as u]
            [plumcp.core.util-java :as uj]
            [plumcp.core.util.async-bridge :as uab]))
@@ -146,4 +147,9 @@
            (tun/replace-reporter)  ; required for next steps
            ;; Enable only one of the following
            (tun/catch-and-stop!)
-           #_(tun/catch-and-continue!)))
+           #_(tun/catch-and-continue!))
+   :clj (do
+          (tuj/replace-reporter)  ; required for next steps
+          ;; Enable only one of the following
+          (tuj/catch-and-stop!)
+          #_(tuj/catch-and-continue!)))
