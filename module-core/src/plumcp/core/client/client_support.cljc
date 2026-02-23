@@ -37,6 +37,7 @@
 (kl/defkey ?on-message {})
 (kl/defkey ?client-cache {})  ; English word meaning, is (atom <map>)
 (kl/defkey ?run-list-notifier {:default nil})
+(kl/defkey ?run-heartbeat-chk {:default nil})
 (kl/defkey ?cache-primitives? {:default true})
 
 
@@ -71,7 +72,8 @@
 (defcckey ?cc-tools-list {:default nil})
 (defcckey ?cc-pending-client-requests {:default {}}) ; {<req-id> {:ts <ms> :callback <fn>}}
 (defcckey ?cc-pending-server-requests {:default {}}) ; {<req-id> {:ts <ms>}}
-(defcckey ?cc-list-notifier {:default nil})
+(defcckey ?cc-listnotif-worker {:default nil})
+(defcckey ?cc-heartbeat-worker {:default nil})
 
 
 (defn make-client-cache-atom
@@ -81,6 +83,31 @@
     (?cc-pending-server-requests {})
     (?cc-session-context {})
     (?cc-client-context nil)))
+
+
+;; ----- Heartbeat running -----
+
+
+(defn run-heartbeat
+  "Run a heartbeat system between client and server to keep connection
+   alive until disconnected. Sends a ping to the server in a loop."
+  [client ping ^long seconds condition-fn]
+  (let [millis (* 1000 seconds)
+        loop? (volatile! true)
+        check (fn thisfn []
+                (when (and (deref loop?)
+                           (condition-fn))
+                  (uab/let-await [_ (ping client)]
+                    #?(:cljs (js/setTimeout thisfn
+                                            millis)
+                       :clj (do
+                              (Thread/sleep millis)
+                              (recur))))))]
+    (u/background
+      {:delay-millis millis}
+      (check))
+    (reify p/IStoppable
+      (stop! [_] (vreset! loop? false)))))
 
 
 ;; ----- Client operations -----
@@ -397,6 +424,13 @@
 ;; --- Client utility functions ---
 
 
+(defn ^{:see [sd/InitializeResult]} set-initialize-result!
+  "Set the initialization result from the server."
+  [client init-result]
+  (-> (?client-cache client)
+      (?cc-initialize-result init-result)))
+
+
 (defn notify-initialized
   "Notify the MCP server of a successful initialization.
    See: `initialize-and-notify!`"
@@ -405,11 +439,15 @@
     (send-notification-to-server client notification)
     (p/upon-handshake-success (?transport client)
                               (get-session-context client))
-    ;; run list-change notifier for this connection
-    (when-let [run-list-notifier (?run-list-notifier client)]
-      (let [client-cache-atom (?client-cache client)
-            list-notifier (run-list-notifier)]
-        (?cc-list-notifier client-cache-atom list-notifier)))))
+    (let [client-cache-atom (?client-cache client)]
+      ;; run list-change notifier for this connection
+      (when-let [run-list-notifier (?run-list-notifier client)]
+        (->> (run-list-notifier client)
+             (?cc-listnotif-worker client-cache-atom)))
+      ;; run heartbeat check for this connection
+      (when-let [run-heartbeat-chk (?run-heartbeat-chk client)]
+        (->> (run-heartbeat-chk client)
+             (?cc-heartbeat-worker client-cache-atom))))))
 
 
 ;; --- ASYNC client functions ---
@@ -459,8 +497,7 @@
   [client]
   (async-initialize! client
                      (-> (fn [result]
-                           (-> (?client-cache client)
-                               (?cc-initialize-result result))
+                           (set-initialize-result! client result)
                            (notify-initialized client))
                          on-result->on-response)))
 

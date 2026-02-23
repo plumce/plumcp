@@ -23,10 +23,7 @@ All notable changes to this project will be documented in this file. This change
   - Kwarg `:cache-primitives?` in `make-client` for primitives caching
   - Functions reading primitives list transparently apply caching
   - Refetch prompts/resources/tools on list-changed
-- [Todo] Heartbeat mechanism to scope-limit caching
-  - [Todo] A defined key to cache every access timestamp
-  - [Todo] Fall back to ping (which updates timestamp)
-  - [Todo] Fn `healthy?` or `alive?` to report/detect
+- Client: Heartbeat mechanism to keep connection alive
 - [Todo] Server: Caching layer for roots
   - [Todo] List-changed listening support for roots
   - [Todo] Cache roots in the session

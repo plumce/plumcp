@@ -8,6 +8,7 @@
 
 
 (ns plumcp.core.test.test-util-java
+  "Extra test harness for the Java platform"
   (:require
    [clojure.stacktrace :as st]
    [clojure.test :as t]

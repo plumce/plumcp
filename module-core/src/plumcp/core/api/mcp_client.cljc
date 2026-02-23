@@ -25,113 +25,6 @@
   #?(:cljs (:require-macros [plumcp.core.api.mcp-client])))
 
 
-(declare make-client)
-
-
-(defn ^{:see [make-client]} make-mcp-client
-  "Make MCP client based on the given options, returning a client
-   instance. See `make-client` for detailed docs."
-  [client-options]
-  (let [{:keys [runtime
-                jsonrpc-handler
-                client-transport
-                client-context
-                run-list-notifier?
-                list-notifier-options
-                cache-primitives?
-                print-banner?]
-         :or {run-list-notifier? true
-              list-notifier-options {}
-              cache-primitives? true
-              print-banner? true}
-         :as options} (cs/make-client-options client-options)]
-    (u/expected! runtime map? ":runtime to be a map")
-    (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
-    (u/expected! client-transport #(satisfies? p/IClientTransport %)
-                 ":client-transport to be a valid client transport")
-    (let [client-context (-> (or client-context
-                                 (-> options
-                                     cs/make-base-client-context))
-                             (cs/?capabilities (rt/?client-capabilities
-                                                runtime))
-                             (cs/?cache-primitives? (boolean
-                                                     cache-primitives?))
-                             (cs/wrap-transport client-transport)
-                             (rt/upsert-runtime runtime))
-          run-list-notifier (when run-list-notifier?
-                              (fn []
-                                (cap/run-list-changed-notifier
-                                 (-> runtime
-                                     (kl/?get rt/?client-capabilities)
-                                     cap/get-client-listed-capabilities)
-                                 (fn [notification]
-                                   (cs/send-notification-to-server
-                                    client-context
-                                    notification))
-                                 list-notifier-options)))
-          client-context (-> client-context
-                             (cs/?run-list-notifier run-list-notifier))
-          client-cache-atom (cs/?client-cache client-context)
-          client-info (rt/?client-info client-context)]
-      (when run-list-notifier
-        (cs/?cc-list-notifier client-cache-atom nil))
-      ;; patch the client-context-atom
-      (cs/?cc-client-context client-cache-atom client-context)
-      ;; start the transport
-      (p/start-client-transport client-transport
-                                (cs/?on-message client-context))
-      (when print-banner?
-        (as-> {:role :client
-               :transport-info (-> client-transport
-                                   p/client-transport-info)} $
-          (merge $ options)
-          (bp/print-banner client-info $)))
-      client-context)))
-
-
-(defmacro ^{:see [make-mcp-client]} make-client
-  "Make MCP client (context map) using given (or deduced) options.
-   | Option keyword       | Default | Description                        |
-   |----------------------|---------|------------------------------------|
-   |:info                 |Required |see p.c.api.entity-support/make-info|
-   |:capabilities         |         |Supplied or made from :primitives   |
-   |:primitives           |         |Supplied or made from :vars         |
-   |:vars                 |         |Supplied/discovered from hinted vars|
-   |:ns (read literally)  |Caller ns|Supplied/discovered from hinted vars|
-   |:traffic-logger       |         |No-op by default                    |
-   |:notification-handlers|  {}     |Map notifica'n methodName->handlerFn|
-   |:cache-primitives?    |  True   |Cache prompts/resource../tools list?|
-   |:runtime              |         |Made from :info,:capabilities,:tra..|
-   |:override             |  {}     |Merged into final runtime           |
-   |:mcp-methods-wrapper  |         |No-op by default                    |
-   |:jsonrpc-handler      |         |Impl+made with :schema-check-wrapper|
-   |:client-transport     |Required |Protocol p/IClientTransport instance|
-   |:client-context       |         |Base client context                 |
-   |:print-banner?        |  True   |Print a library banner if true      |
-   |:run-list-notifier?   |  True   |Run list-changed notifier if true   |
-   |:list-notifier-options|  {}     |Option map for list-changed notifier|
-
-   Dependency map (left/key depends upon the right/vals):
-   {:ring-handler    [:runtime :jsonrpc-handler]
-    :stdio-handler   [:runtime :jsonrpc-handler]
-    :runtime         [:info :capabilities :traffic-logger]
-    :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}
-
-   Notification handlers example:
-   {on-tools-list-changed #(fetch-tools % {:on-tools (fn [tools]
-                                                       ...)})}"
-  ([options]
-   `(let [default-vars# (or (:vars ~options)
-                            ~(if-let [nses (:ns options)]
-                               `(concat ~@(->> (u/as-vec nses)
-                                               (mapv #(do `(u/find-vars ~%)))))
-                               `(u/find-vars)))]
-      (make-mcp-client (merge {:vars default-vars#}
-                              ~options))))
-  ([]
-   `(make-client {})))
-
-
 ;; --- MCP Initilization / de-initialization / handshake ---
 
 
@@ -153,8 +46,7 @@
                     cs/on-jsonrpc-response]} {:as options}]
   (uab/let-await [init-result (cs/caching-initialize! client options)]
     (when init-result
-      (-> (cs/?client-cache client)
-          (cs/?cc-initialize-result init-result))
+      (cs/set-initialize-result! client init-result)
       (cs/notify-initialized client))
     init-result))
 
@@ -169,12 +61,16 @@
 (defn disconnect!
   "Disconnect and destroy the session."
   [client]
-  (try
-    (when-let [list-notifier (-> (cs/?client-cache client)
-                                 cs/?cc-list-notifier)]
-      (p/stop! list-notifier))
-    (finally
-      (p/stop-client-transport! (cs/?transport client) false))))
+  (cs/set-initialize-result! client nil)  ; erase init result
+  (when-let [list-notifier (-> (cs/?client-cache client)
+                               cs/?cc-listnotif-worker)]
+    (u/background
+      (p/stop! list-notifier)))
+  (when-let [heartbeat-chk (-> (cs/?client-cache client)
+                               cs/?cc-heartbeat-worker)]
+    (u/background
+      (p/stop! heartbeat-chk)))
+  (p/stop-client-transport! (cs/?transport client) false))
 
 
 ;; --- MCP requests expecting result ---
@@ -490,3 +386,125 @@
                        (jr/jsonrpc-failure "Elicitation capability is unsupported")
                        (jr/add-jsonrpc-id request-id))]
       (cs/send-message-to-server client response))))
+
+
+;; ----- Making Client -----
+
+
+(declare make-client)
+
+
+(defn ^{:see [make-client]} make-mcp-client
+  "Make MCP client based on the given options, returning a client
+   instance. See `make-client` for detailed docs."
+  [client-options]
+  (let [{:keys [runtime
+                jsonrpc-handler
+                client-transport
+                client-context
+                run-list-notifier?
+                list-notifier-options
+                ^long heartbeat-seconds
+                cache-primitives?
+                print-banner?]
+         :or {run-list-notifier? true
+              list-notifier-options {}
+              heartbeat-seconds 0  ; disabled by default
+              cache-primitives? true
+              print-banner? true}
+         :as options} (cs/make-client-options client-options)]
+    (u/expected! runtime map? ":runtime to be a map")
+    (u/expected! jsonrpc-handler fn? ":jsonrpc-handler to be a function")
+    (u/expected! client-transport #(satisfies? p/IClientTransport %)
+                 ":client-transport to be a valid client transport")
+    (let [client-context (-> (or client-context
+                                 (-> options
+                                     cs/make-base-client-context))
+                             (cs/?capabilities (rt/?client-capabilities
+                                                runtime))
+                             (cs/?cache-primitives? (boolean
+                                                     cache-primitives?))
+                             (cs/wrap-transport client-transport)
+                             (rt/upsert-runtime runtime))
+          run-list-notifier (when run-list-notifier?
+                              (fn [client]
+                                (cap/run-list-changed-notifier
+                                 (-> runtime
+                                     (kl/?get rt/?client-capabilities)
+                                     cap/get-client-listed-capabilities)
+                                 (fn [notification]
+                                   (cs/send-notification-to-server
+                                    client
+                                    notification))
+                                 list-notifier-options)))
+          run-heartbeat-chk (when (and (int? heartbeat-seconds)
+                                       (pos? heartbeat-seconds))
+                              (fn [client]
+                                (cs/run-heartbeat client
+                                                  ping heartbeat-seconds
+                                                  #(-> client
+                                                       get-initialize-result
+                                                       some?))))
+          client-context (-> client-context
+                             (cs/?run-list-notifier run-list-notifier)
+                             (cs/?run-heartbeat-chk run-heartbeat-chk))
+          client-cache-atom (cs/?client-cache client-context)
+          client-info (rt/?client-info client-context)]
+      (when run-list-notifier
+        (cs/?cc-listnotif-worker client-cache-atom nil))
+      ;; patch the client-context-atom
+      (cs/?cc-client-context client-cache-atom client-context)
+      ;; start the transport
+      (p/start-client-transport client-transport
+                                (cs/?on-message client-context))
+      (when print-banner?
+        (as-> {:role :client
+               :transport-info (-> client-transport
+                                   p/client-transport-info)} $
+          (merge $ options)
+          (bp/print-banner client-info $)))
+      client-context)))
+
+
+(defmacro ^{:see [make-mcp-client]} make-client
+  "Make MCP client (context map) using given (or deduced) options.
+   | Option keyword       | Default | Description                        |
+   |----------------------|---------|------------------------------------|
+   |:info                 |Required |see p.c.api.entity-support/make-info|
+   |:capabilities         |         |Supplied or made from :primitives   |
+   |:primitives           |         |Supplied or made from :vars         |
+   |:vars                 |         |Supplied/discovered from hinted vars|
+   |:ns (read literally)  |Caller ns|Supplied/discovered from hinted vars|
+   |:traffic-logger       |         |No-op by default                    |
+   |:notification-handlers|  {}     |Map notifica'n methodName->handlerFn|
+   |:cache-primitives?    |  True   |Cache prompts/resource../tools list?|
+   |:runtime              |         |Made from :info,:capabilities,:tra..|
+   |:override             |  {}     |Merged into final runtime           |
+   |:mcp-methods-wrapper  |         |No-op by default                    |
+   |:jsonrpc-handler      |         |Impl+made with :schema-check-wrapper|
+   |:client-transport     |Required |Protocol p/IClientTransport instance|
+   |:client-context       |         |Base client context                 |
+   |:print-banner?        |  True   |Print a library banner if true      |
+   |:run-list-notifier?   |  True   |Run list-changed notifier if true   |
+   |:list-notifier-options|  {}     |Option map for list-changed notifier|
+   |:heartbeat-seconds    | 0 (Off) |Heartbeat frequency: 0=Off, >0=On   |
+
+   Dependency map (left/key depends upon the right/vals):
+   {:ring-handler    [:runtime :jsonrpc-handler]
+    :stdio-handler   [:runtime :jsonrpc-handler]
+    :runtime         [:info :capabilities :traffic-logger]
+    :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}
+
+   Notification handlers example:
+   {on-tools-list-changed #(fetch-tools % {:on-tools (fn [tools]
+                                                       ...)})}"
+  ([options]
+   `(let [default-vars# (or (:vars ~options)
+                            ~(if-let [nses (:ns options)]
+                               `(concat ~@(->> (u/as-vec nses)
+                                               (mapv #(do `(u/find-vars ~%)))))
+                               `(u/find-vars)))]
+      (make-mcp-client (merge {:vars default-vars#}
+                              ~options))))
+  ([]
+   `(make-client {})))
