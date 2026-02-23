@@ -70,7 +70,7 @@
 (defcckey ?cc-resources-list {:default nil})
 (defcckey ?cc-resource-templates-list {:default nil})
 (defcckey ?cc-tools-list {:default nil})
-(defcckey ?cc-pending-client-requests {:default {}}) ; {<req-id> {:ts <ms> :callback <fn>}}
+(defcckey ?cc-pending-client-requests {:default {}}) ; {<req-id> {:ts <ms> :callback <fn> :progress {}}}
 (defcckey ?cc-pending-server-requests {:default {}}) ; {<req-id> {:ts <ms>}}
 (defcckey ?cc-listnotif-worker {:default nil})
 (defcckey ?cc-heartbeat-worker {:default nil})
@@ -902,12 +902,33 @@
                                  dissoc id)))
 
 
+(defn update-client-request-progress
+  [^{:see [sd/ProgressNotification]} jsonrpc-message-with-deps]
+  (let [client-cache-atom (-> jsonrpc-message-with-deps
+                              jsonrpc-message-with-deps->client
+                              ?client-cache)
+        id (get-in jsonrpc-message-with-deps [:params :progressToken])
+        progress (-> jsonrpc-message-with-deps
+                     (get :params)
+                     (select-keys [:progress
+                                   :total
+                                   :message]))]
+    ;; There is a minor race condition here between the ID-exists check
+    ;; and updating progress, which is worth avoiding orphaned progress
+    (when (-> (?cc-pending-client-requests client-cache-atom)
+              (contains? id))
+      (?cc-pending-client-requests client-cache-atom
+                                   update id
+                                   assoc :progress progress))))
+
+
 ;; Notification handler map
 
 
 (def client-notification-handlers
   {;; received by both client and server
    sd/method-notifications-cancelled cancel-server-request
+   sd/method-notifications-progress update-client-request-progress
    ;; received by client
    sd/method-notifications-prompts-list_changed fetch-prompts
    sd/method-notifications-resources-list_changed fetch-resources

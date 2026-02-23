@@ -286,6 +286,24 @@
                                   (dissoc :on-result)))))
 
 
+;; --- Meta functions ---
+
+
+(defn get-request-progress
+  "Given a client request (to server) ID, return progress if available,
+   empty {} otherwise. Return nil if no such request is pending.
+   Structure of the returned progress map:
+   {:progress <val> ; number
+    :total <val>    ; number, optional
+    :message <val>  ; string, optional
+   }"
+  [client request-id]
+  (let [client-cache-atom (cs/?client-cache client)]
+    (some-> (cs/?cc-pending-client-requests client-cache-atom)
+            (get request-id)
+            (get :progress {}))))
+
+
 ;; --- MCP requests NOT expecting result ---
 
 
