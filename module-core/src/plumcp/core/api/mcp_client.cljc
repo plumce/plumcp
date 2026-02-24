@@ -32,7 +32,7 @@
               sd/InitializeResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} initialize-and-notify!
+              cs/on-jsonrpc-response-error-throw!]} initialize-and-notify!
   "Send initialize request to the MCP server and on success, setup a
    session and notify the MCP server of a successful initialization
    after caching the initialize result.
@@ -80,7 +80,7 @@
               sd/ListPromptsResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} list-prompts
+              cs/on-jsonrpc-response-error-throw!]} list-prompts
   "Return (from cache if available, else fetch from server) the list of
    MCP prompts (value in CLJ, js/Promise in CLJS) supported by the
    server on success, nil on error (printed to STDERR). Caching is
@@ -100,7 +100,7 @@
               sd/GetPromptResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} get-prompt
+              cs/on-jsonrpc-response-error-throw!]} get-prompt
   "Get the prompt identified by name from the server, returning prompt
    result (value in CLJ, js/Promise in CLJS) on success, nil on error
    (printed to STDERR).
@@ -126,7 +126,7 @@
               sd/ListResourcesResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} list-resources
+              cs/on-jsonrpc-response-error-throw!]} list-resources
   "Return (from cache if available, else fetch from server) the list of
    MCP resources (value in CLJ, js/Promise in CLJS) supported by the
    server on success, nil on error (printed to STDERR). Caching is
@@ -146,7 +146,7 @@
               sd/ListResourceTemplatesResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} list-resource-templates
+              cs/on-jsonrpc-response-error-throw!]} list-resource-templates
   "Return (from cache if available, else fetch from server) the list of
    MCP resource templates (value in CLJ, js/Promise in CLJS) supported
    by the server on success, nil on error (printed to STDERR). Caching
@@ -167,7 +167,7 @@
               sd/ReadResourceResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} read-resource
+              cs/on-jsonrpc-response-error-throw!]} read-resource
   "Read the resource identified by the URI on the server, returning the
    result of reading the resource (value in CLJ, js/Promise in CLJS) on
    success, nil on error (printed to STDERR).
@@ -195,7 +195,7 @@
               sd/ListToolsResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} list-tools
+              cs/on-jsonrpc-response-error-throw!]} list-tools
   "Return (from cache if available, else fetch from server) the list of
    MCP tools (value in CLJ, js/Promise in CLJS) supported by the server
    on success, nil on error (printed to STDERR). Caching is applied only
@@ -216,7 +216,7 @@
               sd/CallToolResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} call-tool
+              cs/on-jsonrpc-response-error-throw!]} call-tool
   "Call the tool identified by tool-name on the server, returning the
    call-tool result (value in CLJ, js/Promise in CLJS) on success, nil
    on error (printed to STDERR).
@@ -242,7 +242,7 @@
               sd/CompleteResult
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} complete
+              cs/on-jsonrpc-response-error-throw!]} complete
   "Get completion suggestion from the server, returning completion
    result (value in CLJ, js/Promise in CLJS) on success, nil on error
    (printed to STDERR).
@@ -267,7 +267,7 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/JSONRPCError
               cs/on-jsonrpc-response
-              cs/on-jsonrpc-response-throw!]} ping
+              cs/on-jsonrpc-response-error-throw!]} ping
   "Ping the server, returning the ping result (value in CLJ, js/Promise
    in CLJS) on success, nil on error (printed to STDERR).
    Options:

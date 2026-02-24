@@ -282,9 +282,9 @@
                "even numbered resource ID")
            (is (not error?))))
        (testing "getResourceReference - out of range resource ID"
-         (uab/let-await [error (mc/call-tool client "getResourceReference"
-                                             {:resource-id 102}
-                                             {:on-error identity})]
+         (uab/let-await [[_ error] (mc/call-tool client "getResourceReference"
+                                                 {:resource-id 102}
+                                                 {:on-error vector})]
            (is (= error
                   {:code -32602
                    :message "{:resource-id [\"should be at most 100\"]}\n"
@@ -359,10 +359,10 @@
                "specified param value")
            (is (not error?))))
        (testing "getResourceLinks - error"
-         (uab/let-await [error
+         (uab/let-await [[_ error]
                          (mc/call-tool client "getResourceLinks"
                                        {:count 0}
-                                       {:on-error identity})]
+                                       {:on-error vector})]
            (is (= error {:code -32602
                          :message "{:count [\"should be at least 1\"]}\n"
                          :data {}})
@@ -386,10 +386,10 @@
                     :mimeType "application/octet-stream"
                     :name "Resource 2"}]))))
        (testing "resource-100"
-         (uab/let-await [error
+         (uab/let-await [[_ error]
                          (mc/read-resource client
                                            "test://static/resource/100"
-                                           {:on-error identity})]
+                                           {:on-error vector})]
            (is (= error
                   {:code -32602
                    :message "Unknown resource: test://static/resource/100"
@@ -480,20 +480,20 @@
                "success message")
            (is (nil? description))))
        (testing "invalid kwarg type (must be string)"
-         (uab/let-await [error
+         (uab/let-await [[_ error]
                          (mc/get-prompt client "resource_prompt"
                                         {:resourceId 50}
-                                        {:on-error identity})]
+                                        {:on-error vector})]
            (is (= error
                   {:code -32602
                    :message "JSON-RPC Request validation error"
                    :data {:params {:arguments {:resourceId ["should be a string"]}}}})
                "invalid kwarg type (must be string)")))
        (testing "kwarg out of range (must be 1-100)"
-         (uab/let-await [error
+         (uab/let-await [[_ error]
                          (mc/get-prompt client "resource_prompt"
                                         {:resourceId "200"}
-                                        {:on-error identity})]
+                                        {:on-error vector})]
            (is (= error
                   {:code -32602
                    :message "Invalid resourceId: 200. Must be a number between 1 and 100."

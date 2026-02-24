@@ -319,34 +319,50 @@
 (defn on-error-print
   "Given the :error strucure of an JSON-RPC error response, print the
    error to STDERR."
-  [client-op-name jsonrpc-error]
-  (-> "[%s] Client operation error:"
-      (format client-op-name)
-      (u/eprintln jsonrpc-error)))
+  ([client-op-name request-id jsonrpc-error]
+   (-> "[Op=%s, ID=%s] Client operation error:"
+       (format client-op-name request-id)
+       (u/eprintln jsonrpc-error)))
+  ([request-id jsonrpc-error]
+   (-> "[ID=%s] Client operation error:"
+       (format request-id)
+       (u/eprintln jsonrpc-error))))
 
 
 (defn on-timeout-print
   "Print a client-operation timeout error message to STDERR."
-  [client-op-name _]
-  (-> "[%] Client operation timed out"
-      (format client-op-name)
-      u/eprintln))
+  ([client-op-name request-id _]
+   (-> "[Op=%s, ID=%s] Client operation timed out"
+       (format client-op-name request-id)
+       u/eprintln))
+  ([request-id _]
+   (-> "[ID=%s] Client operation timed out"
+       (format request-id)
+       u/eprintln)))
 
 
 (defn on-unknown-print
   "Print error message, because unknown response is passed, to STDERR."
-  [client-op-name unknown-response]
-  (-> "[%s] Unknwon response in client operation:"
-      (format client-op-name)
-      (u/eprintln unknown-response)))
+  ([client-op-name request-id unknown-response]
+   (-> "[Op=%s, ID=%s] Unknwon response in client operation:"
+       (format client-op-name request-id)
+       (u/eprintln unknown-response)))
+  ([request-id unknown-response]
+   (-> "[ID=%s] Unknwon response in client operation:"
+       (format request-id)
+       (u/eprintln unknown-response))))
 
 
-(defn on-jsonrpc-response-print
+(defn on-jsonrpc-response-error-print
   "Options to use when you want to simply print error."
-  [client-op-name]
-  {:on-error (partial on-error-print client-op-name)
-   :on-timeout (partial on-timeout-print client-op-name)
-   :on-unknown (partial on-unknown-print client-op-name)})
+  ([client-op-name]
+   {:on-error (partial on-error-print client-op-name)
+    :on-timeout (partial on-timeout-print client-op-name)
+    :on-unknown (partial on-unknown-print client-op-name)})
+  ([]
+   {:on-error on-error-print
+    :on-timeout on-timeout-print
+    :on-unknown on-unknown-print}))
 
 
 ;; Throw exception
@@ -355,35 +371,58 @@
 (defn on-error-throw!
   "Given the :error strucure of an JSON-RPC error response, throw an
    exception."
-  [client-op-name {:keys [code message data]}]
-  (u/throw! (-> "Client operation % error:"
-                (format client-op-name)
-                (str message))
-            (merge {:error-code code}
-                   data)))
+  ([client-op-name request-id {:keys [code message data]}]
+   (u/throw! (-> "Client operation %s (ID=%s) error: "
+                 (format client-op-name request-id)
+                 (str message))
+             (merge {:error-code code
+                     :id request-id}
+                    data)))
+  ([request-id {:keys [code message data]}]
+   (u/throw! (-> "Client operation (ID=%s) error: "
+                 (format request-id)
+                 (str message))
+             (merge {:error-code code
+                     :id request-id}
+                    data))))
 
 
 (defn on-timeout-throw!
   "Throw a client-operation timeout exception."
-  [client-op-name _]
-  (u/throw! (-> "Client operation %s timed out"
-                (format client-op-name))))
+  ([client-op-name request-id _]
+   (u/throw! (-> "Client operation %s (ID=%s) timed out"
+                 (format client-op-name request-id))
+             {:id request-id}))
+  ([request-id _]
+   (u/throw! (-> "Client operation (ID=%s) timed out"
+                 (format request-id))
+             {:id request-id})))
 
 
 (defn on-unknown-throw!
   "Throw exception because an unknown response is passed."
-  [client-op-name unknown-response]
-  (-> "[on-jsonrpc-response] Unknwon response in client operation"
-      (str client-op-name)
-      (u/throw! {:unknown-response unknown-response})))
+  ([client-op-name request-id unknown-response]
+   (-> "Unknwon JSON-RPC response in client operation (Op=%s, ID=%s)"
+       (format client-op-name request-id)
+       (u/throw! {:unknown-response unknown-response
+                  :id request-id})))
+  ([request-id unknown-response]
+   (-> "Unknwon JSON-RPC response in client operation (ID=%s)"
+       (format request-id)
+       (u/throw! {:unknown-response unknown-response
+                  :id request-id}))))
 
 
-(defn on-jsonrpc-response-throw!
+(defn on-jsonrpc-response-error-throw!
   "Options to use when you want to throw exceptions on error."
-  [client-op-name]
-  {:on-error (partial on-error-throw! client-op-name)
-   :on-timeout (partial on-timeout-throw! client-op-name)
-   :on-unknown (partial on-unknown-throw! client-op-name)})
+  ([client-op-name]
+   {:on-error (partial on-error-throw! client-op-name)
+    :on-timeout (partial on-timeout-throw! client-op-name)
+    :on-unknown (partial on-unknown-throw! client-op-name)})
+  ([]
+   {:on-error on-error-throw!
+    :on-timeout on-timeout-throw!
+    :on-unknown on-unknown-throw!}))
 
 
 ;; On JSON-RPC response
@@ -392,13 +431,13 @@
 (defn on-jsonrpc-response
   "Process JSON-RPC response to derive the final output.
    :on-result     - (fn [result])
-   :on-error      - (fn [client-op-name jsonrpc-error])
+   :on-error      - (fn [id jsonrpc-error])
    :timeout-value - same value that you pass to `uab/as-async`
-   :on-timeout    - (fn [client-op-name timeout-value])
-   :on-unknown    - (fn [client-op-name unknown-response])"
-  [async-jsonrpc-response
+   :on-timeout    - (fn [id timeout-value])
+   :on-unknown    - (fn [id unknown-response])"
+  [^{:see [sd/JSONRPCResponse]} async-jsonrpc-response
    client-op-name
-   & ^{:see [on-jsonrpc-response-throw!]}
+   & ^{:see [on-jsonrpc-response-error-throw!]}
    {:keys [on-result
            ^{:see [on-error-throw!]} on-error
            ^{:see [uab/as-async]} timeout-value
@@ -414,11 +453,13 @@
       jr/jsonrpc-result? (-> jsonrpc-response
                              jr/jsonrpc-result
                              on-result)
-      jr/jsonrpc-error? (-> jsonrpc-response
-                            jr/jsonrpc-error
-                            on-error)
-      #(= % timeout-value) (on-timeout jsonrpc-response)
-      (on-unknown jsonrpc-response))))
+      jr/jsonrpc-error? (->> jsonrpc-response
+                             jr/jsonrpc-error
+                             (on-error (:id jsonrpc-response)))
+      #(= % timeout-value) (-> (:id jsonrpc-response)
+                               (on-timeout jsonrpc-response))
+      (-> (:id jsonrpc-response)
+          (on-unknown jsonrpc-response)))))
 
 
 ;; --- Client utility functions ---
@@ -681,7 +722,7 @@
               sd/JSONRPCError
               async-initialize!
               on-jsonrpc-response
-              on-jsonrpc-response-throw!]} caching-initialize!
+              on-jsonrpc-response-error-throw!]} caching-initialize!
   "Send initialize request to the MCP server and setup a session
    returning initialize result (value in CLJ, js/Promise in CLJS) on
    success, nil on error (printed to STDERR). Initialize result is
@@ -706,7 +747,7 @@
               sd/ListPromptsResult
               sd/JSONRPCError
               on-jsonrpc-response
-              on-jsonrpc-response-throw!]} caching-list-prompts
+              on-jsonrpc-response-error-throw!]} caching-list-prompts
   "Fetch (from server) and return the list of MCP prompts (value in CLJ,
    js/Promise in CLJS) supported by the server on success, nil on error
    (printed to STDERR). On success, prompts list is cached if caching is
@@ -738,7 +779,7 @@
               sd/ListResourcesResult
               sd/JSONRPCError
               on-jsonrpc-response
-              on-jsonrpc-response-throw!]} caching-list-resources
+              on-jsonrpc-response-error-throw!]} caching-list-resources
   "Fetch (from server) and return the list of MCP resources (value in
    CLJ, js/Promise in CLJS) supported by the server on success, nil on
    error (printed to STDERR). On success, resources list is cached if
@@ -770,7 +811,7 @@
               sd/ListResourceTemplatesResult
               sd/JSONRPCError
               on-jsonrpc-response
-              on-jsonrpc-response-throw!]} caching-list-resource-templates
+              on-jsonrpc-response-error-throw!]} caching-list-resource-templates
   "Fetch (from server) and return the list of MCP resource templates
    (value in CLJ, js/Promise in CLJS) supported by the server on success,
    nil on error (printed to STDERR). On success, resource templates list
@@ -802,7 +843,7 @@
               sd/ListToolsResult
               sd/JSONRPCError
               on-jsonrpc-response
-              on-jsonrpc-response-throw!]} caching-list-tools
+              on-jsonrpc-response-error-throw!]} caching-list-tools
   "Fetch (from server) and return the list of MCP tools (value in CLJ,
    js/Promise in CLJS) supported by the server on success, nil on error
    (printed to STDERR). On success, tools list is cached if caching is
