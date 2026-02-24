@@ -24,6 +24,7 @@
 (def ^:const k-requests-pending  :requests-pending)
 (def ^:const k-subscriptions     :subscriptions)
 (def ^:const k-progress-tracking :progress-tracking)
+(def ^:const k-client-roots      :client-roots)
 
 
 (defn level-index
@@ -42,6 +43,7 @@
    k-requests-pending  {}  ; map {req-id context}
    k-subscriptions     #{} ; set of uri
    k-progress-tracking {}  ; both peer and self
+   k-client-roots      nil ; nil until roots fetched (a vector)
    })
 
 
@@ -154,6 +156,12 @@
       ;;
       (remove-subscription [_ uri] (s-disj! k-subscriptions uri))
       (enable-subscription [_ uri] (s-conj! k-subscriptions uri))
+      ;;
+      ;; Client roots
+      ;;
+      (set-client-roots [_ roots] (s-update-at! k-client-roots (fn [_]
+                                                                 roots)))
+      (get-client-roots [_] (s-get k-client-roots))
       ;;--
       p/IServerStreams
       (append-to-stream [_ stream-id

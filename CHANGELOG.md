@@ -29,10 +29,10 @@ All notable changes to this project will be documented in this file. This change
   - Kwarg `:cache-primitives?` in `make-client` for primitives caching
   - Functions reading primitives list transparently apply caching
 - Client: Heartbeat mechanism to keep connection alive
-- [Todo] Server: Caching layer for roots
-  - [Todo] List-changed listening support for roots
-  - [Todo] Cache roots in the session
-  - [Todo] API for reading roots
+- Server: Caching layer for roots
+  - List-changed listening support for roots: Re-fetch roots
+  - Cache roots in the session
+  - API for reading roots
 
 ### Changed
 

@@ -206,6 +206,21 @@
       (p/remove-subscription uri)))
 
 
+;; Client roots
+
+
+(defn set-client-roots
+  [context roots]
+  (-> (rt/?session context)
+      (p/set-client-roots roots)))
+
+
+(defn get-client-roots
+  [context]
+  (-> (rt/?session context)
+      (p/get-client-roots)))
+
+
 ;; Logging
 
 

@@ -403,7 +403,7 @@
     (is (= {:result {}}
            (-> sd/method-notifications-roots-list_changed
                eg/make-notification
-               (rt/upsert-runtime runtime-client-caps)
+               (rt/upsert-runtime runtime-server-session)
                im/notifications-roots-list_changed))))
   (testing "client-only notification handlers"
     (is (= {:result {}}

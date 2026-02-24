@@ -13,12 +13,23 @@
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.impl.impl-method :as im]
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u]))
+
+
+;; --- Notification handling ---
+
+
+(def server-callbacks
+  {im/roots-callback-name im/callback-fetch-roots})
+
+
+;; --- Server options making ---
 
 
 (defn copy-result-deps
@@ -155,7 +166,9 @@
                                       (u/assoc-some :request-methods-wrapper
                                                     mcp-methods-wrapper)
                                       (u/assoc-some :callback-handlers
-                                                    (:callbacks primitives))
+                                                    (merge
+                                                     server-callbacks
+                                                     (:callbacks primitives)))
                                       make-server-jsonrpc-message-handler)))]
     (-> server-options
         (merge {:runtime (get-runtime)

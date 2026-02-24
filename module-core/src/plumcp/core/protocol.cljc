@@ -119,6 +119,11 @@
   (remove-subscription [this uri] "Remove subscription on given URI")
   (enable-subscription [this uri] "Enable subscription on given URI")
   ;;
+  ;; Client roots
+  ;;
+  (set-client-roots [this roots] "Set client roots (fetched from client)")
+  (get-client-roots [this] "Get client roots (cached)")
+  ;;
   )
 
 
