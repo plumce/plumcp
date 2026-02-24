@@ -714,6 +714,45 @@
         (setter payload))))
 
 
+;; Low level functions to send client request and obtain result
+
+
+(defn request->response
+  "Given an MCP (JSON-RPC) request, send it to the server and return the
+   MCP (JSON-RPC) response as a value in CLJ, or as js/Promise in CLJS.
+   Options:
+   - see `plumcp.core.util.async-bridge/as-async`"
+  ^{:see [on-jsonrpc-response]}
+  [request client & options]
+  (uab/as-async
+    [return]
+    options
+    (send-request-to-server client request
+                            return)))
+
+
+(defn response->result-or-nil
+  "Given an MCP (JSON-RPC) response (value in CLJ, js/Promise in CLJS)
+   extract/return result on success, print error/return nil otherwise.
+   Return a value in CLJ, or a js/Promise in CLJS."
+  [jsonrpc-response client-op-name & options]
+  (as-> (on-jsonrpc-response-error-print client-op-name) $
+    (merge $ options)
+    (on-jsonrpc-response jsonrpc-response client-op-name $)))
+
+
+(defn response->result-or-throw!
+  "Given an MCP (JSON-RPC) response (value in CLJ, js/Promise in CLJS)
+   extract/return result on success, throw error otherwise.
+   Return a value in CLJ, or a js/Promise in CLJS.
+   Options:
+   - see on-jsonrpc-response"
+  [jsonrpc-response client-op-name & options]
+  (as-> (on-jsonrpc-response-error-throw! client-op-name) $
+    (merge $ options)
+    (on-jsonrpc-response jsonrpc-response client-op-name $)))
+
+
 ;; Operations
 
 
