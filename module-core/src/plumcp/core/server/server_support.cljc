@@ -13,7 +13,6 @@
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.impl-method :as im]
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.schema.json-rpc :as jr]
@@ -26,7 +25,7 @@
 
 
 (def server-callbacks
-  {im/roots-callback-name im/callback-fetch-roots})
+  {rs/roots-callback-name rs/callback-fetch-roots})
 
 
 ;; --- Server options making ---

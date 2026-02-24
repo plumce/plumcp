@@ -206,21 +206,6 @@
       (p/remove-subscription uri)))
 
 
-;; Client roots
-
-
-(defn set-client-roots
-  [context roots]
-  (-> (rt/?session context)
-      (p/set-client-roots roots)))
-
-
-(defn get-client-roots
-  [context]
-  (-> (rt/?session context)
-      (p/get-client-roots)))
-
-
 ;; Logging
 
 
@@ -262,6 +247,41 @@
   [context message]
   (-> (rt/?session context)
       (p/send-message-to-client context message)))
+
+
+;; Client roots
+
+
+(defn set-client-roots
+  [context roots]
+  (-> (rt/?session context)
+      (p/set-client-roots roots)))
+
+
+(defn get-client-roots
+  [context]
+  (-> (rt/?session context)
+      (p/get-client-roots)))
+
+
+(def roots-callback-name "plumcp.core/roots-list-callback")
+
+
+(defn ^{:mcp-name roots-callback-name
+        :mcp-type :callback} callback-fetch-roots
+  [^{:see [sd/ListRootsResult]}
+   {roots :roots
+    :as list-roots-result}]
+  ;; write roots into session
+  (set-client-roots list-roots-result roots))
+
+
+(defn fetch-roots
+  "Send a list-roots request to the client as a callback"
+  [context]
+  (let [request (eg/make-list-roots-request)
+        callback-context {:callback-name roots-callback-name}]
+    (send-request-to-client context request callback-context)))
 
 
 ;; Server request tracking

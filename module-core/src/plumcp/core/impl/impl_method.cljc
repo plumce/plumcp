@@ -509,31 +509,11 @@
   {:result {}})
 
 
-(def roots-callback-name "plumcp.core/roots-list-callback")
-
-
-(defn ^{:mcp-name roots-callback-name
-        :mcp-type :callback} callback-fetch-roots
-  [^{:see [sd/ListRootsResult]}
-   {roots :roots
-    :as list-roots-result}]
-  ;; write roots into session
-  (rs/set-client-roots list-roots-result roots))
-
-
-(defn fetch-roots
-  "Send a list-roots request to the client as a callback"
-  [context]
-  (let [request (eg/make-list-roots-request)
-        callback-context {:callback-name roots-callback-name}]
-    (rs/send-request-to-client context request callback-context)))
-
-
 (defn ^{:see [sd/RootsListChangedNotification
               eg/make-roots-list-changed-notification]}
   notifications-roots-list_changed
   [{:as jsonrpc-notification}]
-  (fetch-roots jsonrpc-notification)
+  (rs/fetch-roots jsonrpc-notification)
   (call-notification-handler jsonrpc-notification
                              sd/method-notifications-roots-list_changed)
   {:result {}})
