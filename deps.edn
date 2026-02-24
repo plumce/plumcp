@@ -17,6 +17,7 @@
   thheller/shadow-cljs {:mvn/version "3.2.1"}  ; adds CLJS 1.12.42
   ;; --- Debugging ---
   io.github.tonsky/clojure-plus {:mvn/version "1.7.0"}
+  pjstadig/humane-test-output {:mvn/version "0.11.0"}
   ;;
   }
  :aliases
