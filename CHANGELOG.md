@@ -29,6 +29,9 @@ All notable changes to this project will be documented in this file. This change
   - Kwarg `:cache-primitives?` in `make-client` for primitives caching
   - Functions reading primitives list transparently apply caching
 - Client: Heartbeat mechanism to keep connection alive
+- Client: Support for HTTPS proxy in CLJS HTTP client
+  - Node.js: `:dispatcher` and (legacy) `:agent` options
+  - Bun.js: `:proxy` option
 - Server: Caching layer for roots
   - List-changed listening support for roots: Re-fetch roots
   - Cache roots in the session
