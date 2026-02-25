@@ -53,6 +53,7 @@ All notable changes to this project will be documented in this file. This change
   - `async-ping`
   - `initialize!`
   - `notify-initialized`
+- [BREAKING] Rename ns `p.c.i.capability` to `p.c.i.impl-capability`
 
 ### Fixed
 - Git/SCM coordinates in module `pom.xml`, which reflects on Clojars

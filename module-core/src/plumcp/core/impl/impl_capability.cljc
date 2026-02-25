@@ -7,7 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 
-(ns plumcp.core.impl.capability
+(ns plumcp.core.impl.impl-capability
   "MCP Capability definitions for client and server."
   (:require
    [clojure.set :as set]

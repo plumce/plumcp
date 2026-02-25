@@ -12,11 +12,10 @@
   (:require
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.method-handler :as mh]
    [plumcp.core.schema.json-rpc :as jr]
-   [plumcp.core.schema.schema-defs :as sd]
-   [plumcp.core.util :as u]))
+   [plumcp.core.schema.schema-defs :as sd]))
 
 
 ;; --- Client ---
@@ -28,14 +27,14 @@
   [uri
    & {:as options}]
   (-> (eg/make-root uri options)
-      (cap/make-roots-capability-item)))
+      (ic/make-roots-capability-item)))
 
 
 ;; --- Server ---
 
 
 (defn ^{:see [eg/make-prompt
-              cap/make-prompts-capability]} make-prompt-item
+              ic/make-prompts-capability]} make-prompt-item
   "Make a prompts capability item. A collection of such items is used
    to make prompts capability. The `handler` is an arity-1 function
    accepting prompt kwargs, returning get-prompt result."
@@ -46,11 +45,11 @@
   (let [get-prompt-handler (-> handler
                                mh/make-get-prompt-handler)]
     (-> (eg/make-prompt name options)
-        (cap/make-prompts-capability-item get-prompt-handler))))
+        (ic/make-prompts-capability-item get-prompt-handler))))
 
 
 (defn ^{:see [eg/make-resource
-              cap/make-resources-capability]}  make-resource-item
+              ic/make-resources-capability]}  make-resource-item
   "Make a resources capability item. A collection of such items is used
    to make resources capability. The `handler` is an arity-1 function
    accepting resource kwargs, returning read-resource result."
@@ -59,11 +58,11 @@
   (let [read-resource-handler (-> handler
                                   mh/make-read-resource-handler)]
     (-> (eg/make-resource uri name options)
-        (cap/make-resources-capability-resource-item read-resource-handler))))
+        (ic/make-resources-capability-resource-item read-resource-handler))))
 
 
 (defn ^{:see [eg/make-resource-template
-              cap/make-resources-capability]} make-resource-template-item
+              ic/make-resources-capability]} make-resource-template-item
   "Make a resource template item. A collection of such items is used
    to make resources capability. The `handler` is an arity-1 function
    accepting resource kwargs, returning read-resource result."
@@ -72,11 +71,11 @@
   (let [read-resource-handler (-> handler
                                   mh/make-read-resource-handler)]
     (-> (eg/make-resource-template uri-template name options)
-        (cap/make-resources-capability-resource-item read-resource-handler))))
+        (ic/make-resources-capability-resource-item read-resource-handler))))
 
 
 (defn ^{:see [eg/make-tool
-              cap/make-tools-capability]} make-tool-item
+              ic/make-tools-capability]} make-tool-item
   "Make a tools capability item. A collection of such items is used
    to make tools capability. The `handler` is an arity-1 function
    accepting tool kwargs, returning call-tool result."
@@ -85,7 +84,7 @@
   (let [call-tool-handler (-> handler
                               mh/make-call-tool-handler)]
     (-> (eg/make-tool name input-schema options)
-        (cap/make-tools-capability-item call-tool-handler))))
+        (ic/make-tools-capability-item call-tool-handler))))
 
 
 ;; --- Primitives ---
@@ -137,15 +136,15 @@
            ^{:see [make-sampling-handler]} sampling
            ^{:see [make-elicitation-handler]} elicitation]}]
   (let [cap-roots (some-> roots
-                          cap/make-roots-capability)
+                          ic/make-roots-capability)
         cap-sampling (when sampling
-                       (cap/make-sampling-capability sampling))
+                       (ic/make-sampling-capability sampling))
         cap-elicitation (when elicitation
-                          (cap/make-elicitation-capability elicitation))]
-    (-> cap/default-client-capabilities
-        (cap/update-roots-capability cap-roots)
-        (cap/update-sampling-capability cap-sampling)
-        (cap/update-elicitation-capability cap-elicitation))))
+                          (ic/make-elicitation-capability elicitation))]
+    (-> ic/default-client-capabilities
+        (ic/update-roots-capability cap-roots)
+        (ic/update-sampling-capability cap-sampling)
+        (ic/update-elicitation-capability cap-elicitation))))
 
 
 ;; Servers
@@ -194,19 +193,19 @@
            ^{:see [make-completions-reference-item]} completion-prompt-refs
            ^{:see [make-completions-reference-item]} completion-resource-refs]}]
   (let [cap-prompts (some-> prompts
-                            cap/make-prompts-capability)
+                            ic/make-prompts-capability)
         cap-resources (when (or resources resource-templates)
-                        (cap/make-resources-capability resources
+                        (ic/make-resources-capability resources
                                                        resource-templates))
         cap-tools (some-> tools
-                          cap/make-tools-capability)
+                          ic/make-tools-capability)
         cap-completion (when (or completion-prompt-refs
                                  completion-resource-refs)
-                         (cap/make-completions-capability
+                         (ic/make-completions-capability
                           (or completion-prompt-refs [])
                           (or completion-resource-refs [])))]
-    (-> cap/default-server-capabilities
-        (cap/update-prompts-capability cap-prompts)
-        (cap/update-resources-capability cap-resources)
-        (cap/update-tools-capability cap-tools)
-        (cap/update-completions-capability cap-completion))))
+    (-> ic/default-server-capabilities
+        (ic/update-prompts-capability cap-prompts)
+        (ic/update-resources-capability cap-resources)
+        (ic/update-tools-capability cap-tools)
+        (ic/update-completions-capability cap-completion))))

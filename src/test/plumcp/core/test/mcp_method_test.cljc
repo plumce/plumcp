@@ -14,7 +14,7 @@
    [plumcp.core.api.capability-support :as cs]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-method :as im]
    [plumcp.core.schema.schema-defs :as sd])
   #?(:clj (:import
@@ -26,25 +26,25 @@
 
 (def runtime-client-caps
   (let [roots-cap (-> (eg/make-root "dir://a")
-                      cap/make-roots-capability-item
+                      ic/make-roots-capability-item
                       vector
-                      cap/make-roots-capability)
+                      ic/make-roots-capability)
         sampling-cap (-> (fn [{messages :messages
                                max-tokens :maxTokens
                                :as kwargs}]
                            {:messages messages
                             :max-tokens max-tokens})
-                         cap/make-sampling-capability)
+                         ic/make-sampling-capability)
         elicitation-cap (-> (fn [{message :message
                                   requested-schema :requestedSchema
                                   :as kwargs}]
                               {:message message
                                :requested-schema requested-schema})
-                            cap/make-elicitation-capability)
-        client-caps (-> cap/default-client-capabilities
-                        (cap/update-roots-capability roots-cap)
-                        (cap/update-sampling-capability sampling-cap)
-                        (cap/update-elicitation-capability elicitation-cap))
+                            ic/make-elicitation-capability)
+        client-caps (-> ic/default-client-capabilities
+                        (ic/update-roots-capability roots-cap)
+                        (ic/update-sampling-capability sampling-cap)
+                        (ic/update-elicitation-capability elicitation-cap))
         context (-> {}
                     (rt/?client-capabilities client-caps))]
     (rt/get-runtime context)))
@@ -70,42 +70,42 @@
 
 (def runtime-server-caps
   "Runtime with server capabilities"
-  (let [completions-cap (cap/make-completions-capability [prompt-ref-item]
+  (let [completions-cap (ic/make-completions-capability [prompt-ref-item]
                                                          [resource-ref-item])
         prompts-cap (-> (eg/make-prompt "prompt1")
-                        (cap/make-prompts-capability-item (fn [kwargs]
+                        (ic/make-prompts-capability-item (fn [kwargs]
                                                             {:out :prompt1}))
                         vector
-                        cap/make-prompts-capability)
+                        ic/make-prompts-capability)
         resource-cap-item (-> (eg/make-resource "test://resource1" "resource1")
-                              (cap/make-resources-capability-resource-item
+                              (ic/make-resources-capability-resource-item
                                (fn [{uri :uri
                                      :as kwargs}]
                                  {:out :resource1
                                   :uri uri})))
         template-cap-item (-> (eg/make-resource-template "test://res/{id}" "template1")
-                              (cap/make-resources-capability-resource-template-item
+                              (ic/make-resources-capability-resource-template-item
                                (fn [{uri :uri
                                      {id :id} :params
                                      :as kwargs}]
                                  {:out :template1
                                   :uri uri
                                   :id id})))
-        resources-cap (cap/make-resources-capability [resource-cap-item]
+        resources-cap (ic/make-resources-capability [resource-cap-item]
                                                      [template-cap-item])
         tools-cap (-> (eg/make-tool "tool1"
                                     (-> {"a" {:type "number" :description "first number"}
                                          "b" {:type "number" :description "second number"}}
                                         (eg/make-tool-input-output-schema ["a" "b"])))
-                      (cap/make-tools-capability-item (fn [{:keys [^long a ^long b]}]
+                      (ic/make-tools-capability-item (fn [{:keys [^long a ^long b]}]
                                                         {:out (+ a b)}))
                       vector
-                      cap/make-tools-capability)
-        server-caps (-> cap/default-server-capabilities
-                        (cap/update-completions-capability completions-cap)
-                        (cap/update-prompts-capability prompts-cap)
-                        (cap/update-resources-capability resources-cap)
-                        (cap/update-tools-capability tools-cap))
+                      ic/make-tools-capability)
+        server-caps (-> ic/default-server-capabilities
+                        (ic/update-completions-capability completions-cap)
+                        (ic/update-prompts-capability prompts-cap)
+                        (ic/update-resources-capability resources-cap)
+                        (ic/update-tools-capability tools-cap))
         context (-> {}
                     (rt/?server-capabilities server-caps))]
     (rt/get-runtime context)))

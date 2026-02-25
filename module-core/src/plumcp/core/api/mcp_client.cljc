@@ -14,7 +14,7 @@
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
@@ -368,7 +368,7 @@
   "Send response for roots-list server request."
   [client request-id]
   (if-let [roots (-> (cs/?capabilities client)
-                     (cap/get-capability-roots))]
+                     (ic/get-capability-roots))]
     (let [response (->> (eg/make-list-roots-result roots)
                         (jr/jsonrpc-success request-id))]
       (cs/send-message-to-server client response))
@@ -382,7 +382,7 @@
   "Send response for sampling-createMessage server request."
   [client request-id role content]
   (if-let [sampling (-> (cs/?capabilities client)
-                        (cap/get-capability-sampling))]
+                        (ic/get-capability-sampling))]
     (let [response (->> (eg/make-sampling-message role content)
                         (jr/jsonrpc-success request-id))]
       (cs/send-message-to-server client response))
@@ -396,7 +396,7 @@
   "Send response for sampling-createMessage server request."
   [client request-id action elicit-options]
   (if-let [elicitation (-> (cs/?capabilities client)
-                           (cap/get-capability-elicitation))]
+                           (ic/get-capability-elicitation))]
     (let [response (->> (eg/make-elicit-result action elicit-options)
                         (jr/jsonrpc-success request-id))]
       (cs/send-message-to-server client response))
@@ -446,10 +446,10 @@
                              (rt/upsert-runtime runtime))
           run-list-notifier (when run-list-notifier?
                               (fn [client]
-                                (cap/run-list-changed-notifier
+                                (ic/run-list-changed-notifier
                                  (-> runtime
                                      (kl/?get rt/?client-capabilities)
-                                     cap/get-client-listed-capabilities)
+                                     ic/get-client-listed-capabilities)
                                  (fn [notification]
                                    (cs/send-notification-to-server
                                     client

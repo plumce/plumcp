@@ -15,7 +15,7 @@
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.dev.bling-logger :as blogger]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.main.client :as client]
    [plumcp.core.main.main-http-server :as mhs]
    [plumcp.core.main.server :as server]
@@ -26,7 +26,7 @@
    [plumcp.core.util.async-bridge :as uab]))
 
 
-(def client-capabilities cap/default-client-capabilities)
+(def client-capabilities ic/default-client-capabilities)
 
 
 (def command-tokens

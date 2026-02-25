@@ -13,7 +13,7 @@
    [clojure.set :as set]
    [plumcp.core.api.capability-support :as cs]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.method-handler :as mh]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
@@ -149,7 +149,7 @@
                      mh/make-get-prompt-handler)]
     (-> (eg/make-prompt mcp-name {:description descrip
                                   :args args-vec})
-        (cap/make-prompts-capability-item handler))))
+        (ic/make-prompts-capability-item handler))))
 
 
 ;; ----- Resource making -----
@@ -201,7 +201,7 @@
     (-> (eg/make-resource uri-str mcp-name
                           (-> {:description descrip}
                               (u/assoc-some :mime-type (:mime-type vm))))
-        (cap/make-resources-capability-resource-item handler))))
+        (ic/make-resources-capability-resource-item handler))))
 
 
 ;; ----- Resource-template making -----
@@ -307,7 +307,7 @@
                      mh/make-call-tool-handler)]
     (-> (eg/make-tool mcp-name inschema
                       {:description tool-doc})
-        (cap/make-tools-capability-item handler))))
+        (ic/make-tools-capability-item handler))))
 
 
 ;; ----- Sampling -----

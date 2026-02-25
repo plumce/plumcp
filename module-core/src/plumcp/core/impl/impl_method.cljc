@@ -13,7 +13,7 @@
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
@@ -84,19 +84,19 @@
 
 (defn with-roots-capability [request f]
   (let [roots-capability (-> (rt/?client-capabilities request)
-                             (cap/get-capability-roots))]
+                             (ic/get-capability-roots))]
     (with-capability request "roots" roots-capability f)))
 
 
 (defn with-sampling-capability [request f]
   (let [sampling-capability (-> (rt/?client-capabilities request)
-                                (cap/get-capability-sampling))]
+                                (ic/get-capability-sampling))]
     (with-capability request "sampling" sampling-capability f)))
 
 
 (defn with-elicitation-capability [request f]
   (let [elicitation-capability (-> (rt/?client-capabilities request)
-                                   (cap/get-capability-elicitation))]
+                                   (ic/get-capability-elicitation))]
     (with-capability request "elicitation" elicitation-capability f)))
 
 
@@ -105,31 +105,31 @@
 
 (defn with-logging-capability [request f]
   (let [logging-capability (-> (rt/?server-capabilities request)
-                               (cap/get-capability-logging))]
+                               (ic/get-capability-logging))]
     (with-capability request "logging" logging-capability f)))
 
 
 (defn with-completions-capability [request f]
   (let [completions-capability (-> (rt/?server-capabilities request)
-                                   (cap/get-capability-completions))]
+                                   (ic/get-capability-completions))]
     (with-capability request "completions" completions-capability f)))
 
 
 (defn with-prompts-capability [request f]
   (let [prompts-capability (-> (rt/?server-capabilities request)
-                               (cap/get-capability-prompts))]
+                               (ic/get-capability-prompts))]
     (with-capability request "prompts" prompts-capability f)))
 
 
 (defn with-resources-capability [request f]
   (let [resources-capability (-> (rt/?server-capabilities request)
-                                 (cap/get-capability-resources))]
+                                 (ic/get-capability-resources))]
     (with-capability request "resources" resources-capability f)))
 
 
 (defn with-tools-capability [request f]
   (let [tools-capability (-> (rt/?server-capabilities request)
-                             (cap/get-capability-tools))]
+                             (ic/get-capability-tools))]
     (with-capability request "tools" tools-capability f)))
 
 
@@ -149,7 +149,7 @@
   [jsonrpc-request supported-protocol-version]
   (let [protocol-version supported-protocol-version
         server-capabilities (-> (rt/?server-capabilities jsonrpc-request)
-                                (cap/get-server-capability-declaration))
+                                (ic/get-server-capability-declaration))
         server-info (rt/?server-info jsonrpc-request)
         server-instructions (rt/?server-instructions jsonrpc-request)]
     (->> (-> {}

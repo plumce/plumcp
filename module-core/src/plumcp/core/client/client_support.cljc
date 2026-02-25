@@ -14,7 +14,7 @@
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.protocol :as p]
@@ -234,7 +234,7 @@
               on-notification jsonrpc-handler}} options
         client-cache-atom (make-client-cache-atom)]
     (-> {}
-        (?capabilities cap/default-client-capabilities)
+        (?capabilities ic/default-client-capabilities)
         (?send-message (fn [jsonrpc-message]
                          (u/eprintln "[Dummy:JSON-RPC Sending Message]"
                                      jsonrpc-message)))
@@ -523,7 +523,7 @@
   (let [request (eg/make-initialize-request
                  sd/protocol-version-max
                  (-> (?capabilities client)
-                     cap/get-client-capability-declaration)
+                     ic/get-client-capability-declaration)
                  (rt/?client-info client))
         setter (partial set-session-context! client)]
     (as-> on-jsonrpc-response $
@@ -1159,7 +1159,7 @@
                            (or capabilities
                                (some-> (get-primitives)
                                        cs/primitives->client-capabilities)
-                               cap/default-client-capabilities))
+                               ic/default-client-capabilities))
         get-runtime (fn []
                       (-> runtime
                           (or (-> {}

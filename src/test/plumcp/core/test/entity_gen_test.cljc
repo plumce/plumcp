@@ -13,7 +13,7 @@
    [clojure.test :refer [deftest is testing]]
    [malli.core :as mc]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs byte-array)]])
   #?(:clj (:import
@@ -21,8 +21,8 @@
 
 
 (def test-capability-declaration
-  (-> cap/default-server-capabilities
-      cap/get-server-capability-declaration))
+  (-> ic/default-server-capabilities
+      ic/get-server-capability-declaration))
 
 
 (deftest test-resource

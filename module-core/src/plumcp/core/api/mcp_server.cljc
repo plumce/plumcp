@@ -13,7 +13,7 @@
   (:require
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.protocol :as p]
    [plumcp.core.server.http-ring :as http-ring]
    [plumcp.core.server.server-support :as ss]
@@ -65,10 +65,10 @@
           server-info (kl/?get runtime rt/?server-info)
           run-list-notifier (fn []
                               (when run-list-notifier?
-                                (cap/run-list-changed-notifier
+                                (ic/run-list-changed-notifier
                                  (-> runtime
                                      (kl/?get rt/?server-capabilities)
-                                     cap/get-server-listed-capabilities)
+                                     ic/get-server-listed-capabilities)
                                  (let [context (rt/upsert-runtime
                                                 {} runtime)]
                                    (fn [notification]
