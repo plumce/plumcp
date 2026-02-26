@@ -53,7 +53,9 @@
   "Make a resources capability item. A collection of such items is used
    to make resources capability. The `handler` is an arity-1 function
    accepting resource kwargs, returning read-resource result."
-  [uri name handler
+  [uri name
+   ^{:see [eg/make-read-resource-request
+           eg/make-read-resource-result]} handler
    & {:as options}]
   (let [read-resource-handler (-> handler
                                   mh/make-read-resource-handler)]
@@ -66,7 +68,9 @@
   "Make a resource template item. A collection of such items is used
    to make resources capability. The `handler` is an arity-1 function
    accepting resource kwargs, returning read-resource result."
-  [uri-template name handler
+  [uri-template name
+   ^{:see [eg/make-read-resource-request
+           eg/make-read-resource-result]} handler
    & {:as options}]
   (let [read-resource-handler (-> handler
                                   mh/make-read-resource-handler)]
