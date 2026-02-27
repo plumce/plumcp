@@ -146,6 +146,36 @@
        ~@body)))
 
 
+(defn repeatedly-until
+  "Keep invoking `(f-check)` repeatedly at `idle-millis` interval until
+   it returns truthy, which is finally returned. Block and return value
+   in CLJ, do not block but return a js/Promise in CLJS. Timeout value
+   is returned on timeout if timeout params are passed."
+  ([f-check ^long idle-millis ^long timeout-millis timeout-value]
+   #?(:cljs (-> (repeatedly-until f-check idle-millis)
+                (timeout-promise timeout-millis timeout-value))
+      :clj (let [start (u/now-millis)]
+             (loop [result (f-check)]
+               (or result (if (>= (u/now-millis start)
+                                  timeout-millis)
+                            timeout-value
+                            (do
+                              (Thread/sleep idle-millis)
+                              (recur (f-check)))))))))
+  ([f-check ^long idle-millis]
+   #?(:cljs (let [check (fn thisfn [return]
+                          (may-await [r (f-check)]
+                            (if r
+                              (return r)
+                              (js/setTimeout #(thisfn return)
+                                             idle-millis))))]
+              (js/Promise. check))
+      :clj (loop [r (f-check)]
+             (or r (do
+                     (Thread/sleep idle-millis)
+                     (recur (f-check))))))))
+
+
 (defn iterator?
   "Return true if argument is an iterator, false otherwise. In CLJS the
    iterator may be async or sync, in CLJ the iterator can be sync only."
@@ -241,7 +271,7 @@
             (u/expected! iterator "an iterator"))))
 
 
-(defmacro await->
+(defmacro may-await->
   "Equivalent of clojure.core/-> for awaitable intermediate results."
   [expr & forms]
   (let [result-sym (gensym 'result)
@@ -257,7 +287,7 @@
        ~result-sym)))
 
 
-(defmacro await->>
+(defmacro may-await->>
   "Equivalent of clojure.core/->> for awaitable intermediate results."
   [expr & forms]
   (let [result-sym (gensym 'result)
@@ -274,7 +304,7 @@
        ~result-sym)))
 
 
-(defmacro await-as->
+(defmacro may-await-as->
   "Equivalent of clojure.core/as-> for awaitable intermediate results."
   [expr name & forms]
   `(may-await [~name ~expr
