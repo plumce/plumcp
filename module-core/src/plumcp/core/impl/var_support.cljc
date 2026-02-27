@@ -60,11 +60,12 @@
       (let [arg-meta (meta each-sym)]
         (when-not (->> required-arg-meta-keys
                        (every? #(string? (get arg-meta %))))
-          (u/throw! (format "Metadata %s missing for argument %s"
-                            required-arg-meta-keys
-                            each-sym)
+          (u/throw! (-> "Metadata %s missing (or not a string) for argument %s"
+                        (format required-arg-meta-keys
+                                each-sym))
                     {:argument each-sym
-                     :expected (str "Example: " required-arg-meta-exeg)}))
+                     :expected (str "Example: " required-arg-meta-exeg)
+                     :found (select-keys arg-meta required-arg-meta-keys)}))
         (when (and (contains? arg-meta :required?)
                    (not (boolean? (:required? arg-meta))))
           (u/throw! (str "Metadata :required? not a boolean for argument "
