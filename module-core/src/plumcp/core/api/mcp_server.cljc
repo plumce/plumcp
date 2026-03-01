@@ -12,9 +12,6 @@
    Ref: https://github.com/cyanheads/model-context-protocol-resources/blob/main/guides/mcp-server-development-guide.md"
   (:require
    [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.impl-capability :as ic]
-   [plumcp.core.protocol :as p]
    [plumcp.core.server.http-ring :as http-ring]
    [plumcp.core.server.server-support :as ss]
    [plumcp.core.server.stdio-server :as stdio-server]
@@ -26,13 +23,6 @@
 
 
 (def default-transport :stdio)
-
-
-(defrecord RunningServer [server list-notifier]
-  p/IStoppable
-  (stop! [_] (try (when list-notifier (p/stop! list-notifier))
-                  (finally
-                    (when server (p/stop! server))))))
 
 
 (declare run-server)
@@ -63,18 +53,11 @@
                                             {:id default-transport})}
                          options)
           server-info (kl/?get runtime rt/?server-info)
-          run-list-notifier (fn []
-                              (when run-list-notifier?
-                                (ic/run-list-changed-notifier
-                                 (-> runtime
-                                     (kl/?get rt/?server-capabilities)
-                                     ic/get-server-listed-capabilities)
-                                 (let [context (rt/upsert-runtime
-                                                {} runtime)]
-                                   (fn [notification]
-                                     (rs/notify-initialized-clients
-                                      context notification)))
-                                 list-notifier-options)))
+          run-list-notifier (if run-list-notifier?
+                              (partial ss/run-list-notifier
+                                       runtime
+                                       list-notifier-options)
+                              u/nop)
           get-stdio-handler (fn []
                               (or stdio-handler
                                   (stdio-server/make-stdio-handler
@@ -89,17 +72,18 @@
       (case (u/as-str transport)
         "stdio" (uab/may-await [stdio-handler (get-stdio-handler)]
                   (when print-banner? (bp/print-banner server-info options))
-                  (->RunningServer (stdio-handler) (run-list-notifier)))
+                  (ss/run-stdio-mcpserver stdio-handler
+                                          run-list-notifier))
         "http"  (uab/may-await [ring-handler (get-ring-handler)
                                 ring-server (http-ring/run-ring-server
                                              ring-handler options)]
                   (when print-banner? (bp/print-banner server-info options))
-                  (->RunningServer ring-server (run-list-notifier)))
+                  (ss/run-http-mcp-server ring-server
+                                          run-list-notifier))
         (u/expected! transport "transport to be :stdio or :http")))))
 
 
-(defmacro ^{:see [run-mcp-server
-                  RunningServer]} run-server
+(defmacro ^{:see [run-mcp-server]} run-server
   "Run MCP server using given (or deduced) options, returning a
    RunningServer instance.
    | Option keyword           | Default | Description                          |

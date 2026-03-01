@@ -13,8 +13,10 @@
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.impl.var-support :as vs]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
@@ -172,3 +174,58 @@
     (-> server-options
         (merge {:runtime (get-runtime)
                 :jsonrpc-handler (get-jsonrpc-handler)}))))
+
+
+;; --- Helpers for running the server ---
+
+
+(defn run-list-notifier
+  [runtime list-notifier-options]
+  (ic/run-list-changed-notifier
+   (-> (rt/upsert-runtime {} runtime)
+       rt/?server-capabilities
+       ic/get-server-listed-capabilities)
+   (let [context (rt/upsert-runtime
+                  {} runtime)]
+     (fn [notification]
+       (rs/notify-initialized-clients
+        context notification)))
+   list-notifier-options))
+
+
+(defrecord RunningServer [server list-notifier]
+  p/IStoppable
+  (stop! [_] (try (when list-notifier (p/stop! list-notifier))
+                  (finally
+                    (when server (p/stop! server))))))
+
+
+(defn run-server-daemons
+  "Given functions to run MCP server and notifier, run both and return a
+   unified RunningServer instance that may be stopped together."
+  [run-server run-list-notifier]
+  (let [running-notifier (run-list-notifier)
+        ;; ran notifier first because the (STDIO) server may block
+        running-server (run-server)]
+    (->RunningServer running-server running-notifier)))
+
+
+;; Server-running entrypoints
+
+
+(defn run-http-mcp-server
+  [ring-server run-list-notifier]
+  (run-server-daemons (constantly ring-server)
+                      run-list-notifier))
+
+
+(defn run-stdio-mcpserver
+  [stdio-handler run-list-notifier]
+  (run-server-daemons stdio-handler run-list-notifier))
+
+
+(defn run-zero-mcp-server
+  [runtime]
+  (let [run-notifier (partial run-list-notifier runtime {})
+        run-server u/nop]
+    (run-server-daemons run-server run-notifier)))
