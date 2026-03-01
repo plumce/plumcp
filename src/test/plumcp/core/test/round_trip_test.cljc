@@ -11,16 +11,18 @@
   (:require
    [clojure.edn :as edn]
    [clojure.test :refer [deftest is]]
-   [plumcp.core.api.capability-support :as cs]
+   [plumcp.core.api.capability-support :as cap]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.api.mcp-client :as mc]
+   [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.dev.api :as dev]
    [plumcp.core.dev.bling-logger :as blogger]
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.main.client :as client]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.server.server-support :as ss]
    [plumcp.core.server.zero-server :as zs]
@@ -33,9 +35,9 @@
 
 ;; Client items
 
-(def root-item-1 (cs/make-root-item "root://root1"))
+(def root-item-1 (cap/make-root-item "root://root1"))
 
-(def root-item-2 (cs/make-root-item "root://root2"))
+(def root-item-2 (cap/make-root-item "root://root2"))
 
 
 ;; Server items
@@ -45,35 +47,35 @@
                           (-> (es/make-text-prompt-message sd/role-user
                                                            "prompt1")
                               es/prompt-message->get-prompt-result))
-                        (cs/make-prompt-item "prompt1")))
+                        (cap/make-prompt-item "prompt1")))
 
 (def prompt-item-2 (->> (fn [{:keys [name arguments]}]
                           (-> (es/make-text-prompt-message sd/role-user
                                                            "prompt2")
                               es/prompt-message->get-prompt-result))
-                        (cs/make-prompt-item "prompt2")))
+                        (cap/make-prompt-item "prompt2")))
 
 
 (def resource-item-1 (->> (fn [{:keys [uri params]}]
                             (es/make-text-resource-result "res://res1"
                                                           "res1"))
-                          (cs/make-resource-item "res://res1" "res1")))
+                          (cap/make-resource-item "res://res1" "res1")))
 (def resource-item-2 (->> (fn [{:keys [uri params]}]
                             (es/make-text-resource-result "res://res2"
                                                           "res2"))
-                          (cs/make-resource-item "res://res2" "res2")))
+                          (cap/make-resource-item "res://res2" "res2")))
 
 
 (def template-item-1 (->> (fn [{:keys [uri params]}]
                             (es/make-text-resource-result "rt1://res/1"
                                                           "res1"))
-                          (cs/make-resource-item "rt1://res/{id}"
-                                                 "tem1")))
+                          (cap/make-resource-item "rt1://res/{id}"
+                                                  "tem1")))
 (def template-item-2 (->> (fn [{:keys [uri params]}]
                             (es/make-text-resource-result "rt2://res/2"
                                                           "res2"))
-                          (cs/make-resource-item "rt2://res/{id}"
-                                                 "tem2")))
+                          (cap/make-resource-item "rt2://res/{id}"
+                                                  "tem2")))
 
 
 (def tool-schema (eg/make-tool-input-output-schema
@@ -85,19 +87,18 @@
 
 (def tool-item-1 (->> (fn [{:keys [^long a ^long b]}]
                         (+ a b))
-                      (cs/make-tool-item "add" tool-schema)))
+                      (cap/make-tool-item "add" tool-schema)))
 
 (def tool-item-2 (->> (fn [{:keys [^long a ^long b]}]
                         (* a b))
-                      (cs/make-tool-item "multiply" tool-schema)))
+                      (cap/make-tool-item "multiply" tool-schema)))
 
 
-(def resource-name-cached-roots "cached-roots")
 (def resource-uri-cached-roots "res://cached-roots")
 
 
-(defn ^{:mcp-name resource-name-cached-roots
-        :mcp-type :resource} resource-roots
+(defn ^{:mcp-name "cached-roots"
+        :mcp-type :resource} resource-cached-roots
   "Roots fetched and cached by the server"
   [{:keys [^{:doc "res://cached-roots"} uri]
     :as args-with-deps}]
@@ -146,7 +147,7 @@
   []
   (let [prompts (atom [prompt-item-1])
         resources (atom [resource-item-1
-                         (vs/make-resource-from-var #'resource-roots)])
+                         (vs/make-resource-from-var #'resource-cached-roots)])
         templates (atom [template-item-1])
         tools (atom [tool-item-1
                      (vs/make-tool-from-var #'tool-fetch-roots)
@@ -167,12 +168,15 @@
 
 
 (defn make-zero-server-options
-  []
-  (-> {:primitives (make-server-primitives)
-       :info (es/make-info "Round trip Server" "0.1.0"
-                           "Round trip Server v0.1.0")}
-      (merge dev/server-options)
-      ss/make-server-options))
+  ([server-primitives]
+   (-> {:primitives server-primitives
+        :info (es/make-info "Round trip Server" "0.1.0"
+                            "Round trip Server v0.1.0")}
+       (merge dev/server-options)
+       ss/make-server-options))
+  ([]
+   (-> (make-server-primitives)
+       make-zero-server-options)))
 
 
 (deftest test-list-changed-roots
@@ -187,7 +191,10 @@
   ;;   6.1 assert new roots
   (tu/async-test [done!]
     (let [client-primitives (make-client-primitives)
-          transport (-> (make-zero-server-options)
+          server-options (make-zero-server-options)
+          running-server (-> (:runtime server-options)
+                             ss/run-zero-mcp-server)
+          transport (-> server-options
                         make-zero-client-transport)
           client (-> {:primitives client-primitives
                       :traffic-logger blogger/client-logger
@@ -210,7 +217,7 @@
            (swap! conj root-item-2))
        ;; here's hoping that client notifies list-changed to server
        ;; and server re-fetched roots - we check by reading resource
-       (uab/repeatedly-until
+       (uab/until
         #(uab/let-await [roots-result (->> resource-uri-cached-roots
                                            (mc/read-resource client))]
            ;; wait until 2 roots show up
@@ -226,6 +233,7 @@
              "updated roots"))
        ;; all done
        (mc/disconnect! client)
+       (p/stop! running-server)
        (done!)))))
 
 
@@ -239,7 +247,50 @@
   ;;   5.1 assert event-received
   ;; 6. client fetches new prompts list
   ;;   6.1 assert new prompts
-  )
+  (tu/async-test [done!]
+    (let [server-primitives (make-server-primitives)
+          server-options (-> server-primitives
+                             make-zero-server-options)
+          running-server (-> (:runtime server-options)
+                             ss/run-zero-mcp-server)
+          transport (-> server-options
+                        make-zero-client-transport)
+          client (-> {:primitives (make-client-primitives)
+                      :traffic-logger blogger/client-logger
+                      :client-transport transport}
+                     (merge client/client-options)
+                     (mc/make-client))]
+      (tu/async-do
+       ;; client connects
+       (mc/initialize-and-notify! client)
+       ;; client fetches prompts
+       (uab/let-await [prompts (mc/list-prompts client)]
+         ;; client asserts original prompts
+         (is (= [(dissoc prompt-item-1 :handler)]
+                prompts)
+             "original prompts"))
+       ;; server adds a new prompt
+       (-> server-primitives
+           (get :prompts)
+           (swap! conj prompt-item-2))
+       ;; expect the server to send list-changed to the client
+       ;; that ends up re-fetched and cached by the client
+       u/nop
+       (uab/until
+        #(let [prompts (cs/get-from-cache client cs/?cc-prompts-list)]
+           (= 2 (count prompts)))
+        1000)
+       ;; client fetches new prompts list
+       (uab/let-await [prompts (mc/list-prompts client)]
+         ;; client asserts updated prompts
+         (is (= [(dissoc prompt-item-1 :handler)
+                 (dissoc prompt-item-2 :handler)]
+                prompts)
+             "updated prompts"))
+       ;; all done
+       (mc/disconnect! client)
+       (p/stop! running-server)
+       (done!)))))
 
 
 (deftest test-list-changed-resources
