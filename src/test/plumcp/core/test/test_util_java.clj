@@ -10,7 +10,6 @@
 (ns plumcp.core.test.test-util-java
   "Extra test harness for the Java platform"
   (:require
-   [clojure.stacktrace :as st]
    [clojure.test :as t]
    [plumcp.core.test.test-constant :as tc]
    [plumcp.core.util :as u]))
@@ -43,7 +42,7 @@
              (format (:name (meta v)) (ex-message err) (ex-data err))
              u/eprintln)
          (u/eprintln "UNCAUGHT (no active test)"))
-       (st/print-stack-trace err)
+       (u/print-stack-trace err)
        (System/exit 1)))))
 
 
@@ -59,7 +58,7 @@
                u/eprintln)
            (u/eprintln "UNCAUGHT (no active test)"))
          ;; print full stack trace
-         (st/print-stack-trace err)
+         (u/print-stack-trace err)
          ;; also report to clojure.test so it counts as an :error
          (when-let [v *current-test-var*]
            (t/report {:type :error
