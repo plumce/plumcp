@@ -69,13 +69,13 @@
 (def template-item-1 (->> (fn [{:keys [uri params]}]
                             (es/make-text-resource-result "rt1://res/1"
                                                           "res1"))
-                          (cap/make-resource-item "rt1://res/{id}"
-                                                  "tem1")))
+                          (cap/make-resource-template-item "rt1://res/{id}"
+                                                           "tem1")))
 (def template-item-2 (->> (fn [{:keys [uri params]}]
                             (es/make-text-resource-result "rt2://res/2"
                                                           "res2"))
-                          (cap/make-resource-item "rt2://res/{id}"
-                                                  "tem2")))
+                          (cap/make-resource-template-item "rt2://res/{id}"
+                                                           "tem2")))
 
 
 (def tool-schema (eg/make-tool-input-output-schema
@@ -237,6 +237,25 @@
        (done!)))))
 
 
+(defn make-test-ingredients
+  []
+  (let [server-primitives (make-server-primitives)
+        server-options (-> server-primitives
+                           make-zero-server-options)
+        running-server (-> (:runtime server-options)
+                           ss/run-zero-mcp-server)
+        transport (-> server-options
+                      make-zero-client-transport)
+        client (-> {:primitives (make-client-primitives)
+                    :traffic-logger blogger/client-logger
+                    :client-transport transport}
+                   (merge client/client-options)
+                   (mc/make-client))]
+    {:server-primitives server-primitives
+     :running-server running-server
+     :client client}))
+
+
 (deftest test-list-changed-prompts
   ;; 1. start-server
   ;; 2. client connects
@@ -248,18 +267,9 @@
   ;; 6. client fetches new prompts list
   ;;   6.1 assert new prompts
   (tu/async-test [done!]
-    (let [server-primitives (make-server-primitives)
-          server-options (-> server-primitives
-                             make-zero-server-options)
-          running-server (-> (:runtime server-options)
-                             ss/run-zero-mcp-server)
-          transport (-> server-options
-                        make-zero-client-transport)
-          client (-> {:primitives (make-client-primitives)
-                      :traffic-logger blogger/client-logger
-                      :client-transport transport}
-                     (merge client/client-options)
-                     (mc/make-client))]
+    (let [{:keys [server-primitives
+                  running-server
+                  client]} (make-test-ingredients)]
       (tu/async-do
        ;; client connects
        (mc/initialize-and-notify! client)
@@ -303,7 +313,46 @@
   ;;   5.1 assert event-received
   ;; 6. client fetches new resources list
   ;;   6.1 assert new resources
-  )
+  (tu/async-test [done!]
+    (let [{:keys [server-primitives
+                  running-server
+                  client]} (make-test-ingredients)]
+      (tu/async-do
+       ;; client connects
+       (mc/initialize-and-notify! client)
+       ;; client fetches resources
+       (uab/let-await [resources (mc/list-resources client)]
+         ;; client asserts original resources
+         (is (= (->> [resource-item-1
+                      (vs/make-resource-from-var #'resource-cached-roots)]
+                     (mapv #(dissoc % :handler)))
+                resources)
+             "original resources"))
+       ;; server adds a new resource
+       (-> server-primitives
+           (get :resources)
+           (swap! conj resource-item-2))
+       ;; expect the server to send list-changed to the client
+       ;; that ends up re-fetched and cached by the client
+       u/nop
+       (uab/until
+        #(let [resources (cs/get-from-cache client
+                                            cs/?cc-resources-list)]
+           (= 3 (count resources)))
+        1000)
+       ;; client fetches new resources list
+       (uab/let-await [resources (mc/list-resources client)]
+         ;; client asserts updated resources
+         (is (= (->> [resource-item-1
+                      (vs/make-resource-from-var #'resource-cached-roots)
+                      resource-item-2]
+                     (mapv #(dissoc % :handler)))
+                resources)
+             "updated resources"))
+       ;; all done
+       (mc/disconnect! client)
+       (p/stop! running-server)
+       (done!)))))
 
 
 (deftest test-list-changed-resource-templates

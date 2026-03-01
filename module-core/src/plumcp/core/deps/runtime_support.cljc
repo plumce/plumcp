@@ -54,7 +54,8 @@
   (->> (fn [session]
          (when (p/get-init-ts session)
            (p/send-message-to-client session (rt/?session context session)
-                                     notification)))
+                                     notification))
+         session)
        (update-server-sessions context)))
 
 
