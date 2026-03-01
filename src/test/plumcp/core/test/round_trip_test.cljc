@@ -365,7 +365,43 @@
   ;;   5.1 assert event-received
   ;; 6. client fetches new resource templates list
   ;;   6.1 assert new resource templates
-  )
+  (tu/async-test [done!]
+    (let [{:keys [server-primitives
+                  running-server
+                  client]} (make-test-ingredients)]
+      (tu/async-do
+       ;; client connects
+       (mc/initialize-and-notify! client)
+       ;; client fetches resource templates
+       (uab/let-await [templates (mc/list-resource-templates client)]
+         ;; client asserts original resource templates
+         (is (= [(dissoc template-item-1 :handler)]
+                templates)
+             "original resource templates"))
+       ;; server adds a new resource template
+       (-> server-primitives
+           (get :resource-templates)
+           (swap! conj template-item-2))
+       ;; expect the server to send list-changed to the client
+       ;; that ends up re-fetched and cached by the client
+       u/nop
+       (uab/until
+        #(let [templates (cs/get-from-cache client
+                                            cs/?cc-resource-templates-list)]
+           (= 2 (count templates)))
+        1000)
+       ;; client fetches new resource templates list
+       (uab/let-await [templates (mc/list-resource-templates client)]
+         ;; client asserts updated resource templates
+         (is (= (->> [template-item-1
+                      template-item-2]
+                     (mapv #(dissoc % :handler)))
+                templates)
+             "updated resource templates"))
+       ;; all done
+       (mc/disconnect! client)
+       (p/stop! running-server)
+       (done!)))))
 
 
 (deftest test-list-changed-tools
