@@ -76,13 +76,19 @@
 (defcckey ?cc-heartbeat-worker {:default nil})
 
 
-(defn make-client-cache-atom
-  []
-  (doto (atom {})
+(defn init-client-cache-atom
+  [client-cache-atom]
+  (doto client-cache-atom
     (?cc-pending-client-requests {})
     (?cc-pending-server-requests {})
     (?cc-session-context {})
     (?cc-client-context nil)))
+
+
+(defn make-client-cache-atom
+  []
+  (doto (atom {})
+    (init-client-cache-atom)))
 
 
 ;; ----- Heartbeat running -----

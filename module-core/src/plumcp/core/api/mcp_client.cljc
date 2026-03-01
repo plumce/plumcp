@@ -70,6 +70,8 @@
                                cs/?cc-heartbeat-worker)]
     (u/background
       (p/stop! heartbeat-chk)))
+  ;; wipe client state to remove self and virtual thread references
+  (cs/init-client-cache-atom (cs/?client-cache client))
   (p/stop-client-transport! (cs/?transport client) false))
 
 
