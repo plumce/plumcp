@@ -146,13 +146,14 @@
        ~@body)))
 
 
-(defn repeatedly-until
-  "Keep invoking `(f-check)` repeatedly at `idle-millis` interval until
-   it returns truthy, which is finally returned. Block and return value
-   in CLJ, do not block but return a js/Promise in CLJS. Timeout value
-   is returned on timeout if timeout params are passed."
+(defn until
+  "Sleep until a condition or a timeout is met, returning a value (after
+   blocking) in CLJ or js/Promise in CLJS. When `f-check` is specified,
+   keep invoking `(f-check)` repeatedly at `idle-millis` interval until
+   it returns truthy, which is finally returned. Return timeout value on
+   timeout if timeout params are passed."
   ([f-check ^long idle-millis ^long timeout-millis timeout-value]
-   #?(:cljs (-> (repeatedly-until f-check idle-millis)
+   #?(:cljs (-> (until f-check idle-millis)
                 (timeout-promise timeout-millis timeout-value))
       :clj (let [start (u/now-millis)]
              (loop [result (f-check)]
@@ -173,7 +174,12 @@
       :clj (loop [r (f-check)]
              (or r (do
                      (Thread/sleep idle-millis)
-                     (recur (f-check))))))))
+                     (recur (f-check)))))))
+  ([^long idle-millis]
+   #?(:cljs (js/Promise. (fn [return]
+                           (js/setTimeout #(return nil)
+                                          idle-millis)))
+      :clj (Thread/sleep idle-millis))))
 
 
 (defn iterator?
