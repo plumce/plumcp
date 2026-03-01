@@ -414,4 +414,45 @@
   ;;   5.1 assert event-received
   ;; 6. client fetches new tools list
   ;;   6.1 assert new tools
-  )
+  (tu/async-test [done!]
+    (let [{:keys [server-primitives
+                  running-server
+                  client]} (make-test-ingredients)]
+      (tu/async-do
+       ;; client connects
+       (mc/initialize-and-notify! client)
+       ;; client fetches tools
+       (uab/let-await [tools (mc/list-tools client)]
+         ;; client asserts original tools
+         (is (= (->> [tool-item-1
+                      (vs/make-tool-from-var #'tool-fetch-roots)
+                      (vs/make-tool-from-var #'tool-check-roots)]
+                     (mapv #(dissoc % :handler)))
+                tools)
+             "original tools"))
+       ;; server adds a new tool
+       (-> server-primitives
+           (get :tools)
+           (swap! conj tool-item-2))
+       ;; expect the server to send list-changed to the client
+       ;; that ends up re-fetched and cached by the client
+       u/nop
+       (uab/until
+        #(let [tools (cs/get-from-cache client
+                                        cs/?cc-tools-list)]
+           (= 4 (count tools)))
+        1000)
+       ;; client fetches new tools list
+       (uab/let-await [tools (mc/list-tools client)]
+         ;; client asserts updated tools
+         (is (= (->> [tool-item-1
+                      (vs/make-tool-from-var #'tool-fetch-roots)
+                      (vs/make-tool-from-var #'tool-check-roots)
+                      tool-item-2]
+                     (mapv #(dissoc % :handler)))
+                tools)
+             "updated tools"))
+       ;; all done
+       (mc/disconnect! client)
+       (p/stop! running-server)
+       (done!)))))
