@@ -130,17 +130,18 @@
 
 
 (defmacro async-do
-  "Given a body of code containing several S-exprs, evaluate each S-expr
-   with `may-await`, weaving all S-exprs into a `let` chain in CLJ, or
-   js/Promise chain in CLJS.
+  "Like `clojure.core/do`, but for async forms. Given zero or more forms
+   evaluate each form with `may-await`, weaving all forms into a `let`
+   chain in CLJ, or js/Promise chain in CLJS. Return a value in CLJ, or
+   js/Promise in CLJS.
    This is useful for running several `(testing ...)` exprs in one test.
    WARNING:
-   In CLJS too many S-exprs may cause 'Out of heap space' memory error."
+   In CLJS too many forms may cause 'Out of heap space' memory error."
   [& forms]
   (let [bindings (interleave (repeat '_)
                              forms)]
     `(uab/may-await [~@bindings]
-       nil)))
+       ~'_)))
 
 
 #?(:cljs (do
