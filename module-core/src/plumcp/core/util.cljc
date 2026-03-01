@@ -21,6 +21,7 @@
   #?(:cljs (:require-macros [plumcp.core.util :refer [catch!]])
      :clj (:import
            [clojure.lang ExceptionInfo]
+           [java.io PrintWriter]
            [java.net URLDecoder URLEncoder]
            [java.nio.charset StandardCharsets]
            [java.text SimpleDateFormat]
@@ -494,7 +495,7 @@
   [e]
   (eprintln e)
   #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
-     :clj (.printStackTrace ^Throwable e *err*)))
+     :clj (.printStackTrace ^Throwable e ^PrintWriter *err*)))
 
 
 (defn wraptee
