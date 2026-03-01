@@ -490,10 +490,11 @@
 
 
 (defn print-stack-trace
+  "Print stack trace to the STDERR or error console."
   [e]
   (eprintln e)
   #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
-     :clj (.printStackTrace ^Throwable e)))
+     :clj (.printStackTrace ^Throwable e *err*)))
 
 
 (defn wraptee
