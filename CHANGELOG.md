@@ -29,7 +29,11 @@ All notable changes to this project will be documented in this file. This change
   - Kwarg `:cache-primitives?` in `make-client` for primitives caching
   - Functions reading primitives list transparently apply caching
 - Client: Heartbeat mechanism to keep connection alive
-- Client: Support for HTTPS proxy in CLJS HTTP client
+- Client: Support for SSL context/params in CLJ/JVM HTTP Client
+  - Opts in `p.c.s.h-c-j/make-client-context` or `p.c.s.h-c/make-http-client`
+  - Kwarg `:ssl-context` - `javax.net.ssl.SSLContext` instance
+  - Kwarg `:ssl-params`  - `javax.net.ssl.SSLParameters` instance
+- Client: Support for HTTPS proxy in CLJS HTTP client (request keys)
   - Node.js: `:dispatcher` and (legacy) `:agent` options
   - Bun.js: `:proxy` option
 - Server: Caching layer for roots
@@ -39,7 +43,7 @@ All notable changes to this project will be documented in this file. This change
 
 ### Changed
 
-- [BREAKING] Move fns `p.c.a.mcp-client` to `p.c.c.client-method` ns
+- [BREAKING] Move fns `p.c.a.mcp-client` to `p.c.c.client-support` ns
   - `async-initialize!`
   - `async-initialize-and-notify!`
   - `async-list-tools`
