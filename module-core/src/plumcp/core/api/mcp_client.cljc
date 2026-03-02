@@ -520,8 +520,9 @@
     :jsonrpc-handler [:schema-check-wrapper :jsonrpc-response-handler]}
 
    Notification handlers example:
-   {on-tools-list-changed #(fetch-tools % {:on-tools (fn [tools]
-                                                       ...)})}"
+   {p.c.schema.schema-defs/method-notifications-tools-list_changed
+    #(p.c.client.client-support/fetch-tools % {:on-tools (fn [tools]
+                                                           ...)})}"
   ([options]
    `(let [default-vars# (or (:vars ~options)
                             ~(if-let [nses (:ns options)]

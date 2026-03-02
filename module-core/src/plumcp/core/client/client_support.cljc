@@ -1040,59 +1040,6 @@
    sd/method-notifications-tools-list_changed fetch-tools})
 
 
-;; --- Notification handler keys ---
-
-
-;; Common for both client and server
-
-
-(def ^{:see [sd/CancelledNotification]} on-cancelled
-  "Key for `cancelled` notification handler fn: (fn [params])"
-  sd/method-notifications-cancelled)
-
-
-(def ^{:see [sd/ProgressNotification]} on-progress
-  "Key for `progress` notification handler fn: (fn [params])"
-  sd/method-notifications-progress)
-
-
-;; Client only
-
-
-(def ^{:see [sd/LoggingMessageNotification]} on-log-message
-  "Key for `message` notification handler fn: (fn [params])"
-  sd/method-notifications-message)
-
-
-(def ^{:see [sd/PromptListChangedNotification
-             sd/ListPromptsResult
-             fetch-prompts]} on-prompts-list-changed
-  "Key for `prompts/list_changed` notification handler fn:
-   (fn [prompts])"
-  sd/method-notifications-prompts-list_changed)
-
-
-(def ^{:see [sd/ResourceListChangedNotification
-             sd/ListResourcesResult
-             sd/ListResourceTemplatesResult
-             fetch-resources]} on-resources-list-changed
-  "Key for `resources/list_changed` notification handler fn:
-   (fn [resources resource-templates])"
-  sd/method-notifications-resources-list_changed)
-
-
-(def ^{:see [sd/ResourceUpdatedNotification]} on-resource-updated
-  "Key for `resources/updated` notification handler fn: (fn [params])"
-  sd/method-notifications-resources-updated)
-
-
-(def ^{:see [sd/ToolListChangedNotification
-             sd/ListToolsResult
-             fetch-tools]} on-tools-list-changed
-  "Key for `tools/list_changed` notification handler fn: (fn [tools])"
-  sd/method-notifications-tools-list_changed)
-
-
 ;; --- Client options making ---
 
 

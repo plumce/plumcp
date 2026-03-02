@@ -54,6 +54,15 @@ All notable changes to this project will be documented in this file. This change
   - `initialize!`
   - `notify-initialized`
 - [BREAKING] Rename ns `p.c.i.capability` to `p.c.i.impl-capability`
+- [TODO - BREAKING] Rename ns `p.c.a.capability-support` to `p.c.a.capability`
+- [BREAKING] Drop redundant notification method vars in `p.c.c.client-support`
+  - `on-cancelled` (use `sd/method-notifications-cancelled` instead)
+  - `on-progress` (use `sd/method-notifications-progress` instead)
+  - `on-log-message` (use `sd/method-notifications-message` instead)
+  - `on-prompts-list-changed` (use `sd/method-notifications-prompts-list_changed` instead)
+  - `on-resources-list-changed` (use `sd/method-notifications-resources-list_changed` instead)
+  - `on-resource-updated` (use `sd/method-notifications-resources-updated` instead)
+  - `on-tools-list-changed` (use `sd/method-notifications-tools-list_changed` instead)
 
 ### Fixed
 - Git/SCM coordinates in module `pom.xml`, which reflects on Clojars
