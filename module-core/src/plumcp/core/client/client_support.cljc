@@ -9,7 +9,7 @@
 
 (ns plumcp.core.client.client-support
   (:require
-   [plumcp.core.api.capability-support :as cs]
+   [plumcp.core.api.capability :as cs]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]

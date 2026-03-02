@@ -11,7 +11,7 @@
   "Client and Server capability tests"
   (:require
    [clojure.test :refer [deftest is testing]]
-   [plumcp.core.api.capability-support :as cs]
+   [plumcp.core.api.capability :as cap]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.protocol :as p]
@@ -23,12 +23,12 @@
 ;; --- Client capability ---
 
 
-(def root-one (cs/make-root-item "file:///home/user/projects/myproject1"
-                                 {:name "My Project1"}))
+(def root-one (cap/make-root-item "file:///home/user/projects/myproject1"
+                                  {:name "My Project1"}))
 
 
-(def root-two (cs/make-root-item "file:///home/user/projects/myproject2"
-                                 {:name "My Project2"}))
+(def root-two (cap/make-root-item "file:///home/user/projects/myproject2"
+                                  {:name "My Project2"}))
 
 
 (deftest roots-capability-test
@@ -117,7 +117,7 @@
                             (-> sd/role-user
                                 (es/make-text-prompt-message arg)
                                 (es/prompt-message->get-prompt-result)))
-          prompt1 (cs/make-prompt-item prompt1-name prompt1-handler)
+          prompt1 (cap/make-prompt-item prompt1-name prompt1-handler)
           prompts-cap (ic/make-prompts-capability [prompt1])]
       (is (= {:listChanged true}
              (p/get-capability-declaration prompts-cap)))
@@ -135,13 +135,13 @@
                             (-> sd/role-user
                                 (es/make-text-prompt-message (+ 1 n))
                                 (es/prompt-message->get-prompt-result)))
-          prompt1 (cs/make-prompt-item prompt1-name prompt1-handler)
+          prompt1 (cap/make-prompt-item prompt1-name prompt1-handler)
           prompt2-name "prompt-2"
           prompt2-handler (fn [{:keys [^long n]}]
                             (-> sd/role-user
                                 (es/make-text-prompt-message (+ 2 n))
                                 (es/prompt-message->get-prompt-result)))
-          prompt2 (cs/make-prompt-item prompt2-name prompt2-handler)
+          prompt2 (cap/make-prompt-item prompt2-name prompt2-handler)
           prompts-cap (ic/make-prompts-capability [prompt1
                                                     prompt2])
           handler-map (p/find-handler prompts-cap prompt2-name)
@@ -152,8 +152,8 @@
   (testing "mutable prompts"
     (let [prompt1-name "prompt-1"
           prompt2-name "prompt-2"
-          prompt1 (cs/make-prompt-item prompt1-name identity)
-          prompt2 (cs/make-prompt-item prompt2-name identity)
+          prompt1 (cap/make-prompt-item prompt1-name identity)
+          prompt2 (cap/make-prompt-item prompt2-name identity)
           prompts-ref (atom [prompt1])
           prompts-cap (-> prompts-ref
                           (ic/make-prompts-capability))]
@@ -182,7 +182,7 @@
           res1-handler (fn [{:keys [uri]}]
                          (->> (str uri "::resource-1")
                               (es/make-text-resource-result uri)))
-          res1 (cs/make-resource-item res1-url res1-name res1-handler)
+          res1 (cap/make-resource-item res1-url res1-name res1-handler)
           tem1-name "tem1"
           tem1-url-tem "resource://restem/{id}"
           tem1-url-one "resource://restem/100"
@@ -215,10 +215,10 @@
   (testing "mutable resources"
     (let [hh (fn [{:keys [uri]}]
                (es/make-text-resource-result uri uri))
-          rs1 (cs/make-resource-item "test://res1" "res1" hh)
-          rs2 (cs/make-resource-item "test://res2" "res2" hh)
-          rt1 (cs/make-resource-template-item "test://rt1/{id}" "rt1" hh)
-          rt2 (cs/make-resource-template-item "test://rt2/{id}" "rt2" hh)
+          rs1 (cap/make-resource-item "test://res1" "res1" hh)
+          rs2 (cap/make-resource-item "test://res2" "res2" hh)
+          rt1 (cap/make-resource-template-item "test://rt1/{id}" "rt1" hh)
+          rt2 (cap/make-resource-template-item "test://rt2/{id}" "rt2" hh)
           rsref (atom [rs1])
           rtref (atom [rt1])
           rcap (ic/make-resources-capability rsref rtref)]
@@ -242,11 +242,11 @@
 
 
 (def tool-add
-  (cs/make-tool-item "add"
-                     (-> {"a" {:type "number" :description "first number"}
-                          "b" {:type "number" :description "second number"}}
-                         (eg/make-tool-input-output-schema ["a" "b"]))
-                     tool-add-handler))
+  (cap/make-tool-item "add"
+                      (-> {"a" {:type "number" :description "first number"}
+                           "b" {:type "number" :description "second number"}}
+                          (eg/make-tool-input-output-schema ["a" "b"]))
+                      tool-add-handler))
 
 
 (defn tool-mul-handler
@@ -255,11 +255,11 @@
 
 
 (def tool-mul
-  (cs/make-tool-item "add"
-                     (-> {"a" {:type "number" :description "first number"}
-                          "b" {:type "number" :description "second number"}}
-                         (eg/make-tool-input-output-schema ["a" "b"]))
-                     tool-mul-handler))
+  (cap/make-tool-item "add"
+                      (-> {"a" {:type "number" :description "first number"}
+                           "b" {:type "number" :description "second number"}}
+                          (eg/make-tool-input-output-schema ["a" "b"]))
+                      tool-mul-handler))
 
 
 (deftest tools-capability-test
@@ -296,16 +296,16 @@
 
 
 (deftest completion-capability-test
-  (let [prompt-ref-item (cs/make-completions-reference-item
+  (let [prompt-ref-item (cap/make-completions-reference-item
                          (eg/make-prompt-reference "test-prompt-ref")
                          (fn [{:keys [ref argument]}]
                            [:prompt argument]))
-        resource-ref-item (cs/make-completions-reference-item
+        resource-ref-item (cap/make-completions-reference-item
                            (eg/make-resource-template-reference "res://test")
                            (fn [{:keys [ref argument]}]
                              [:resource argument]))
         cap (ic/make-completions-capability [prompt-ref-item]
-                                             [resource-ref-item])]
+                                            [resource-ref-item])]
     (is (= {}
            (p/get-capability-declaration cap)))
     (is (= [:prompt :foo]
@@ -355,7 +355,7 @@
 
 (deftest list-changed-test
   (testing "no change, no notification"
-    (let [root1 (cs/make-root-item "file:///tmp")
+    (let [root1 (cap/make-root-item "file:///tmp")
           roots-cap (ic/make-roots-capability [root1])
           received (atom [])
           notifier (ic/run-list-changed-notifier
@@ -367,8 +367,8 @@
       (is (= [] (deref received)) "no received notifications")
       (p/stop! notifier)))
   (testing "roots - change and notification"
-    (let [root1 (cs/make-root-item "file:///tmp")
-          root2 (cs/make-root-item "file:///tmp2")]
+    (let [root1 (cap/make-root-item "file:///tmp")
+          root2 (cap/make-root-item "file:///tmp2")]
       (test-lc-notifier root1 root2
                         sd/method-roots-list
                         ic/make-roots-capability
@@ -378,8 +378,8 @@
                (-> sd/role-user
                    (es/make-text-prompt-message arg)
                    (es/prompt-message->get-prompt-result)))
-          prompt1 (cs/make-prompt-item "p1" ph)
-          prompt2 (cs/make-prompt-item "p1" ph)]
+          prompt1 (cap/make-prompt-item "p1" ph)
+          prompt2 (cap/make-prompt-item "p1" ph)]
       (test-lc-notifier prompt1 prompt2
                         sd/method-prompts-list
                         ic/make-prompts-capability
@@ -387,10 +387,10 @@
   (testing "resources - change and notification"
     (let [hh (fn [{:keys [uri]}]
                (es/make-text-resource-result uri uri))
-          rs1 (cs/make-resource-item "test://res1" "res1" hh)
-          rs2 (cs/make-resource-item "test://res2" "res2" hh)
-          rt1 (cs/make-resource-template-item "test://rt1/{id}" "rt1" hh)
-          rt2 (cs/make-resource-template-item "test://rt2/{id}" "rt2" hh)
+          rs1 (cap/make-resource-item "test://res1" "res1" hh)
+          rs2 (cap/make-resource-item "test://res2" "res2" hh)
+          rt1 (cap/make-resource-template-item "test://rt1/{id}" "rt1" hh)
+          rt2 (cap/make-resource-template-item "test://rt2/{id}" "rt2" hh)
           rsref (atom [rs1])
           rtref (atom [rt1])
           rcap (ic/make-resources-capability rsref rtref)

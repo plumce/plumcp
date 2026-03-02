@@ -11,7 +11,7 @@
   (:require
    [clojure.edn :as edn]
    [clojure.test :refer [deftest is]]
-   [plumcp.core.api.capability-support :as cap]
+   [plumcp.core.api.capability :as cap]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.api.mcp-client :as mc]

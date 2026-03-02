@@ -9,7 +9,7 @@
 
 (ns plumcp.core.server.server-support
   (:require
-   [plumcp.core.api.capability-support :as cs]
+   [plumcp.core.api.capability :as cap]
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
@@ -150,7 +150,7 @@
         get-capabilities (fn []
                            (or capabilities
                                (some-> (get-primitives)
-                                       cs/primitives->server-capabilities)))
+                                       cap/primitives->server-capabilities)))
         get-runtime (fn []
                       (-> runtime
                           (or (-> {}

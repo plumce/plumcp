@@ -7,7 +7,7 @@
 ;   You must not remove this notice, or any other, from this software.
 
 
-(ns plumcp.core.api.capability-support
+(ns plumcp.core.api.capability
   "Convenience functions for building MCP capability."
   (:require
    [plumcp.core.api.entity-gen :as eg]

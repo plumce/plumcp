@@ -54,7 +54,7 @@ All notable changes to this project will be documented in this file. This change
   - `initialize!`
   - `notify-initialized`
 - [BREAKING] Rename ns `p.c.i.capability` to `p.c.i.impl-capability`
-- [TODO - BREAKING] Rename ns `p.c.a.capability-support` to `p.c.a.capability`
+- [BREAKING] Rename ns `p.c.a.capability-support` to `p.c.a.capability`
 - [BREAKING] Drop redundant notification method vars in `p.c.c.client-support`
   - `on-cancelled` (use `sd/method-notifications-cancelled` instead)
   - `on-progress` (use `sd/method-notifications-progress` instead)

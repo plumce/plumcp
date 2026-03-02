@@ -11,7 +11,7 @@
   "Var integration and support for capability primitives."
   (:require
    [clojure.set :as set]
-   [plumcp.core.api.capability-support :as cs]
+   [plumcp.core.api.capability :as cs]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.method-handler :as mh]
