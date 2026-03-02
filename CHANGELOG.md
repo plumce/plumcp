@@ -17,7 +17,7 @@ All notable changes to this project will be documented in this file. This change
   - Cache JWKS keys
   - Log auth failures (but never log full tokens)
 
-## [Unreleased] - 2026-???-??
+## [0.2.0-beta1] - 2026-Mar-02
 ### Added
 - Client: Notification handling
   - Cancellation: Cancel server request (to client)
