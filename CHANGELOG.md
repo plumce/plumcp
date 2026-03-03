@@ -17,6 +17,23 @@ All notable changes to this project will be documented in this file. This change
   - Cache JWKS keys
   - Log auth failures (but never log full tokens)
 
+## [Todo] - 2026-???-??
+### Added
+- [Todo] Docs
+
+### Changed
+- [Todo] Client: Make result handling more flexible
+  - [Todo] Allow `:on-result` in client op functions
+  - [Todo] Cache `:result` value (not `:on-result`) so that background callers
+    can coexist with users - both may have a different `:on-result`
+
+### Fixed
+- [Todo] Fix project description on Clojars
+  - `plumcp.core-json-charred` module
+  - `plumcp.core-json-cheshire` module
+  - `plumcp.core-json-datajson` module
+  - `plumcp.core-json-jsonista` module
+
 ## [0.2.0-beta1] - 2026-Mar-02
 ### Added
 - Client: Notification handling
