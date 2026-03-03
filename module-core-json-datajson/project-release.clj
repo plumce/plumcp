@@ -1,5 +1,5 @@
 (defproject io.github.plumce/plumcp.core-json-datajson "{{version}}"
-  :description "Dev module for PluMCP"
+  :description "JSON (clojure/data.json library) module for PluMCP"
   :url "https://github.com/plumce/plumcp"
   :license {:name "Eclipse Public License 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

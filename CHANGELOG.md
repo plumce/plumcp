@@ -28,7 +28,7 @@ All notable changes to this project will be documented in this file. This change
     can coexist with users - both may have a different `:on-result`
 
 ### Fixed
-- [Todo] Fix project description on Clojars
+- Fix module description on Clojars
   - `plumcp.core-json-charred` module
   - `plumcp.core-json-cheshire` module
   - `plumcp.core-json-datajson` module
