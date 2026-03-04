@@ -287,7 +287,8 @@
        ;; that ends up re-fetched and cached by the client
        u/nop
        (uab/until
-        #(let [prompts (cs/get-from-cache client cs/?cc-prompts-list)]
+        #(let [prompts (-> (cs/get-from-cache client cs/?cc-prompts-list)
+                           sd/result-key-prompts)]
            (= 2 (count prompts)))
         1000)
        ;; client fetches new prompts list
@@ -336,8 +337,9 @@
        ;; that ends up re-fetched and cached by the client
        u/nop
        (uab/until
-        #(let [resources (cs/get-from-cache client
-                                            cs/?cc-resources-list)]
+        #(let [resources (-> client
+                             (cs/get-from-cache cs/?cc-resources-list)
+                             sd/result-key-resources)]
            (= 3 (count resources)))
         1000)
        ;; client fetches new resources list
@@ -384,10 +386,10 @@
            (swap! conj template-item-2))
        ;; expect the server to send list-changed to the client
        ;; that ends up re-fetched and cached by the client
-       u/nop
        (uab/until
-        #(let [templates (cs/get-from-cache client
-                                            cs/?cc-resource-templates-list)]
+        #(let [templates (-> client
+                             (cs/get-from-cache cs/?cc-resource-templates-list)
+                             sd/result-key-resource-templates)]
            (= 2 (count templates)))
         1000)
        ;; client fetches new resource templates list
@@ -438,8 +440,8 @@
        ;; that ends up re-fetched and cached by the client
        u/nop
        (uab/until
-        #(let [tools (cs/get-from-cache client
-                                        cs/?cc-tools-list)]
+        #(let [tools (-> (cs/get-from-cache client cs/?cc-tools-list)
+                         sd/result-key-tools)]
            (= 4 (count tools)))
         1000)
        ;; client fetches new tools list

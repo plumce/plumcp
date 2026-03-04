@@ -89,11 +89,14 @@
    applied only if enabled.
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
-  [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
-  (if-let [prompts (cs/get-from-cache client cs/?cc-prompts-list)]
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
+  [client
+   & ^{:see [uab/as-async
+             cs/on-jsonrpc-response]} {:keys [on-result]
+                                       :or {on-result sd/result-key-prompts}
+                                       :as options}]
+  (if-let [prompts (-> (cs/get-from-cache client cs/?cc-prompts-list)
+                       on-result)]
     (uab/async-val prompts)
     (cs/caching-list-prompts client options)))
 
@@ -108,8 +111,7 @@
    (printed to STDERR).
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client prompt-or-template-name prompt-args
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
@@ -119,9 +121,7 @@
         (cs/async-get-prompt client
                              prompt-or-template-name prompt-args
                              return))
-      (cs/on-jsonrpc-response "get-prompt"
-                              (-> options
-                                  (dissoc :on-result)))))
+      (cs/on-jsonrpc-response "get-prompt" options)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -135,11 +135,14 @@
    applied only if enabled.
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
-  [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
-  (if-let [resources (cs/get-from-cache client cs/?cc-resources-list)]
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
+  [client
+   & ^{:see [uab/as-async
+             cs/on-jsonrpc-response]} {:keys [on-result]
+                                       :or {on-result sd/result-key-resources}
+                                       :as options}]
+  (if-let [resources (-> (cs/get-from-cache client cs/?cc-resources-list)
+                         on-result)]
     (uab/async-val resources)
     (cs/caching-list-resources client options)))
 
@@ -155,12 +158,16 @@
    is applied only if enabled.
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
-  [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
-  (if-let [templates (cs/get-from-cache client
-                                        cs/?cc-resource-templates-list)]
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
+  [client
+   & ^{:see [uab/as-async
+             cs/on-jsonrpc-response]} {:keys [on-result]
+                                       :or {on-result
+                                            sd/result-key-resource-templates}
+                                       :as options}]
+  (if-let [templates (-> client
+                         (cs/get-from-cache cs/?cc-resource-templates-list)
+                         on-result)]
     (uab/async-val templates)
     (cs/caching-list-resource-templates client options)))
 
@@ -177,8 +184,7 @@
    `resource-uri` is the resource URI
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client resource-uri
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
@@ -188,9 +194,7 @@
         (cs/async-read-resource client
                                 resource-uri
                                 return))
-      (cs/on-jsonrpc-response "read-resource"
-                              (-> options
-                                  (dissoc :on-result)))))
+      (cs/on-jsonrpc-response "read-resource" options)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -204,12 +208,14 @@
    if enabled.
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client
    & ^{:see [uab/as-async
-             cs/on-jsonrpc-response]} {:as options}]
-  (if-let [tools (cs/get-from-cache client cs/?cc-tools-list)]
+             cs/on-jsonrpc-response]} {:keys [on-result]
+                                       :or {on-result sd/result-key-tools}
+                                       :as options}]
+  (if-let [tools (-> (cs/get-from-cache client cs/?cc-tools-list)
+                     on-result)]
     (uab/async-val tools)
     (cs/caching-list-tools client options)))
 
@@ -224,8 +230,7 @@
    on error (printed to STDERR).
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client tool-name tool-args
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
@@ -235,9 +240,7 @@
         (cs/async-call-tool client
                             tool-name tool-args
                             return))
-      (cs/on-jsonrpc-response "call-tool"
-                              (-> options
-                                  (dissoc :on-result)))))
+      (cs/on-jsonrpc-response "call-tool" options)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -250,8 +253,7 @@
    (printed to STDERR).
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client ^{:see [eg/make-complete-request]} complete-request
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
@@ -261,9 +263,7 @@
         (cs/async-complete client
                            complete-request
                            return))
-      (cs/on-jsonrpc-response "complete"
-                              (-> options
-                                  (dissoc :on-result)))))
+      (cs/on-jsonrpc-response "complete" options)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -274,8 +274,7 @@
    in CLJS) on success, nil on error (printed to STDERR).
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
                     cs/on-jsonrpc-response]} {:as options}]
   (-> (uab/as-async
@@ -283,9 +282,7 @@
         options
         (cs/async-ping client
                        return))
-      (cs/on-jsonrpc-response "ping"
-                              (-> options
-                                  (dissoc :on-result)))))
+      (cs/on-jsonrpc-response "ping" options)))
 
 
 ;; --- Meta functions ---

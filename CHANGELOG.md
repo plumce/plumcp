@@ -22,10 +22,10 @@ All notable changes to this project will be documented in this file. This change
 - [Todo] Docs
 
 ### Changed
-- [Todo] Client: Make result handling more flexible
-  - [Todo] Allow `:on-result` in client op functions
-  - [Todo] Cache `:result` value (not `:on-result`) so that background callers
-    can coexist with users - both may have a different `:on-result`
+- Client: Make result handling more flexible
+  - Allow kwarg `:on-result` in client op function options
+  - Cache original `:result` value (not `:on-result` applied)
+    - Background and user calls with different `:on-result` can co-exist
 
 ### Fixed
 - Fix module description on Clojars

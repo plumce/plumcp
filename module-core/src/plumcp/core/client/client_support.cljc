@@ -707,12 +707,14 @@
 
 
 (defn get-from-cache
+  "Apply getter to the client cache."
   [client getter]
   (-> (?client-cache client)
       getter))
 
 
 (defn set-into-cache
+  "Apply setter to client-cache and payload when caching is enabled."
   [payload client setter]
   (when (-> client
             ?cache-primitives?)  ; is caching primitives allowed?
@@ -799,17 +801,16 @@
    enabled.
    Options:
    - see `plumcp.core.util.async-bridge/as-async`
-   - see `on-jsonrpc-response`
-   - kwarg `:on-result` is ignored"
-  [client & ^{:see [uab/as-async
-                    on-jsonrpc-response]} {:as options}]
-  (let [cache-it! (fn [prompts]
-                    (->> ?cc-prompts-list
-                         (set-into-cache prompts client)))
-        on-result (fn [result]
-                    (-> result
-                        sd/result-key-prompts
-                        (doto cache-it!)))]
+   - see `on-jsonrpc-response`"
+  [client
+   & ^{:see [uab/as-async
+             on-jsonrpc-response]} {:keys [on-result]
+                                    :or {on-result sd/result-key-prompts}
+                                    :as options}]
+  (let [result-handler (fn [result]
+                         (->> ?cc-prompts-list
+                              (set-into-cache result client))
+                         (on-result result))]
     (-> (uab/as-async
           [return]
           options
@@ -817,7 +818,7 @@
                               return))
         (on-jsonrpc-response "list-prompts"
                              (-> options
-                                 (assoc :on-result on-result))))))
+                                 (assoc :on-result result-handler))))))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -831,17 +832,16 @@
    caching is enabled.
    Options:
    - see `plumcp.core.util.async-bridge/as-async`
-   - see `on-jsonrpc-response`
-   - kwarg `:on-result` is ignored"
-  [client & ^{:see [uab/as-async
-                    on-jsonrpc-response]} {:as options}]
-  (let [cache-it! (fn [resources]
-                    (->> ?cc-resources-list
-                         (set-into-cache resources client)))
-        on-result (fn [result]
-                    (-> result
-                        sd/result-key-resources
-                        (doto cache-it!)))]
+   - see `on-jsonrpc-response`"
+  [client
+   & ^{:see [uab/as-async
+             on-jsonrpc-response]} {:keys [on-result]
+                                    :or {on-result sd/result-key-resources}
+                                    :as options}]
+  (let [result-handler (fn [result]
+                         (->> ?cc-resources-list
+                              (set-into-cache result client))
+                         (on-result result))]
     (-> (uab/as-async
           [return]
           options
@@ -849,7 +849,7 @@
                                 return))
         (on-jsonrpc-response "list-resources"
                              (-> options
-                                 (assoc :on-result on-result))))))
+                                 (assoc :on-result result-handler))))))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -863,17 +863,17 @@
    is cached if caching is enabled.
    Options:
    - see `plumcp.core.util.async-bridge/as-async`
-   - see `on-jsonrpc-response`
-   - kwarg `:on-result` is ignored"
-  [client & ^{:see [uab/as-async
-                    on-jsonrpc-response]} {:as options}]
-  (let [cache-it! (fn [templates]
-                    (->> ?cc-resource-templates-list
-                         (set-into-cache templates client)))
-        on-result (fn [result]
-                    (-> result
-                        sd/result-key-resource-templates
-                        (doto cache-it!)))]
+   - see `on-jsonrpc-response`"
+  [client
+   & ^{:see [uab/as-async
+             on-jsonrpc-response]} {:keys [on-result]
+                                    :or {on-result
+                                         sd/result-key-resource-templates}
+                                    :as options}]
+  (let [result-handler (fn [result]
+                         (->> ?cc-resource-templates-list
+                              (set-into-cache result client))
+                         (on-result result))]
     (-> (uab/as-async
           [return]
           options
@@ -881,7 +881,7 @@
                                          return))
         (on-jsonrpc-response "list-resource-templates"
                              (-> options
-                                 (assoc :on-result on-result))))))
+                                 (assoc :on-result result-handler))))))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -895,18 +895,16 @@
    enabled.
    Options:
    - see `plumcp.core.util.async-bridge/as-async`
-   - see `on-jsonrpc-response`
-   - kwarg `:on-result` is ignored"
+   - see `on-jsonrpc-response`"
   [client
    & ^{:see [uab/as-async
-             on-jsonrpc-response]} {:as options}]
-  (let [cache-it! (fn [tools]
-                    (->> ?cc-tools-list
-                         (set-into-cache tools client)))
-        on-result (fn [result]
-                    (-> result
-                        sd/result-key-tools
-                        (doto cache-it!)))]
+             on-jsonrpc-response]} {:keys [on-result]
+                                    :or {on-result sd/result-key-tools}
+                                    :as options}]
+  (let [result-handler (fn [result]
+                         (->> ?cc-tools-list
+                              (set-into-cache result client))
+                         (on-result result))]
     (-> (uab/as-async
           [return]
           options
@@ -914,7 +912,7 @@
                             return))
         (on-jsonrpc-response "list-tools"
                              (-> options
-                                 (assoc :on-result on-result))))))
+                                 (assoc :on-result result-handler))))))
 
 
 ;; --- Notification Handling ---
