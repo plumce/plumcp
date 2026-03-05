@@ -208,7 +208,7 @@
 (defn send-request-to-client
   [context new-request callback-context]
   (let [session (rt/?session context)]
-    ;; install the request-context first (to facilitate callback)
+    ;; install the callback-context first (to facilitate callback)
     (u/expected! (:id new-request) some? "request-ID to be a valid request ID")
     (p/append-pending-requests session (-> (:id new-request)
                                            (array-map callback-context)))
@@ -273,7 +273,7 @@
 ;; Server request tracking
 
 
-(defn extract-pending-request-context
+(defn extract-callback-context
   [context request-id]
   (-> (rt/?session context)
       (p/extract-pending-request request-id)))

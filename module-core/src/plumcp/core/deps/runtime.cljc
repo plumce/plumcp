@@ -203,7 +203,7 @@
 
 (defrtkey ?session-id {})
 (defrtkey ?session {})
-(defrtkey ?request-context {})
+(defrtkey ?callback-context {})
 (defrtkey ?request-id {})
 (defrtkey ?request-params-meta {})
 (defrtkey ?response-stream {})

@@ -38,7 +38,7 @@
   (-> args
       (rt/copy-runtime jsonrpc-response)
       (rt/?request-id (:id jsonrpc-response))
-      (rt/?request-context request-context)))
+      (rt/?callback-context request-context)))
 
 
 (defn make-jsonrpc-response-handler
@@ -48,7 +48,7 @@
   (fn jsonrpc-response-handler [jsonrpc-response]
     (let [request-id (:id jsonrpc-response)]
       (rs/log-incoming-jsonrpc-response jsonrpc-response)
-      (if-some [request-context (rs/extract-pending-request-context
+      (if-some [request-context (rs/extract-callback-context
                                  jsonrpc-response request-id)]
         (if-let [error (:error jsonrpc-response)]
           {} ; because error received

@@ -152,12 +152,12 @@
 (defn ^{:mcp-name "sample-llm-callback"
         :mcp-type :callback} sample-llm-callback
   [{:as sampling-result}]
-  (let [request-context (-> sampling-result
-                            rt/?request-context)
+  (let [callback-context (-> sampling-result
+                             rt/?callback-context)
         promise-deliver (fn [v]
-                          (-> (:promise-pair request-context)
+                          (-> (:promise-pair callback-context)
                               (bear-promise v)))
-        request-id (-> request-context
+        request-id (-> callback-context
                        rt/?request-id)]
     (-> (str "LLM sampling result: "
              (get-in sampling-result
@@ -304,7 +304,7 @@
         :see sd/ElicitResult} start-elicitation-callback
   [{:as elicitation-result}]
   (let [request-context (-> elicitation-result
-                            rt/?request-context)
+                            rt/?callback-context)
         promise-deliver (fn [v]
                           (-> (:promise-pair request-context)
                               (bear-promise v)))
