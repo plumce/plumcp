@@ -59,16 +59,11 @@
                   :clj Exception) ex
           (rs/log-mcpcall-failure context ex)
           (if-some [[message data] (u/ex-info-parts ex)]
-            (do
-              (rs/log-3-error context {:message message
-                                       :data data})
-              (jr/jsonrpc-failure sd/error-code-internal-error
-                                  message
-                                  data))
-            (do
-              (rs/log-3-error context (str ex))
-              (jr/jsonrpc-failure sd/error-code-internal-error
-                                  (str ex))))))
+            (jr/jsonrpc-failure sd/error-code-internal-error
+                                message
+                                data)
+            (jr/jsonrpc-failure sd/error-code-internal-error
+                                (str ex)))))
       (if (rt/has-session? context)
         (jr/jsonrpc-failure sd/error-code-invalid-request
                             "Initialization notification not received yet")
@@ -293,15 +288,10 @@
               (copy-deps jsonrpc-request)
               handler
               make-result)
-          (do
-            (rs/log-3-error jsonrpc-request
-                            {:message "Requested prompt-name does not exist"
-                             :prompt-name prompt-name
-                             :prompt-args prompt-args})
-            (jr/jsonrpc-failure sd/error-code-invalid-params
-                                "Requested prompt-name does not exist"
-                                {:prompt-name prompt-name
-                                 :prompt-args prompt-args})))))))
+          (jr/jsonrpc-failure sd/error-code-invalid-params
+                              "Requested prompt-name does not exist"
+                              {:prompt-name prompt-name
+                               :prompt-args prompt-args}))))))
 
 
 (defn ^{:see [sd/ListResourcesRequest
@@ -333,13 +323,9 @@
               (copy-deps jsonrpc-request)
               handler
               make-result)
-          (do
-            (rs/log-3-error jsonrpc-request
-                            {:message "Requested invalid resource URI"
-                             :uri uri})
-            (jr/jsonrpc-failure sd/error-code-invalid-params
-                                "Requested invalid resource URI"
-                                {:uri uri})))))))
+          (jr/jsonrpc-failure sd/error-code-invalid-params
+                              "Requested invalid resource URI"
+                              {:uri uri}))))))
 
 
 (defn ^{:see [sd/SubscribeRequest
@@ -439,14 +425,9 @@
               eg/make-cancellation-notification]} notifications-cancelled
   [{params :params
     :as jsonrpc-notification}]
-  (let [request-id (:requestId params)
-        reason (:reason params)]
+  (let [request-id (:requestId params)]
     (when (rt/has-session? jsonrpc-notification)  ; this is true on server
-      (rs/request-cancellation jsonrpc-notification request-id)
-      (rs/log-7-debug jsonrpc-notification
-                      (-> {:message "Cancel requested for task"
-                           :request-id request-id}
-                          (u/assoc-some :reason reason))))
+      (rs/request-cancellation jsonrpc-notification request-id))
     (call-notification-handler jsonrpc-notification
                                sd/method-notifications-cancelled))
   {:result {}})
