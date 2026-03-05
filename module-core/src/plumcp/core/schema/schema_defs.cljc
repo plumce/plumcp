@@ -825,14 +825,14 @@
 ;; ----- Logging -----
 
 
-(def log-level-0-emergency "emergency") ; system is unusable
-(def log-level-1-alert     "alert")     ; action must be taken immediately
-(def log-level-2-critical  "critical")  ; critical conditions
-(def log-level-3-error     "error")     ; error conditions
-(def log-level-4-warning   "warning")   ; warning conditions
-(def log-level-5-notice    "notice")    ; normal but significant condition
-(def log-level-6-info      "info")      ; informational messages
-(def log-level-7-debug     "debug")     ; debug-level messages
+(def log-level-0-emergency "System is unusable"            "emergency")
+(def log-level-1-alert     "Must take immediate action"        "alert")
+(def log-level-2-critical  "Critical conditions"            "critical")
+(def log-level-3-error     "Error conditions"                  "error")
+(def log-level-4-warning   "Warning conditions"              "warning")
+(def log-level-5-notice    "Normal but significant condition" "notice")
+(def log-level-6-info      "Informational messages"           "info")
+(def log-level-7-debug     "Debug-level messages"             "debug")
 
 (def log-level-indices {log-level-0-emergency 0
                         log-level-1-alert     1
