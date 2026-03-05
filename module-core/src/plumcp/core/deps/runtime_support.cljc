@@ -144,24 +144,6 @@
            (p/send-message-to-client session context)))))
 
 
-(defmacro with-logger
-  "Associate logger (for log events) in the lexical scope."
-  [[context logger] & body]
-  (assert (symbol? context))
-  `(let [~context (du/?mcp-logger ~context (u/as-str ~logger))]
-     ~@body))
-
-
-(defn log-7-debug     [ctx entry] (log ctx sd/log-level-7-debug entry))
-(defn log-6-info      [ctx entry] (log ctx sd/log-level-6-info entry))
-(defn log-5-notice    [ctx entry] (log ctx sd/log-level-5-notice entry))
-(defn log-4-warning   [ctx entry] (log ctx sd/log-level-4-warning entry))
-(defn log-3-error     [ctx entry] (log ctx sd/log-level-3-error entry))
-(defn log-2-critical  [ctx entry] (log ctx sd/log-level-2-critical entry))
-(defn log-1-alert     [ctx entry] (log ctx sd/log-level-1-alert entry))
-(defn log-0-emergency [ctx entry] (log ctx sd/log-level-0-emergency entry))
-
-
 ;; --- Session ---
 
 

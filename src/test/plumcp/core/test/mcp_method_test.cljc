@@ -132,10 +132,10 @@
     (is (thrown-with-msg?
          ExceptionInfo #"Expected container-map to have path.+"
          (-> (rt/upsert-runtime {} runtime-empty)
-             (rs/log-0-emergency "test-log"))))
+             (rs/log sd/log-level-0-emergency "test-log"))))
     (is (= nil
            (-> (rt/upsert-runtime {} runtime-server-session)
-               (rs/log-0-emergency "test-log")))))
+               (rs/log sd/log-level-0-emergency "test-log")))))
   (testing "setLevel (logging)"
     (is (= {:jsonrpc "2.0"
             :error {:code sd/error-code-invalid-request
