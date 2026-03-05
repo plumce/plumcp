@@ -11,8 +11,7 @@
   (:require
    [clojure.string :as str]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.api.mcp-server :as ms]
    [plumcp.core.dev.schema-malli :as sm]
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.schema.json-rpc :as jr]
@@ -95,7 +94,7 @@
     :as args}]
   (let [^double
         step-duration (/ duration steps)
-        params-meta (rt/?request-params-meta args)
+        params-meta (ms/get-request-params-meta args)
         progress-token (:progressToken params-meta)
         exec-steps (fn thisfn [^long step-index return]
                      (if (<= step-index steps)  ; index is 1-based
@@ -104,7 +103,7 @@
                         (fn []
                           (as-> progress-token $
                             (eg/make-progress-notification $ step-index {:total steps})
-                            (rs/send-notification-to-client args $))
+                            (ms/send-notification-to-client args $))
                           (thisfn (inc step-index) return)))
                        (return
                         (-> "Long running operation completed. Duration: %d seconds, Steps: %d."
@@ -153,12 +152,11 @@
         :mcp-type :callback} sample-llm-callback
   [{:as sampling-result}]
   (let [callback-context (-> sampling-result
-                             rt/?callback-context)
+                             ms/get-callback-context)
         promise-deliver (fn [v]
                           (-> (:promise-pair callback-context)
                               (bear-promise v)))
-        request-id (-> callback-context
-                       rt/?request-id)]
+        request-id (:request-id callback-context)]
     (-> (str "LLM sampling result: "
              (get-in sampling-result
                      [:content :text]))
@@ -181,10 +179,10 @@
     :as args}]
   (let [request (make-sampling-request prompt "sampleLLM" max-tokens)
         waiting (make-promise)
-        context (-> {:promise-pair waiting ; not JSON-serializable, needs sticky session
-                     rs/callback-name-key "sample-llm-callback"}
-                    (rt/?request-id (rt/?request-id args)))]
-    (rs/send-request-to-client args request context)
+        context (->> {:promise-pair waiting ; not JSON-serializable, needs sticky session
+                      :request-id (ms/get-request-id args)}
+                     (ms/make-callback-context "sample-llm-callback"))]
+    (ms/send-request-to-client args request context)
     ;; as of MCP 2025-06-18 only synchronous tool-calls are allowed
     ;; so we await execution to get over
     (upon-promise waiting
@@ -303,8 +301,7 @@
         :mcp-type :callback
         :see sd/ElicitResult} start-elicitation-callback
   [{:as elicitation-result}]
-  (let [request-context (-> elicitation-result
-                            rt/?callback-context)
+  (let [request-context (ms/get-callback-context elicitation-result)
         promise-deliver (fn [v]
                           (-> (:promise-pair request-context)
                               (bear-promise v)))
@@ -328,7 +325,7 @@
           [(eg/make-text-content "⚠️ User cancelled the elicitation dialog.")])
         (conj (eg/make-text-content (str "\nRaw result: "
                                          (-> elicitation-result
-                                             rt/dissoc-runtime
+                                             ms/remove-runtime
                                              u/pprint-str))))
         (eg/make-call-tool-result)
         (promise-deliver))))
@@ -351,9 +348,9 @@
                                             "reptiles"]
                                      :description "Favorite pets"}})
         promise-pair (make-promise)
-        callback-context {:promise-pair promise-pair
-                          rs/callback-name-key "start-elicitation-callback"}]
-    (rs/send-request-to-client kwargs elicitation-request callback-context)
+        callback-context (ms/make-callback-context "start-elicitation-callback"
+                                                   {:promise-pair promise-pair})]
+    (ms/send-request-to-client kwargs elicitation-request callback-context)
     (upon-promise promise-pair identity)))
 
 

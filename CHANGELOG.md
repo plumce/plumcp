@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file. This change
 ## [TODO/IDEA] - ????-??-??
 ### Added
 
+- MCP Client
+  - Re-implement client as a protocol instance - easy self-reference
+- MCP Server
+  - Replace "single node" list-changed notifier with one for scale-out
+    - Ensure capabilities list is first updated on all server hosts
+      - Capability declaration from a host is enough indication
+    - Cache old-capabilities in session - all hosts can share/lead
+    - Ensure only one list-changed notification goes to the client
 - MCP Server OAuth
   - Support for non-DCR authorization servers
     - https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/659
@@ -19,6 +27,25 @@ All notable changes to this project will be documented in this file. This change
 
 ## [Todo] - 2026-???-??
 ### Added
+- Server: Public API functions for server operations
+  - `get-request-params-meta`
+  - `get-request-id`
+  - `get-callback-context`
+  - `make-callback-context`
+  - `get-runtime`
+  - `remove-runtime`
+  - `send-notification-to-client`
+  - `with-logger`     (moved from `runtime-support` ns)
+  - `log-7-debug`     (moved from `runtime-support` ns)
+  - `log-6-info`      (moved from `runtime-support` ns)
+  - `log-5-notice`    (moved from `runtime-support` ns)
+  - `log-4-warning`   (moved from `runtime-support` ns)
+  - `log-3-error`     (moved from `runtime-support` ns)
+  - `log-2-critical`  (moved from `runtime-support` ns)
+  - `log-1-alert`     (moved from `runtime-support` ns)
+  - `log-0-emergency` (moved from `runtime-support` ns)
+  - `get-client-capabilities`
+  - `send-request-to-client`
 - [Todo] Docs
 
 ### Changed
