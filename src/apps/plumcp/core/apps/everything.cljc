@@ -182,7 +182,7 @@
   (let [request (make-sampling-request prompt "sampleLLM" max-tokens)
         waiting (make-promise)
         context (-> {:promise-pair waiting ; not JSON-serializable, needs sticky session
-                     :callback-name "sample-llm-callback"}
+                     rs/callback-name-key "sample-llm-callback"}
                     (rt/?request-id (rt/?request-id args)))]
     (rs/send-request-to-client args request context)
     ;; as of MCP 2025-06-18 only synchronous tool-calls are allowed
@@ -351,9 +351,9 @@
                                             "reptiles"]
                                      :description "Favorite pets"}})
         promise-pair (make-promise)
-        request-context {:promise-pair promise-pair
-                         :callback-name "start-elicitation-callback"}]
-    (rs/send-request-to-client kwargs elicitation-request request-context)
+        callback-context {:promise-pair promise-pair
+                          rs/callback-name-key "start-elicitation-callback"}]
+    (rs/send-request-to-client kwargs elicitation-request callback-context)
     (upon-promise promise-pair identity)))
 
 

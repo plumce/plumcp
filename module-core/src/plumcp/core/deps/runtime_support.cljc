@@ -150,7 +150,7 @@
 ;; Initialization info
 
 
-(defn get-initialized-params
+(defn ^{:see [sd/InitializeRequest]} get-initialized-params
   [context]
   (-> (rt/?session context)
       p/get-init-params))
@@ -200,6 +200,9 @@
 
 
 ;; Server-sent requests to client
+
+
+(def ^:const callback-name-key :callback-name)
 
 
 (defn send-request-to-client
@@ -263,7 +266,7 @@
   "Send a list-roots request to the client as a callback"
   [context]
   (let [request (eg/make-list-roots-request)
-        callback-context {:callback-name roots-callback-name}]
+        callback-context {callback-name-key roots-callback-name}]
     (send-request-to-client context request callback-context)))
 
 

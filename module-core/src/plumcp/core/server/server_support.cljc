@@ -52,7 +52,8 @@
                                  jsonrpc-response request-id)]
         (if-let [error (:error jsonrpc-response)]
           {} ; because error received
-          (if-some [callback-handler (->> (get request-context :callback-name)
+          (if-some [callback-handler (->> rs/callback-name-key
+                                          (get request-context)
                                           (get callback-name-handler-map))]
             (-> (:result jsonrpc-response)
                 (copy-result-deps jsonrpc-response request-context)
