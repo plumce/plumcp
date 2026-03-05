@@ -687,6 +687,7 @@
 
 
 (defn ^{:see sd/CreateMessageRequest} make-create-message-request
+  "Make sampling create-message request from given arguments."
   [sampling-message-coll max-token-count & {:keys [model-preferences
                                                    system-prompt
                                                    include-context
