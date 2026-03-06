@@ -85,6 +85,15 @@
       eg/make-call-tool-result))
 
 
+(defn make-text-tool-result-error
+  "Make single text call-tool result as an error."
+  [text]
+  (-> text
+      eg/make-text-content
+      vector
+      (eg/make-call-tool-result {:error? true})))
+
+
 (defn make-image-tool-result
   "Make single image call-tool result."
   [image mime-type]

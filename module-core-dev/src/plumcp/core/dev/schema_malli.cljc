@@ -96,21 +96,18 @@
   [var-instance & {:keys [handler schema-key]
                    :or {handler identity
                         schema-key :malli}}]
-  (let [arglists (-> var-instance
-                     meta
-                     :arglists)]
-    (vs/validate-kwargs! arglists)
-    (if-let [malli-spec (-> arglists
-                            ffirst
-                            meta
-                            (get schema-key))]
-      (let [kwargs-schema (mc/schema malli-spec)
-            kwargs-handler (-> var-instance
-                               handler)]
-        (fn schema-checking-handler [kwargs]
-          (if (mc/validate kwargs-schema kwargs)
-            (kwargs-handler kwargs)
-            (let [explanation (explain kwargs-schema kwargs)]
-              (jr/jsonrpc-failure sd/error-code-invalid-params
-                                  (u/pprint-str explanation))))))
-      var-instance)))
+  (if-let [malli-spec (-> var-instance
+                          vs/validate-var-kwargs!  ; returns arglists
+                          ffirst
+                          meta
+                          (get schema-key))]
+    (let [kwargs-schema (mc/schema malli-spec)
+          kwargs-handler (-> var-instance
+                             handler)]
+      (fn schema-checking-handler [kwargs]
+        (if (mc/validate kwargs-schema kwargs)
+          (kwargs-handler kwargs)
+          (let [explanation (explain kwargs-schema kwargs)]
+            (jr/jsonrpc-failure sd/error-code-invalid-params
+                                (u/pprint-str explanation))))))
+    var-instance))

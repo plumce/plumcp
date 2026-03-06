@@ -359,11 +359,18 @@
    (apply f arg more)))
 
 
+(defn only-if
+  "Return `x` only when `(pred x)` returns truthy, `y` otherwise."
+  [pred x y]
+  (if (pred x)
+    x
+    y))
+
+
 (defn only-when
-  "Return argument only when `(pred x)` returns truthy, `nil` otherwise."
+  "Return `x` only when `(pred x)` returns truthy, `nil` otherwise."
   [pred x]
-  (when (pred x)
-    x))
+  (only-if pred x nil))
 
 
 (defn tee
