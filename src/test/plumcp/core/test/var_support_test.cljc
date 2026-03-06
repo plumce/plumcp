@@ -164,8 +164,22 @@
                  :handler)]
       (is (= {:content [{:type "text", :text "22.839506172839506"}],
               :isError false}
-             (th {:height 1.80 :weight 74})))
+             (th {:height 1.80 :weight 74}))
+          "success result")
       (is (= {:content [{:type "text", :text "BMI is abnormally high"}],
               :isError true}
              (th {:weight 74 :height 0.1}))
           "erroneous input"))))
+
+
+(defn ^{:mcp-type :callback} this-callback
+  [{:as result}]
+  result)
+
+
+(deftest test-callback
+  (let [cb (vs/make-callback-from-var #'this-callback)
+        cn (-> cb first key)
+        cf (-> cb first val)]
+    (is (= "this-callback" cn))
+    (is (= {:foo 10} (cf {:foo 10})))))
