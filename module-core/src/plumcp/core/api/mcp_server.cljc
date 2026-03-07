@@ -14,6 +14,7 @@
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.server.http-ring :as http-ring]
    [plumcp.core.server.server-support :as ss]
@@ -265,3 +266,9 @@
                              ~options))))
   ([]
    `(run-server {})))
+
+
+(defn stop-server
+  "Stop a running MCP server."
+  [running-server]
+  (p/stop! running-server))

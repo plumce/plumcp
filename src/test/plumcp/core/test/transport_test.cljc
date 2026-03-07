@@ -19,7 +19,6 @@
    [plumcp.core.main.client :as client]
    [plumcp.core.main.main-http-server :as mhs]
    [plumcp.core.main.server :as server]
-   [plumcp.core.protocol :as p]
    [plumcp.core.server.zero-server :as zs]
    [plumcp.core.test.test-util :as tu]
    [plumcp.core.util :as u]
@@ -110,7 +109,8 @@
   []
   (tu/pst-rethrow
    (u/eprintln "Stopping HTTP server at port 3000")
-   (swap! running-server-atom (fn [server] (p/stop! server) nil))))
+   (swap! running-server-atom (fn [server]
+                                (ms/stop-server server) nil))))
 
 
 (use-fixtures :once #?(:cljs {:before run-http-server

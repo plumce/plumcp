@@ -46,7 +46,7 @@ All notable changes to this project will be documented in this file. This change
   - `log-0-emergency` (moved from `runtime-support` ns)
   - `get-client-capabilities`
   - `send-request-to-client`
-- [Todo] Docs
+  - `stop-server`
 
 ### Changed
 - Client: Make result handling more flexible

@@ -10,11 +10,12 @@
 (ns plumcp.core.test.round-trip-test
   (:require
    [clojure.edn :as edn]
-   [clojure.test :refer [deftest is]]
+   [clojure.test :refer [deftest is testing]]
    [plumcp.core.api.capability :as cap]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.api.mcp-client :as mc]
+   [plumcp.core.api.mcp-server :as ms]
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.zero-client-transport :as zct]
    [plumcp.core.deps.runtime-support :as rs]
@@ -22,7 +23,6 @@
    [plumcp.core.dev.bling-logger :as blogger]
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.main.client :as client]
-   [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.server.server-support :as ss]
    [plumcp.core.server.zero-server :as zs]
@@ -233,7 +233,7 @@
              "updated roots"))
        ;; all done
        (mc/disconnect! client)
-       (p/stop! running-server)
+       (ms/stop-server running-server)
        (done!)))))
 
 
@@ -285,7 +285,6 @@
            (swap! conj prompt-item-2))
        ;; expect the server to send list-changed to the client
        ;; that ends up re-fetched and cached by the client
-       u/nop
        (uab/until
         #(let [prompts (-> (cs/get-from-cache client cs/?cc-prompts-list)
                            sd/result-key-prompts)]
@@ -300,7 +299,7 @@
              "updated prompts"))
        ;; all done
        (mc/disconnect! client)
-       (p/stop! running-server)
+       (ms/stop-server running-server)
        (done!)))))
 
 
@@ -335,7 +334,6 @@
            (swap! conj resource-item-2))
        ;; expect the server to send list-changed to the client
        ;; that ends up re-fetched and cached by the client
-       u/nop
        (uab/until
         #(let [resources (-> client
                              (cs/get-from-cache cs/?cc-resources-list)
@@ -353,7 +351,7 @@
              "updated resources"))
        ;; all done
        (mc/disconnect! client)
-       (p/stop! running-server)
+       (ms/stop-server running-server)
        (done!)))))
 
 
@@ -402,7 +400,7 @@
              "updated resource templates"))
        ;; all done
        (mc/disconnect! client)
-       (p/stop! running-server)
+       (ms/stop-server running-server)
        (done!)))))
 
 
@@ -438,7 +436,6 @@
            (swap! conj tool-item-2))
        ;; expect the server to send list-changed to the client
        ;; that ends up re-fetched and cached by the client
-       u/nop
        (uab/until
         #(let [tools (-> (cs/get-from-cache client cs/?cc-tools-list)
                          sd/result-key-tools)]
@@ -456,5 +453,27 @@
              "updated tools"))
        ;; all done
        (mc/disconnect! client)
-       (p/stop! running-server)
+       (ms/stop-server running-server)
        (done!)))))
+
+
+(deftest test-cancellation
+  (testing "server task cancellation"
+    :FIXME)
+  (testing "client task cancellation"
+    :FIXME))
+
+
+(deftest test-progress-tracking
+  (testing "server progress"
+    :FIXME)
+  (testing "client progress"
+    :FIXME))
+
+
+(deftest test-mcp-logging
+  :FIXME)
+
+
+(deftest test-heartbeat
+  :FIXME)
