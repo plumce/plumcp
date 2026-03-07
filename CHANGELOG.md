@@ -53,6 +53,9 @@ All notable changes to this project will be documented in this file. This change
   - Allow kwarg `:on-result` in client op function options
   - Cache original `:result` value (not `:on-result` applied)
     - Background and user calls with different `:on-result` can co-exist
+- Protocol: Bump compliant protocol version to `2025-11-25`
+  - So that tools (MCP Inspector, Clause Code) do not refuse to work
+  - Capabilities are still all `2025-06-18`
 
 ### Fixed
 - Fix module description on Clojars

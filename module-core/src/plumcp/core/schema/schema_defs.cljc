@@ -22,9 +22,10 @@
 (def protocol-version-2025-11-25 "2025-11-25")  ; not implemented yet
 (def protocol-version-2025-06-18 "2025-06-18")
 (def protocol-version-2025-03-26 "2025-03-26")
-(def protocol-version-2024-11-05 "2024-11-05")
+(def protocol-version-2024-11-05 "2024-11-05")  ; not to be implemented
 
-(def protocol-versions-supported (-> [protocol-version-2025-06-18
+(def protocol-versions-supported (-> [protocol-version-2025-11-25
+                                      protocol-version-2025-06-18
                                       protocol-version-2025-03-26]
                                      sort
                                      reverse))
