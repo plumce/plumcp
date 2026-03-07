@@ -25,7 +25,7 @@ All notable changes to this project will be documented in this file. This change
   - Cache JWKS keys
   - Log auth failures (but never log full tokens)
 
-## [Todo] - 2026-???-??
+## [0.2.0-beta2] - 2026-Mar-07
 ### Added
 - Server: Public API functions for server operations
   - `get-request-params-meta`
