@@ -60,6 +60,7 @@ All notable changes to this project will be documented in this file. This change
   - `plumcp.core-json-cheshire` module
   - `plumcp.core-json-datajson` module
   - `plumcp.core-json-jsonista` module
+- Fix SSE stream items extraction for CLJ/JVM
 
 ## [0.2.0-beta1] - 2026-Mar-02
 ### Added

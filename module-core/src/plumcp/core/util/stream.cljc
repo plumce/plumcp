@@ -70,7 +70,7 @@
    extract all buffer elements until the :ended? value is true and
    return a result as follows:
    CLJS: Async iterator of all elements
-   CLJ: Lazy seq of all elements"
+   CLJ: (Potentially Lazy) Seq (not vector) of all elements"
   [stream-atom ^long idle-millis]
   (let [extract! (fn [] (-> stream-atom
                             (swap-vals! (fn [stream]
@@ -107,9 +107,8 @@
        :clj (let [{:keys [buffer
                           ended?]} (extract!)]
               (if ended?
-                buffer
-                (concat (if (seq buffer)
-                          buffer
-                          (do (Thread/sleep idle-millis)
-                              []))
+                (or (seq buffer) ())  ; ensure (seq? retval) = true
+                (concat (or (seq buffer)
+                            (do (Thread/sleep idle-millis)
+                                []))
                         (lazy-seq (stream-items stream-atom idle-millis))))))))
