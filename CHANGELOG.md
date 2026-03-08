@@ -25,6 +25,19 @@ All notable changes to this project will be documented in this file. This change
   - Cache JWKS keys
   - Log auth failures (but never log full tokens)
 
+## [Unreleased] - 2026-???-??
+### Added
+- [Todo] Update last-access time in server-session
+- [Todo] Update last-access time in client state
+- [Todo] Roundtrip tests
+  - [Todo] test-cancellation
+  - [Todo] test-progress-tracking
+  - [Todo] test-mcp-logging
+  - [Todo] test-heartbeat
+### Changed
+- [Todo] Prune redundant client API functions
+### Fixed
+
 ## [0.2.0-beta2] - 2026-Mar-07
 ### Added
 - Server: Public API functions for server operations
