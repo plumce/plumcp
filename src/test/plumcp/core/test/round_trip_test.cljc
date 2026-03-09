@@ -530,15 +530,7 @@
            ^{:doc "Message to log" :type "string"} message]
     :as kwargs}]
   (ms/with-logger [kwargs logger]
-    (ms/log-0-emergency kwargs message)
-    (ms/log-1-alert     kwargs message)
-    (ms/log-2-critical  kwargs message)
-    (ms/log-3-error     kwargs message)
-    (ms/log-4-warning   kwargs message)
-    (ms/log-5-notice    kwargs message)
-    (ms/log-6-info      kwargs message)
-    (ms/log-7-debug     kwargs message))
-  "logging-done")
+    (tool-log-simple kwargs)))
 
 
 (deftest test-mcp-logging
