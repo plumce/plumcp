@@ -238,8 +238,12 @@
 
 
 (defn make-test-ingredients
-  []
-  (let [server-primitives (make-server-primitives)
+  [& {:keys [server-primitives
+             client-options]
+      :or {server-primitives {}
+           client-options {}}}]
+  (let [server-primitives (merge (make-server-primitives)
+                                 server-primitives)
         server-options (-> server-primitives
                            make-zero-server-options)
         running-server (-> (:runtime server-options)
@@ -249,7 +253,7 @@
         client (-> {:primitives (make-client-primitives)
                     :traffic-logger blogger/client-logger
                     :client-transport transport}
-                   (merge client/client-options)
+                   (merge client/client-options client-options)
                    (mc/make-client))]
     {:server-primitives server-primitives
      :running-server running-server
@@ -459,21 +463,180 @@
 
 (deftest test-cancellation
   (testing "server task cancellation"
+    ;; 1. start server
+    ;; 2. client connects to server
+    ;; 3. client calls a server-tool that will blocks until flag=true
+    ;; 4. client times out in one second
+    ;; 5. client cancels the job
+    ;; 6. client receives cancelled notification (assert)
+    ;; 7. assert request cancelled at client end
+    ;; 8. assert request cancelled at server end
+    ;; 9. disconnect client
+    ;; 10. stop server
     :FIXME)
   (testing "client task cancellation"
+    ;; 1. start server
+    ;; 2. client connects to server
+    ;; 3. client calls a server-tool that requests a client sampling
+    ;; 4. client sampling blocks until flag=true
+    ;; 5. the server-tool in #3 times out and cancels the request
+    ;; 6. assert request cancelled at client end
+    ;; 7. assert request cancelled at server end
+    ;; 8. disconnect client
+    ;; 9. stop server
     :FIXME))
 
 
 (deftest test-progress-tracking
   (testing "server progress"
+    ;; 1. start server
+    ;; 2. client connects
+    ;; 3. client calls a server tool, which sends progress until done
+    ;; 4. assert client received progress updates
+    ;; 5. disconnect client
+    ;; 6. stop server
     :FIXME)
   (testing "client progress"
+    ;; 1. start server
+    ;; 2. client connects to the server
+    ;; 3. client calls server tool that requests client sampling
+    ;; 4. client sampling sends progress updates until done
+    ;; 5. assert server receives progress updates
+    ;; 6. disconnect client
+    ;; 7. stop server
     :FIXME))
 
 
+(defn ^{:mcp-type :tool
+        :mcp-name "log-simple"} tool-log-simple
+  "Emit simple log"
+  [{:keys [^{:doc "Message to log" :type "string"} message]
+    :as kwargs}]
+  (ms/log-0-emergency kwargs message)
+  (ms/log-1-alert     kwargs message)
+  (ms/log-2-critical  kwargs message)
+  (ms/log-3-error     kwargs message)
+  (ms/log-4-warning   kwargs message)
+  (ms/log-5-notice    kwargs message)
+  (ms/log-6-info      kwargs message)
+  (ms/log-7-debug     kwargs message)
+  "logging-done")
+
+
+(defn ^{:mcp-type :tool
+        :mcp-name "log-logger"} tool-log-logger
+  "Emit log with logger"
+  [{:keys [^{:doc "Logger for msg" :type "string"} logger
+           ^{:doc "Message to log" :type "string"} message]
+    :as kwargs}]
+  (ms/with-logger [kwargs logger]
+    (ms/log-0-emergency kwargs message)
+    (ms/log-1-alert     kwargs message)
+    (ms/log-2-critical  kwargs message)
+    (ms/log-3-error     kwargs message)
+    (ms/log-4-warning   kwargs message)
+    (ms/log-5-notice    kwargs message)
+    (ms/log-6-info      kwargs message)
+    (ms/log-7-debug     kwargs message))
+  "logging-done")
+
+
 (deftest test-mcp-logging
-  :FIXME)
+  ;; 1. start server
+  ;; 2. client connects
+  ;; 3. client calls server-tool that logs messages
+  ;; 4. assert client receives log messages
+  ;; 5. disconnect client
+  ;; 6. stop server
+  (tu/async-test [done!]
+    (let [tools [(vs/make-tool-from-var #'tool-log-simple)
+                 (vs/make-tool-from-var #'tool-log-logger)]
+          store (atom [])
+          logit (fn [log-notification]
+                  (swap! store conj (-> log-notification
+                                        ms/remove-runtime
+                                        :params))
+                  (cs/log-message log-notification))
+          {:keys [server-primitives
+                  running-server
+                  client]} (-> {:server-primitives {:tools tools}
+                                :client-options {:notification-handlers
+                                                 {sd/method-notifications-message logit}}}
+                               make-test-ingredients)]
+      (tu/async-do
+       ;; client connects
+       (mc/initialize-and-notify! client)
+       (testing "log simple"
+         ;; log all messages
+         (mc/set-log-level client sd/log-level-7-debug)
+         ;; client calls server-tool that logs simply
+         (reset! store [])
+         (uab/let-await [result (mc/call-tool client "log-simple"
+                                              {:message "Test message"})]
+           (tu/async-do
+            (is (= {:content [{:type "text", :text "logging-done"}],
+                    :isError false}
+                   result))
+            ;; wait for all log entries to arrive
+            (uab/until #(= 8 (count (deref store))) 10)
+            (is (= [{:level "emergency" :data "Test message"}
+                    {:level "alert"     :data "Test message"}
+                    {:level "critical"  :data "Test message"}
+                    {:level "error"     :data "Test message"}
+                    {:level "warning"   :data "Test message"}
+                    {:level "notice"    :data "Test message"}
+                    {:level "info"      :data "Test message"}
+                    {:level "debug"     :data "Test message"}]
+                   (deref store))))))
+       (testing "log with logger"
+         ;; log all messages
+         (mc/set-log-level client sd/log-level-7-debug)
+         ;; client calls server-tool that logs with logger
+         (reset! store [])
+         (uab/let-await [result (mc/call-tool client "log-logger"
+                                              {:logger "Test logger"
+                                               :message "Test message"})]
+           (tu/async-do
+            (is (= {:content [{:type "text", :text "logging-done"}],
+                    :isError false}
+                   result))
+            ;; wait for all log entries to arrive
+            (uab/until #(= 8 (count (deref store))) 10)
+            (is (= [{:level "emergency" :data "Test message" :logger "Test logger"}
+                    {:level "alert"     :data "Test message" :logger "Test logger"}
+                    {:level "critical"  :data "Test message" :logger "Test logger"}
+                    {:level "error"     :data "Test message" :logger "Test logger"}
+                    {:level "warning"   :data "Test message" :logger "Test logger"}
+                    {:level "notice"    :data "Test message" :logger "Test logger"}
+                    {:level "info"      :data "Test message" :logger "Test logger"}
+                    {:level "debug"     :data "Test message" :logger "Test logger"}]
+                   (deref store))))))
+       (testing "setting log level"
+         ;; log only emergency messages
+         (mc/set-log-level client sd/log-level-0-emergency)
+         (reset! store [])
+         (uab/let-await [result (mc/call-tool client "log-simple"
+                                              {:message "Test message"})]
+           (tu/async-do
+            (is (= {:content [{:type "text", :text "logging-done"}],
+                    :isError false}
+                   result))
+            ;; wait for all log entries to arrive
+            (uab/until #(= 1 (count (deref store))) 10)
+            (is (= [{:level "emergency" :data "Test message"}]
+                   (deref store))))))
+       ;; all done
+       (mc/disconnect! client)
+       (ms/stop-server running-server)
+       (done!)))))
 
 
 (deftest test-heartbeat
+  ;; 1. start server
+  ;; 2. client connects with heartbeat=ENABLED
+  ;; 3. client pauses for (1.5 * heartbeat interval) duration
+  ;; 4. assert server received the heartbeat
+  ;; 5. assert server session is updated with last access-time
+  ;; 6. disconnect client
+  ;; 7. stop server
   :FIXME)

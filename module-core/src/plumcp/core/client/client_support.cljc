@@ -1008,17 +1008,30 @@
                                    assoc :progress progress))))
 
 
+(def log-levels-upper
+  "Upper-case log levels map for lookup."
+  {"emergency" "EMERGENCY"
+   "alert"     "ALERT"
+   "critical"  "CRITICAL"
+   "error"     "ERROR"
+   "warning"   "WARNING"
+   "notice"    "NOTICE"
+   "info"      "INFO"
+   "debug"     "DEBUG"})
+
+
 (defn log-message
   "Log server-sent message."
   [^{:see [sd/LoggingMessageNotification]} jsonrpc-message-with-deps]
-  (let [{:keys [level logger data]} jsonrpc-message-with-deps
+  (let [{:keys [level logger data]} (:params jsonrpc-message-with-deps)
+        upper-level (get log-levels-upper level level)
         message (if (string? data) data (u/pprint-str data))]
     (if (some? logger)
-      (-> "[%s] %s"
-          (format level message)
-          u/eprintln)
       (-> "[%s][%s] %s"
-          (format level logger message)
+          (format upper-level logger message)
+          u/eprintln)
+      (-> "[%s] %s"
+          (format upper-level message)
           u/eprintln))))
 
 

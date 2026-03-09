@@ -307,7 +307,8 @@
 
 
 (defn set-log-level
-  "Send set-log-lvel request to the server."
+  "Send set-log-level request to the server to not log anything below
+   (i.e. less severe than) the given level."
   [client ^{:see [sd/log-level-0-emergency
                   sd/log-level-1-alert
                   sd/log-level-2-critical
