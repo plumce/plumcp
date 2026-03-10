@@ -70,15 +70,24 @@
 (defcckey ?cc-resources-list {:default nil})
 (defcckey ?cc-resource-templates-list {:default nil})
 (defcckey ?cc-tools-list {:default nil})
-(defcckey ?cc-pending-client-requests {:default {}}) ; {<req-id> {:ts <ms> :callback <fn> :progress {}}}
-(defcckey ?cc-pending-server-requests {:default {}}) ; {<req-id> {:ts <ms>}}
+(defcckey ?cc-progress-tracking-dict {:default ;; many-to-1
+                                      {#_pending-req-id #_progress-tokens
+                                       #_each-prog-token #_pending-req-id}})
+(defcckey ?cc-pending-client-requests {:default
+                                       {#_req-id
+                                        #_{:ts <ms>
+                                           :callback <fn>
+                                           :progress ;; 1-to-many
+                                           {progress-token the-progress}}}})
+(defcckey ?cc-pending-server-requests {:default {#_req-id #_{:ts <ms>}}})
 (defcckey ?cc-listnotif-worker {:default nil})
 (defcckey ?cc-heartbeat-worker {:default nil})
 
 
-(defn init-client-cache-atom
+(defn reset-client-cache-atom!
   [client-cache-atom]
   (doto client-cache-atom
+    (?cc-progress-tracking-dict  {})
     (?cc-pending-client-requests {})
     (?cc-pending-server-requests {})
     (?cc-session-context {})
@@ -88,7 +97,7 @@
 (defn make-client-cache-atom
   []
   (doto (atom {})
-    (init-client-cache-atom)))
+    (reset-client-cache-atom!)))
 
 
 ;; ----- Heartbeat running -----
@@ -202,6 +211,8 @@
           (jr/jsonrpc-response? jsonrpc-message)
           (let [callback (-> (?cc-pending-client-requests client-cache-atom)
                              (get-in [id :callback]))]
+            (?cc-progress-tracking-dict client-cache-atom
+                                        u/dict-dissoc id)
             (?cc-pending-client-requests client-cache-atom
                                          dissoc id)
             (if (some? callback)  ; found a registered callback?
@@ -993,19 +1004,22 @@
   (let [client-cache-atom (-> jsonrpc-message-with-deps
                               jsonrpc-message-with-deps->client
                               ?client-cache)
-        id (get-in jsonrpc-message-with-deps [:params :progressToken])
+        pt (get-in jsonrpc-message-with-deps [:params :progressToken])
         progress (-> jsonrpc-message-with-deps
                      (get :params)
                      (select-keys [:progress
                                    :total
                                    :message]))]
-    ;; There is a minor race condition here between the ID-exists check
-    ;; and updating progress, which is worth avoiding orphaned progress
-    (when (-> (?cc-pending-client-requests client-cache-atom)
-              (contains? id))
-      (?cc-pending-client-requests client-cache-atom
-                                   update id
-                                   assoc :progress progress))))
+    (when-let [request-id (-> client-cache-atom
+                              ?cc-progress-tracking-dict
+                              (get pt))]
+      ;; There is a minor race condition here between the ID-exists check
+      ;; and updating progress, which is worth avoiding orphaned progress
+      (when (-> (?cc-pending-client-requests client-cache-atom)
+                (contains? request-id))
+        (?cc-pending-client-requests client-cache-atom
+                                     update-in [request-id :progress]
+                                     assoc pt progress)))))
 
 
 (def log-levels-upper

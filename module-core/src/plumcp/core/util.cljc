@@ -256,6 +256,28 @@
              map))
 
 
+(defn dict-assoc
+  "Assoc K/values in a dictionary (bi-directional map) where both K and
+   each value are keys of the same map."
+  [m k values]
+  (-> (assoc m k values)
+      (merge (zipmap values (repeat k)))))
+
+
+(defn dict-dissoc
+  "Dissoc K from a dictionary (bi-directional map) where both K and
+   (each of) the corresponding values are keys of the same map."
+  [m k]
+  (if (contains? m k)
+    (let [v (get m k)]
+      (-> (if (coll? v)
+            (-> dict-dissoc
+                (reduce m v))
+            (dissoc m v))
+          (dissoc k)))
+    m))
+
+
 ;; --- Exception convenience ---
 
 
@@ -267,7 +289,7 @@
     `(try
        [(do ~@body) nil]
        (catch :default ex#  ; catch everything, not just js/Error
-               [nil ex#]))
+         [nil ex#]))
     `(try
        [(do ~@body) nil]
        (catch Exception ex# ; Throwable is NOT meant to be handled

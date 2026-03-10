@@ -71,7 +71,7 @@
     (u/background
       (p/stop! heartbeat-chk)))
   ;; wipe client state to remove self and virtual thread references
-  (cs/init-client-cache-atom (cs/?client-cache client))
+  (cs/reset-client-cache-atom! (cs/?client-cache client))
   (p/stop-client-transport! (cs/?transport client) false))
 
 
@@ -288,14 +288,25 @@
 ;; --- Meta functions ---
 
 
+(defn register-request-progress-tokens
+  "Register progress tokens against a request ID, so that progress
+   notifications from server may update the pending-request status."
+  [client request-id progress-tokens]
+  (let [client-cache-atom (cs/?client-cache client)]
+    ;; register for request-tracking
+    (cs/?cc-progress-tracking-dict client-cache-atom
+                                   u/dict-assoc
+                                   request-id progress-tokens)))
+
+
 (defn get-request-progress
   "Given a client request (to server) ID, return progress if available,
    empty {} otherwise. Return nil if no such request is pending.
    Structure of the returned progress map:
-   {:progress <val> ; number
-    :total <val>    ; number, optional
-    :message <val>  ; string, optional
-   }"
+   {<progress-token> {:progress <val> ; number
+                      :total <val>    ; number, optional
+                      :message <val>  ; string, optional
+                     }}"
   [client request-id]
   (let [client-cache-atom (cs/?client-cache client)]
     (some-> (cs/?cc-pending-client-requests client-cache-atom)

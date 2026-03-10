@@ -1,7 +1,9 @@
 # Change Log
+
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](https://keepachangelog.com/).
 
 ## [TODO/IDEA] - ????-??-??
+
 ### Added
 
 - MCP Client
@@ -26,20 +28,28 @@ All notable changes to this project will be documented in this file. This change
   - Log auth failures (but never log full tokens)
 
 ## [Unreleased] - 2026-???-??
+
 ### Added
+
+- Client: Public API fn `p.c.a.m-c/register-request-progress-tokens`
 - [Todo] Update last-access time in server-session
 - [Todo] Update last-access time in client state
-- [Todo] Roundtrip tests
+- [WIP] Roundtrip tests
   - [Todo] test-cancellation
-  - [Todo] test-progress-tracking
-  - [Todo] test-mcp-logging
+  - [WIP] test-progress-tracking
+  - test-mcp-logging
   - [Todo] test-heartbeat
+
 ### Changed
+
 - [Todo] Prune redundant client API functions
+
 ### Fixed
 
 ## [0.2.0-beta2] - 2026-Mar-07
+
 ### Added
+
 - Server: Public API functions for server operations
   - `get-request-params-meta`
   - `get-request-id`
@@ -48,20 +58,21 @@ All notable changes to this project will be documented in this file. This change
   - `get-runtime`
   - `remove-runtime`
   - `send-notification-to-client`
-  - `with-logger`     (moved from `runtime-support` ns)
-  - `log-7-debug`     (moved from `runtime-support` ns)
-  - `log-6-info`      (moved from `runtime-support` ns)
-  - `log-5-notice`    (moved from `runtime-support` ns)
-  - `log-4-warning`   (moved from `runtime-support` ns)
-  - `log-3-error`     (moved from `runtime-support` ns)
-  - `log-2-critical`  (moved from `runtime-support` ns)
-  - `log-1-alert`     (moved from `runtime-support` ns)
+  - `with-logger` (moved from `runtime-support` ns)
+  - `log-7-debug` (moved from `runtime-support` ns)
+  - `log-6-info` (moved from `runtime-support` ns)
+  - `log-5-notice` (moved from `runtime-support` ns)
+  - `log-4-warning` (moved from `runtime-support` ns)
+  - `log-3-error` (moved from `runtime-support` ns)
+  - `log-2-critical` (moved from `runtime-support` ns)
+  - `log-1-alert` (moved from `runtime-support` ns)
   - `log-0-emergency` (moved from `runtime-support` ns)
   - `get-client-capabilities`
   - `send-request-to-client`
   - `stop-server`
 
 ### Changed
+
 - Client: Make result handling more flexible
   - Allow kwarg `:on-result` in client op function options
   - Cache original `:result` value (not `:on-result` applied)
@@ -71,6 +82,7 @@ All notable changes to this project will be documented in this file. This change
   - Capabilities are still all `2025-06-18`
 
 ### Fixed
+
 - Fix module description on Clojars
   - `plumcp.core-json-charred` module
   - `plumcp.core-json-cheshire` module
@@ -79,7 +91,9 @@ All notable changes to this project will be documented in this file. This change
 - Fix SSE stream items extraction for CLJ/JVM
 
 ## [0.2.0-beta1] - 2026-Mar-02
+
 ### Added
+
 - Client: Notification handling
   - Cancellation: Cancel server request (to client)
   - Progress update: Update progress of pending client request
@@ -93,7 +107,7 @@ All notable changes to this project will be documented in this file. This change
 - Client: Support for SSL context/params in CLJ/JVM HTTP Client
   - Opts in `p.c.s.h-c-j/make-client-context` or `p.c.s.h-c/make-http-client`
   - Kwarg `:ssl-context` - `javax.net.ssl.SSLContext` instance
-  - Kwarg `:ssl-params`  - `javax.net.ssl.SSLParameters` instance
+  - Kwarg `:ssl-params` - `javax.net.ssl.SSLParameters` instance
 - Client: Support for HTTPS proxy in CLJS HTTP client (request keys)
   - Node.js: `:dispatcher` and (legacy) `:agent` options
   - Bun.js: `:proxy` option
@@ -130,10 +144,13 @@ All notable changes to this project will be documented in this file. This change
   - `on-tools-list-changed` (use `sd/method-notifications-tools-list_changed` instead)
 
 ### Fixed
+
 - Git/SCM coordinates in module `pom.xml`, which reflects on Clojars
 
 ## [0.2.0-alpha1] - 2026-Feb-18
+
 ### Added
+
 - STDIO Client Transport
   - Options in `plumcp.core.client.stdio-client-transport/run-command`
     - Kwarg `:dir` - current directory for process
@@ -190,6 +207,7 @@ All notable changes to this project will be documented in this file. This change
     - https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/659
 
 ### Changed
+
 - [BREAKING CHANGE] Replace protocol fn `log-mcp-notification` with
   - `log-incoming-jsonrpc-notification`
   - `log-outgoing-jsonrpc-notification`
@@ -223,6 +241,7 @@ All notable changes to this project will be documented in this file. This change
   - `make-fixed-tools-capability` (use `make-tools-capability` instead)
 
 ### Fixed
+
 - MCP Client
   - Options destructuring in base-client-context construction
   - Applying HTTP response middleware in CLJS HTTP Client
@@ -231,7 +250,9 @@ All notable changes to this project will be documented in this file. This change
   - Do not emit `:request` entry in schema validation error responses
 
 ## [0.1.0] - 2026-Jan-29
+
 ### Added
+
 - MCP Protocol spec implementation
   - 2025-06-18, 2025-03-26
 - MCP Transports (client and server)

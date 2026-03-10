@@ -487,24 +487,105 @@
     :FIXME))
 
 
+(defn ^{:mcp-type :tool} progress-meter
+  "Progress meter"
+  [{:as kwargs}]
+  (let [all-prog (atom [20 40 60 80 100])
+        ext-prog (fn []  ; extract!
+                   (-> all-prog
+                       (swap-vals! next)
+                       ffirst))
+        notify-p (fn [progress-percent]
+                   (as-> (ms/get-request-params-meta kwargs) $
+                     (:progressToken $)
+                     (eg/make-progress-notification $ progress-percent
+                                                    {:total 100})
+                     (ms/send-notification-to-client kwargs $)))
+        run-loop (fn thisfn [progress-percent return]
+                   (if (< progress-percent 100)
+                     (do (notify-p progress-percent)
+                         #?(:cljs (js/setTimeout
+                                   #(thisfn (ext-prog) return) 100)
+                            :clj (do (Thread/sleep 100)
+                                     (recur (ext-prog) return))))
+                     (return "all-done")))]
+    (uab/as-async [return reject]
+      (run-loop (ext-prog) return))))
+
+
 (deftest test-progress-tracking
-  (testing "server progress"
-    ;; 1. start server
-    ;; 2. client connects
-    ;; 3. client calls a server tool, which sends progress until done
-    ;; 4. assert client received progress updates
-    ;; 5. disconnect client
-    ;; 6. stop server
-    :FIXME)
-  (testing "client progress"
-    ;; 1. start server
-    ;; 2. client connects to the server
-    ;; 3. client calls server tool that requests client sampling
-    ;; 4. client sampling sends progress updates until done
-    ;; 5. assert server receives progress updates
-    ;; 6. disconnect client
-    ;; 7. stop server
-    :FIXME))
+  (tu/async-test [done!]
+    (let [tools [(vs/make-tool-from-var #'progress-meter)]
+          store (atom [])
+          uprog (fn [progress-notification]
+                  (swap! store
+                         conj (:params progress-notification))
+                  (cs/update-client-request-progress progress-notification))
+          {:keys [server-primitives
+                  running-server
+                  client]} (-> {:server-primitives {:tools tools}
+                                :client-options {:notification-handlers
+                                                 {sd/method-notifications-progress uprog}}}
+                               make-test-ingredients)]
+      (tu/async-do
+       ;; client connects
+       (mc/initialize-and-notify! client)
+       (testing "server progress"
+         ;; 1. start server
+         ;; 2. client connects
+         ;; 3. client calls a server tool, which sends progress until done
+         ;; 4. assert client received progress updates
+         ;; 5. disconnect client
+         ;; 6. stop server
+         (reset! store [])
+         (let [client-cache-atom (cs/?client-cache client)
+               request (eg/make-call-tool-request "progress-meter" {})
+               request-id (:id request)
+               p-token (-> request :params :_meta :progressToken)]
+           ;; register progress tokens
+           (mc/register-request-progress-tokens client
+                                                request-id [p-token])
+           ;; assert request-id/progress-token in progress-tracking-dict
+           (is (= [p-token]
+                  (-> (cs/?cc-progress-tracking-dict client-cache-atom)
+                      (get request-id)))
+               "request-id entry in dict")
+           (is (= request-id
+                  (-> (cs/?cc-progress-tracking-dict client-cache-atom)
+                      (get p-token)))
+               "progress-token entry in dict")
+           (uab/may-await [result (-> request
+                                      (cs/request->response client)
+                                      (cs/response->result-or-throw! "call-tool"))]
+             (is (= {:content [{:type "text", :text "all-done"}]
+                     :isError false}
+                    result))
+             (is (= [{:progressToken p-token :progress 20 :total 100}
+                     {:progressToken p-token :progress 40 :total 100}
+                     {:progressToken p-token :progress 60 :total 100}
+                     {:progressToken p-token :progress 80 :total 100}]
+                    (deref store)))
+             (let [pt-dict (cs/?cc-progress-tracking-dict client-cache-atom)]
+               (is (not (contains? pt-dict request-id))
+                   "request-id entry removed from dict")
+               (is (not (contains? pt-dict p-token))
+                   "progress-token entry removed from dict"))
+             (is (nil?
+                  (mc/get-request-progress client #_p-token request-id))
+                 "request has ended so progress not available now"))))
+       (testing "client progress"
+         ;; 1. start server
+         ;; 2. client connects to the server
+         ;; 3. client calls server tool that requests client sampling
+         ;; 4. client sampling sends progress updates until done
+         ;; 5. assert server receives progress updates
+         ;; 6. disconnect client
+         ;; 7. stop server
+         :FIXME)
+       ;; all done
+       (mc/disconnect! client)
+       (ms/stop-server running-server)
+       (done!)))))
 
 
 (defn ^{:mcp-type :tool
