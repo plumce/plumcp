@@ -390,7 +390,7 @@
 
 
 (defn respond-sampling-create-message
-  "Send response for sampling-createMessage server request."
+  "Send response for sd/method-sampling-createMessage server request."
   [client request-id role content]
   (if-let [sampling (-> (cs/?capabilities client)
                         (ic/get-capability-sampling))]
@@ -404,7 +404,7 @@
 
 
 (defn respond-create-elicitation
-  "Send response for sampling-createMessage server request."
+  "Send response for sd/method-elicitation-create server request."
   [client request-id action elicit-options]
   (if-let [elicitation (-> (cs/?capabilities client)
                            (ic/get-capability-elicitation))]
