@@ -131,5 +131,6 @@
                                              (binding [*out* server-stdin]
                                                (-> message
                                                    u/json-write
-                                                   println)))))
+                                                   println)
+                                               (flush)))))
       (upon-handshake-success [_ _] nil))))

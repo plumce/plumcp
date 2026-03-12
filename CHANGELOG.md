@@ -63,8 +63,7 @@ All notable changes to this project will be documented in this file. This change
 
 - MCP Client
   - Track request progress on user-declared request progress-tokens
-  - [Todo] Flush client STDIO transport after sending a message
-    - See: https://github.com/editor-code-assistant/eca/pull/355/changes `flushing-stdio-transport`
+  - Flush CLJ/JVM client STDIO transport after sending a message
   - [Todo] Guard on _initialized_ state for notification handler
     - See: https://github.com/editor-code-assistant/eca/pull/355/changes/8746ab0c56485f697e31cb8d47cac61bed47c4d4
 - MCP Server
