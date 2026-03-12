@@ -74,6 +74,37 @@
   (rt/dissoc-runtime context))
 
 
+;; Session utility
+
+
+(defn register-server-request-progress-tokens
+  "Register progress tokens against a request ID, so that progress
+   notifications from client may update the pending-request status."
+  ([context request-id progress-tokens]
+   (-> (rt/?session context)
+       (p/add-progress-tokens request-id progress-tokens)))
+  ([request progress-tokens]
+   (register-server-request-progress-tokens request
+                                            (get-request-id request)
+                                            progress-tokens)))
+
+
+(defn get-server-request-progress
+  "Given a server request (to client) ID, return progress if available,
+   empty {} otherwise. Return nil if no such request is pending.
+   Structure of the returned progress map:
+   {<progress-token> {:progress <val> ; number
+                      :total <val>    ; number, optional
+                      :message <val>  ; string, optional
+                     }}"
+  ([context request-id]
+   (-> (rt/?session context)
+       (p/read-pending-request request-id)
+       :progress))
+  ([request]
+   (get-server-request-progress request (get-request-id request))))
+
+
 ;; Notifications
 
 
@@ -240,8 +271,9 @@
    |:vars                     |         |Supplied/discovered/made from :ns     |
    |:ns (read literally)      |Caller ns|(Vector of) Namespaces to find vars in|
    |:traffic-logger           |         |No-op by default                      |
+   |:notification-handlers    |  {}     |Map notification methodName->handlerFn|
    |:runtime                  |         |made from :impl,:capabilities,:traff..|
-   |:override                 | {}      |Merged into final runtime             |
+   |:override                 |  {}     |Merged into final runtime             |
    |:mcp-methods-wrapper      |identity |Middleware `(fn [handlers])->handlers`|
    |:jsonrpc-handler          |         |Impl+made with :schema-check-wrapper  |
    |:transport                | :stdio  |Either of :stdio, :http               |

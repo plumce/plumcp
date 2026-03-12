@@ -288,7 +288,7 @@
 ;; --- Meta functions ---
 
 
-(defn register-request-progress-tokens
+(defn register-client-request-progress-tokens
   "Register progress tokens against a request ID, so that progress
    notifications from server may update the pending-request status."
   [client request-id progress-tokens]
@@ -299,7 +299,7 @@
                                    request-id progress-tokens)))
 
 
-(defn get-request-progress
+(defn get-client-request-progress
   "Given a client request (to server) ID, return progress if available,
    empty {} otherwise. Return nil if no such request is pending.
    Structure of the returned progress map:

@@ -26,25 +26,49 @@ All notable changes to this project will be documented in this file. This change
     - HTTPS only
   - Cache JWKS keys
   - Log auth failures (but never log full tokens)
+- Readable Last-access time
+  - Server: In server-session
+  - Client: In client state
 
 ## [Unreleased] - 2026-???-??
 
 ### Added
 
-- Client: Public API fn `p.c.a.m-c/register-request-progress-tokens`
-- [Todo] Update last-access time in server-session
-- [Todo] Update last-access time in client state
+- Client: Public API Functions (`p.c.a.m-c` ns)
+  - `register-client-request-progress-tokens`
+  - `get-client-request-progress`
+- Server: Public API Functions
+  - `register-server-request-progress-tokens`
+  - `get-server-request-progress`
+- Server: Kwarg `:notification-handlers` in `run-server`/`run-mcp-server`
+- [Todo] Add public API `mcp-context` ns, with fns moved from mcp-server
 - [WIP] Roundtrip tests
   - [Todo] test-cancellation
-  - [WIP] test-progress-tracking
-  - test-mcp-logging
+  - List changed (primitives)
+  - Progress tracking
+    - `test-client-progress-tracking`
+    - `test-server-progress-tracking`
+  - MCP Logging: `test-mcp-logging`
   - [Todo] test-heartbeat
 
 ### Changed
 
+- Protocol `IServerSession` fns
+  - Add: `add-progress-tokens`, `progress-token->id`, `remove-progress-tokens`
+  - Add: `read-pending-request`, `save-request-progress`
+  - [Todo-BREAKING] Remove: `get-progress`, `update-progress`, `remove-progress`
 - [Todo] Prune redundant client API functions
 
 ### Fixed
+
+- MCP Client
+  - Track request progress on user-declared request progress-tokens
+  - [Todo] Flush client STDIO transport after sending a message
+    - See: https://github.com/editor-code-assistant/eca/pull/355/changes `flushing-stdio-transport`
+  - [Todo] Guard on _initialized_ state for notification handler
+    - See: https://github.com/editor-code-assistant/eca/pull/355/changes/8746ab0c56485f697e31cb8d47cac61bed47c4d4
+- MCP Server
+  - Track request progress on user-declared request progress-tokens
 
 ## [0.2.0-beta2] - 2026-Mar-07
 

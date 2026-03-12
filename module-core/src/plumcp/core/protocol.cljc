@@ -102,6 +102,13 @@
   (set-log-level [this level] "Set the current log level")
   (can-log-level? [this level] "Return true if can log at specified level")
   ;;
+  ;; User-declared Progress tokens (stored until a request is ended)
+  ;;
+  (add-progress-tokens [_ request-id
+                        progress-tokens] "Add progress tokens against ID")
+  (progress-token->id [_ progress-token] "Progress token to request-id")
+  (remove-progress-tokens [_ request-id] "Remove request-ID/progress tokens")
+  ;;
   ;; Progress tracking
   ;;
   (get-progress [this progress-token] "Get progress status")
@@ -111,6 +118,8 @@
   ;; Server requests
   ;;
   (extract-pending-request [this req-id] "Remove/return pending request")
+  (read-pending-request [this req-id] "Read/return pending request")
+  (save-request-progress [_ req-id progress] "Update request progress")
   (clear-pending-requests [this req-ids] "Clear pending server-requests")
   (append-pending-requests [this req-map] "Append pending server-requests")
   ;;

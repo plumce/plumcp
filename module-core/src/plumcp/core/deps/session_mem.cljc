@@ -23,6 +23,7 @@
 (def ^:const k-log-level-index   :log-level-index)
 (def ^:const k-requests-pending  :requests-pending)
 (def ^:const k-subscriptions     :subscriptions)
+(def ^:const k-progress-tokens   :progress-tokens)  ; dict
 (def ^:const k-progress-tracking :progress-tracking)
 (def ^:const k-client-roots      :client-roots)
 
@@ -40,8 +41,10 @@
    k-initialize-ts     nil
    k-log-level         sd/log-level-6-info
    k-log-level-index   (level-index sd/log-level-6-info)
-   k-requests-pending  {}  ; map {req-id context}
+   k-requests-pending  {#_req-id #_{:callback <cc>
+                                    :progress {<pt> <progress>}}}
    k-subscriptions     #{} ; set of uri
+   k-progress-tokens   {#_id #_tokens}  ; dict
    k-progress-tracking {}  ; both peer and self
    k-client-roots      nil ; nil until roots fetched (a vector)
    })
@@ -124,6 +127,19 @@
       (can-log-level? [_ level] (let [index (level-index level)]
                                   (s-canlog? index)))
       ;;
+      ;; progress tokens
+      ;;
+      (add-progress-tokens [_ request-id
+                            progress-tokens] (s-update-at! k-progress-tokens
+                                                           u/dict-assoc
+                                                           request-id
+                                                           progress-tokens))
+      (progress-token->id [_ progress-token] (s-get-in [k-progress-tokens
+                                                        progress-token]))
+      (remove-progress-tokens [_ request-id] (s-update-at! k-progress-tokens
+                                                           u/dict-dissoc
+                                                           request-id))
+      ;;
       ;; progress tracking
       ;;
       (get-progress [_ progress-token] (s-get-in [k-progress-tracking
@@ -139,6 +155,7 @@
       ;; server requests
       ;;
       (extract-pending-request [_ req-id]
+        (p/remove-progress-tokens _ req-id)  ; clear tracking tokens
         (s-extract! k-requests-pending
                     (fn [req-map stash-fn]
                       (if (contains? req-map req-id)
@@ -146,9 +163,22 @@
                           (stash-fn (get req-map req-id))
                           (dissoc req-map req-id))
                         req-map))))
-      (clear-pending-requests [_ req-ids] (apply s-update-at!
-                                                 k-requests-pending
-                                                 dissoc req-ids))
+      (read-pending-request [_ req-id] (s-get-in [k-requests-pending req-id]))
+      (save-request-progress [_ req-id
+                              progress] (let [pt (:progressToken progress)]
+                                          (s-update! k-requests-pending
+                                                     (fn [m]
+                                                       (if (contains? m req-id)
+                                                         (assoc-in
+                                                          m [req-id :progress pt]
+                                                          progress)
+                                                         m)))))
+      (clear-pending-requests [_ req-ids] (do
+                                            (-> #(p/remove-progress-tokens _ %)
+                                                (run! req-ids))
+                                            (apply s-update-at!
+                                                   k-requests-pending
+                                                   dissoc req-ids)))
       (append-pending-requests [_ req-map] (s-update-at! k-requests-pending
                                                          merge req-map))
       ;;
