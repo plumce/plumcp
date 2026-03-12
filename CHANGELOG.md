@@ -34,6 +34,21 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
+- [Todo] Add public API `mcp-context` ns, with fns moved from mcp-server
+- [Todo] Roundtrip tests
+  - [Todo] test-cancellation
+  - [Todo] test-heartbeat
+
+### Changed
+
+- [Todo] Prune redundant client API functions
+
+### Fixed
+
+## [0.2.0-beta3] - 2026-Mar-12
+
+### Added
+
 - Client: Public API Functions (`p.c.a.m-c` ns)
   - `register-client-request-progress-tokens`
   - `get-client-request-progress`
@@ -42,15 +57,14 @@ All notable changes to this project will be documented in this file. This change
   - `get-server-request-progress`
 - Server: Kwarg `:notification-handlers` in `run-server`/`run-mcp-server`
 - Client: Add init-check utility fn `p.c.a.c-s/wrap-initialized-check`
-- [Todo] Add public API `mcp-context` ns, with fns moved from mcp-server
-- [WIP] Roundtrip tests
-  - [Todo] test-cancellation
+- Roundtrip tests
   - List changed (primitives)
+    - Client: _roots_
+    - Server: _prompts_, _resources_, _resource-templates_, _tools_
   - Progress tracking
     - `test-client-progress-tracking`
     - `test-server-progress-tracking`
   - MCP Logging: `test-mcp-logging`
-  - [Todo] test-heartbeat
 
 ### Changed
 
@@ -58,7 +72,6 @@ All notable changes to this project will be documented in this file. This change
   - Add: `add-progress-tokens`, `progress-token->id`, `remove-progress-tokens`
   - Add: `read-pending-request`, `save-request-progress`
   - [BREAKING] Remove: `get-progress`, `update-progress`, `remove-progress`
-- [Todo] Prune redundant client API functions
 
 ### Fixed
 
@@ -101,7 +114,7 @@ All notable changes to this project will be documented in this file. This change
   - Cache original `:result` value (not `:on-result` applied)
     - Background and user calls with different `:on-result` can co-exist
 - Protocol: Bump compliant protocol version to `2025-11-25`
-  - So that tools (MCP Inspector, Clause Code) do not refuse to work
+  - So that tools (MCP Inspector, Claude Code) do not refuse to work
   - Capabilities are still all `2025-06-18`
 
 ### Fixed
