@@ -281,16 +281,6 @@
       :callback))
 
 
-;; Progress tracking
-
-
-(defn update-peer-progress
-  "Update the progress reported."
-  [context progress-token progress]
-  (-> (rt/?session context)
-      (p/update-progress progress-token progress)))
-
-
 ;; Task cancellation
 
 

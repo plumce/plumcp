@@ -24,7 +24,6 @@
 (def ^:const k-requests-pending  :requests-pending)
 (def ^:const k-subscriptions     :subscriptions)
 (def ^:const k-progress-tokens   :progress-tokens)  ; dict
-(def ^:const k-progress-tracking :progress-tracking)
 (def ^:const k-client-roots      :client-roots)
 
 
@@ -45,7 +44,6 @@
                                     :progress {<pt> <progress>}}}
    k-subscriptions     #{} ; set of uri
    k-progress-tokens   {#_id #_tokens}  ; dict
-   k-progress-tracking {}  ; both peer and self
    k-client-roots      nil ; nil until roots fetched (a vector)
    })
 
@@ -139,18 +137,6 @@
       (remove-progress-tokens [_ request-id] (s-update-at! k-progress-tokens
                                                            u/dict-dissoc
                                                            request-id))
-      ;;
-      ;; progress tracking
-      ;;
-      (get-progress [_ progress-token] (s-get-in [k-progress-tracking
-                                                  progress-token]))
-      (update-progress [_ progress-token f] (-> k-progress-tracking
-                                                (s-update-at! update
-                                                              progress-token
-                                                              f)))
-      (remove-progress [_ progress-token] (-> k-progress-tracking
-                                              (s-update-at! dissoc
-                                                            progress-token)))
       ;;
       ;; server requests
       ;;

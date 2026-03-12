@@ -109,12 +109,6 @@
   (progress-token->id [_ progress-token] "Progress token to request-id")
   (remove-progress-tokens [_ request-id] "Remove request-ID/progress tokens")
   ;;
-  ;; Progress tracking
-  ;;
-  (get-progress [this progress-token] "Get progress status")
-  (update-progress [this progress-token f] "Update progress")
-  (remove-progress [this progress-token] "Remove progress tracking")
-  ;;
   ;; Server requests
   ;;
   (extract-pending-request [this req-id] "Remove/return pending request")

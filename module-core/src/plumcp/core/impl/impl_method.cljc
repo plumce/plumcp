@@ -435,11 +435,7 @@
 
 (defn ^{:see [sd/ProgressNotification
               eg/make-progress-notification]} notifications-progress
-  [{progress :params
-    :as jsonrpc-notification}]
-  (when (rt/has-session? jsonrpc-notification)  ; this is true on server
-    (rs/update-peer-progress jsonrpc-notification
-                             (:progressToken progress) progress))
+  [{:as jsonrpc-notification}]
   (call-notification-handler jsonrpc-notification
                              sd/method-notifications-progress)
   {:result {}})

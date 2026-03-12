@@ -37,7 +37,7 @@ All notable changes to this project will be documented in this file. This change
 - Client: Public API Functions (`p.c.a.m-c` ns)
   - `register-client-request-progress-tokens`
   - `get-client-request-progress`
-- Server: Public API Functions
+- Server: Public API Functions (`p.c.a.m-s` ns)
   - `register-server-request-progress-tokens`
   - `get-server-request-progress`
 - Server: Kwarg `:notification-handlers` in `run-server`/`run-mcp-server`
@@ -56,7 +56,7 @@ All notable changes to this project will be documented in this file. This change
 - Protocol `IServerSession` fns
   - Add: `add-progress-tokens`, `progress-token->id`, `remove-progress-tokens`
   - Add: `read-pending-request`, `save-request-progress`
-  - [Todo-BREAKING] Remove: `get-progress`, `update-progress`, `remove-progress`
+  - [BREAKING] Remove: `get-progress`, `update-progress`, `remove-progress`
 - [Todo] Prune redundant client API functions
 
 ### Fixed
