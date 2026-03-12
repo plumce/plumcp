@@ -41,6 +41,7 @@ All notable changes to this project will be documented in this file. This change
   - `register-server-request-progress-tokens`
   - `get-server-request-progress`
 - Server: Kwarg `:notification-handlers` in `run-server`/`run-mcp-server`
+- Client: Add init-check utility fn `p.c.a.c-s/wrap-initialized-check`
 - [Todo] Add public API `mcp-context` ns, with fns moved from mcp-server
 - [WIP] Roundtrip tests
   - [Todo] test-cancellation
@@ -64,8 +65,7 @@ All notable changes to this project will be documented in this file. This change
 - MCP Client
   - Track request progress on user-declared request progress-tokens
   - Flush CLJ/JVM client STDIO transport after sending a message
-  - [Todo] Guard on _initialized_ state for notification handler
-    - See: https://github.com/editor-code-assistant/eca/pull/355/changes/8746ab0c56485f697e31cb8d47cac61bed47c4d4
+  - Guard on _initialized_ state for list-changed refetch handlers
 - MCP Server
   - Track request progress on user-declared request progress-tokens
 

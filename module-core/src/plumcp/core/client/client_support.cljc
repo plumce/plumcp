@@ -940,6 +940,23 @@
       ?cc-client-context))
 
 
+(defn wrap-initialized-check
+  "Given a `(fn [jsonrpc-message-with-deps])`, wrap it to first verify
+   that connection is initialized before invoking the original fn. If
+   not initialized, return the specified fallback value."
+  ([f not-initialized-value]
+   (fn [jsonrpc-message-with-deps]
+     (if-let [client (-> jsonrpc-message-with-deps
+                         jsonrpc-message-with-deps->client)]
+       (if (-> (?client-cache client)
+               ?cc-initialize-result)
+         (f jsonrpc-message-with-deps)
+         not-initialized-value)
+       not-initialized-value)))
+  ([f]
+   (wrap-initialized-check f nil)))
+
+
 (defn fetch-prompts
   "Given a JSON-RPC message with dependencies fetch and return a list of
    prompts (value in CLJ, js/Promise in CLJS). Useful to fetch prompts
@@ -1060,9 +1077,12 @@
    sd/method-notifications-message log-message
    sd/method-notifications-resources-updated u/nop  ; ignore
    ;; list-changed
-   sd/method-notifications-prompts-list_changed fetch-prompts
-   sd/method-notifications-resources-list_changed fetch-resources
-   sd/method-notifications-tools-list_changed fetch-tools})
+   sd/method-notifications-prompts-list_changed (-> fetch-prompts
+                                                    wrap-initialized-check)
+   sd/method-notifications-resources-list_changed (-> fetch-resources
+                                                      wrap-initialized-check)
+   sd/method-notifications-tools-list_changed (-> fetch-tools
+                                                  wrap-initialized-check)})
 
 
 ;; --- Client options making ---
