@@ -16,7 +16,8 @@
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-method :as im]
-   [plumcp.core.schema.schema-defs :as sd])
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.test.test-support :as ts])
   #?(:clj (:import
            [clojure.lang ExceptionInfo])))
 
@@ -71,10 +72,10 @@
 (def runtime-server-caps
   "Runtime with server capabilities"
   (let [completions-cap (ic/make-completions-capability [prompt-ref-item]
-                                                         [resource-ref-item])
+                                                        [resource-ref-item])
         prompts-cap (-> (eg/make-prompt "prompt1")
                         (ic/make-prompts-capability-item (fn [kwargs]
-                                                            {:out :prompt1}))
+                                                           {:out :prompt1}))
                         vector
                         ic/make-prompts-capability)
         resource-cap-item (-> (eg/make-resource "test://resource1" "resource1")
@@ -92,13 +93,13 @@
                                   :uri uri
                                   :id id})))
         resources-cap (ic/make-resources-capability [resource-cap-item]
-                                                     [template-cap-item])
+                                                    [template-cap-item])
         tools-cap (-> (eg/make-tool "tool1"
                                     (-> {"a" {:type "number" :description "first number"}
                                          "b" {:type "number" :description "second number"}}
                                         (eg/make-tool-input-output-schema ["a" "b"])))
                       (ic/make-tools-capability-item (fn [{:keys [^long a ^long b]}]
-                                                        {:out (+ a b)}))
+                                                       {:out (+ a b)}))
                       vector
                       ic/make-tools-capability)
         server-caps (-> ic/default-server-capabilities
@@ -112,16 +113,7 @@
 
 
 (def runtime-server-session
-  (let [context {}
-        server-session (rs/set-server-session context :test-session-id
-                                              (fn [context message]
-                                                #_(u/eprintln "->Client:"
-                                                              message)))
-        context (-> context
-                    (rt/upsert-runtime runtime-server-caps)
-                    (rt/?session server-session))]
-    (rs/set-initialized-timestamp context)
-    (rt/get-runtime context)))
+  (ts/make-runtime-server-session runtime-server-caps))
 
 
 ;; --- Server tests ---
