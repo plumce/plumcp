@@ -42,8 +42,13 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 
 - [Todo] Prune redundant client API functions
+- [Todo-BREAKING] Drop Protocol `IServerSession` fns
+  - [Todo] Drop `cancel-requested?`, `remove-cancellation`, `request-cancellation`
 
 ### Fixed
+
+- [Todo] Fix "Cancel" behaviour
+  - [Todo] Inject a "cancel-requested?" flag in very request
 
 ## [0.2.0-beta3] - 2026-Mar-12
 
