@@ -210,9 +210,8 @@
   (let [session (rt/?session context)]
     ;; install the callback-context first (to facilitate callback)
     (u/expected! (:id new-request) some? "request-ID to be a valid request ID")
-    (p/append-pending-requests session
-                               (-> (:id new-request)
-                                   (array-map {:callback callback-context})))
+    (->> {(:id new-request) {:callback callback-context}}
+         (p/append-pending-requests session))
     ;; send out the server request
     (p/send-message-to-client session context new-request)
     new-request))

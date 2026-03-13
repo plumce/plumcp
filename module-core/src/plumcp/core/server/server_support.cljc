@@ -47,8 +47,6 @@
           p-token (:progressToken progress)
           session (rt/?session jsonrpc-notification-with-deps)
           req-id (p/progress-token->id session p-token)]
-      #_(rs/update-peer-progress jsonrpc-notification-with-deps
-                                 (:progressToken progress) progress)
       (when req-id
         (-> session
             (p/save-request-progress req-id progress))))))
