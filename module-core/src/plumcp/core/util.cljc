@@ -160,7 +160,7 @@
     s))
 
 
-;; --- common predicates ---
+;; --- Common predicates ---
 
 
 (defn non-empty-string?
@@ -475,7 +475,11 @@
   [printer-f & args]
   (let [s (with-out-str (apply printer-f args))]
     #?(:cljs (if us/env-node-js?
-               (.write js/process.stderr s) ; print no extra newline
+               (do (.write js/process.stderr s) ; print no extra newline
+                   ; Returns: false if the stream wishes for the calling
+                   ; code to wait for the 'drain' event to be emitted before
+                   ; continuing to write additional data; otherwise true
+                   nil)
                (js/console.error s))
        :clj (binding [*out* *err*]
               (print s)

@@ -34,7 +34,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- [Todo] Add public API `mcp-context` ns, with fns moved from mcp-server
+- [Todo] Add public API `mcp-runtime` ns, with fns moved from `mcp-server`
+- [Todo] Client: Add option in `make-client` to auto-reinitialize on 404/500+
 - [Todo] Roundtrip tests
   - [Todo] test-cancellation
   - [Todo] test-heartbeat
@@ -47,6 +48,9 @@ All notable changes to this project will be documented in this file. This change
 
 - [Todo] Fix "Cancel" behaviour
   - [Todo] Inject a "cancel-requested?" flag in every request
+- [Todo] Server should return 404 for requests with non-existing session-ID
+  - https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management
+- Fix CLJS (Node/Bun only) STDERR printing
 
 ## [0.2.0-beta3] - 2026-Mar-12
 
