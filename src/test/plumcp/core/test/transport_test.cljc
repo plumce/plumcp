@@ -121,7 +121,7 @@
                               (stop-http-server))))
 
 
-(deftest test-transport
+(deftest test-happy-transport
   (tu/async-each [{:keys [tname
                           maker]} transport-makers]
     (testing tname
@@ -132,14 +132,16 @@
                                   :client-transport client-transport}
                                  (merge client/client-options)
                                  (mc/make-client))]
-        (testing "MCP Handshake"
-          (uab/let-await [init-result (mc/initialize-and-notify! client-context)]
-            (u/dprint "Initialize Result" init-result)
-            (is (= init-result
-                   (mc/get-initialize-result client-context)))
-            (testing "MCP Request sent, and result received"
-              (uab/let-await [tools (mc/list-tools client-context)]
-                (u/dprint "Tools-list (sync) result" tools)
-                (is (vector? tools))
-                ;; disconnect now
-                (mc/disconnect! client-context)))))))))
+        (tu/async-do
+         (testing "MCP Handshake"
+           (uab/let-await [init-result (mc/initialize-and-notify! client-context)]
+             (u/dprint "Initialize Result" init-result)
+             (is (= init-result
+                    (mc/get-initialize-result client-context)))))
+         (testing "MCP Request sent, and result received"
+           (uab/let-await [tools (mc/list-tools client-context)]
+             (u/dprint "Tools-list (sync) result" tools)
+             (is (vector? tools))))
+         (testing "Disconnect"
+           (mc/disconnect! client-context)
+           (is (nil? (mc/get-initialize-result client-context)))))))))
