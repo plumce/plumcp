@@ -49,6 +49,21 @@
 (def ^:const error-code-resource-not-found "Error code -32002" -32002)
 
 
+;; Error-code translation between JSON-RPC and HTTP
+(def error-code:jsonrpc->http {; standard JSON-RPC error codes
+                               error-code-parse-error 500
+                               error-code-invalid-request 400
+                               error-code-method-not-found 404
+                               error-code-invalid-params 500
+                               error-code-internal-error 500
+                               ;; MCP-specific codes
+                               error-code-request-timed-out 408})
+(def error-code:http->jsonrpc {400 error-code-invalid-request
+                               404 error-code-method-not-found
+                               408 error-code-request-timed-out
+                               500 error-code-internal-error})
+
+
 ;; ----- HTTP headers -----
 
 

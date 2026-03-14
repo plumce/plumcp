@@ -98,14 +98,7 @@
     (cond
       (jr/jsonrpc-error? jsonrpc-response)
       (let [error-code (get-in jsonrpc-response [:error :code])]
-        (get {; standard JSON-RPC error codes
-              sd/error-code-parse-error 500
-              sd/error-code-invalid-request 400
-              sd/error-code-method-not-found 404
-              sd/error-code-invalid-params 500
-              sd/error-code-internal-error 500
-              ;; MCP-specific codes
-              sd/error-code-request-timed-out 408}
+        (get sd/error-code:jsonrpc->http
              error-code
              500))
       (jr/jsonrpc-result? jsonrpc-response)
