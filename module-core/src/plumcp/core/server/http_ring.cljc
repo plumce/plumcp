@@ -42,6 +42,7 @@
     (-> (partial hrt/fallback-mcp-handler uri-set)
         (hrt/wrap-mcp-response mcp-jsonrpc-handler options)
         (hrt/wrap-delete-handler)
+        (hrt/wrap-session-not-found)
         (hrt/wrap-oauth auth-options)
         (sh/wrap-traffic-logger)
         (sh/wrap-mcp-session hrt/ring-session-request

@@ -435,6 +435,19 @@
       (ring-handler request))))
 
 
+(defn wrap-session-not-found
+  "If the session exists but the session value is nil, it is because the
+   session-ID is not valid - return 404 as per the MCP spec.
+   See: `ring-session-request`."
+  [ring-handler]
+  (fn session-not-found-handler [request]
+    (if (and (rt/has-session? request)
+             (nil? (rt/?session request)))
+      (plain-response 404
+                      "Session-ID is not associated with any session")
+      (ring-handler request))))
+
+
 (defn ring-session-request [request]
   (if-let [session-id (get-in request
                               [:headers
@@ -443,8 +456,9 @@
       (do
         (rs/remove-server-session request session-id)
         request)
-      (let [session (rs/get-server-session request session-id)]
-        (rt/?session request session)))
+      (let [session-or-nil (rs/get-server-session request session-id)]
+        ;; we handle nil session in `wrap-session-not-found`
+        (rt/?session request session-or-nil)))
     (if (= sd/method-initialize
            (get-in request [:body :method]))  ; method is 'initialize'
       ;; attach a removable session
