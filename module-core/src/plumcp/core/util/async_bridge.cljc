@@ -65,8 +65,7 @@
   (assert (or (symbol? reject-sym)
               (nil? reject-sym)) "reject-sym must be a symbol")
   (let [reject-sym (or reject-sym (gensym "reject"))
-        [options body] (if (and (> (count opts+body) 1)
-                                (map? (first opts+body)))
+        [options body] (if (> (count opts+body) 1)
                          [(first opts+body) (rest opts+body)]
                          [{} opts+body])]
     (if (:ns &env) ;; :ns only exists in CLJS
@@ -75,7 +74,7 @@
                                               ~@body
                                               (catch js/Error e#
                                                 (~reject-sym e#)))))
-             options# ~options
+             options# (u/only-if map? ~options {})
              timeout-millis# (:timeout-millis options#)]
          (if (nil? timeout-millis#)
            result-promise#
@@ -90,7 +89,7 @@
                              (string? error#) (u/throw! error#)
                              (map? error#) (u/throw! "Error" error#)
                              :else (u/throw! "Error" {:context error#})))
-             options# ~options
+             options# (u/only-if map? ~options {})
              timeout-millis# (:timeout-millis options#)]
          (u/background
            (try

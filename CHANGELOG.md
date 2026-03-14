@@ -50,6 +50,7 @@ All notable changes to this project will be documented in this file. This change
   - [Todo] Inject a "cancel-requested?" flag in every request
 - [Todo] Server should return 404 for requests with non-existing session-ID
   - https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management
+- Fix timeout option processing in client operations
 - Fix CLJS (Node/Bun only) STDERR printing
 
 ## [0.2.0-beta3] - 2026-Mar-12
