@@ -16,6 +16,7 @@
    #?(:cljs [plumcp.core.util-cljs :as us]
       :clj [plumcp.core.util-java :as uj])
    #?(:clj [plumcp.core.util.json :as json])
+   [clojure.core.protocols :as cp]
    [clojure.pprint :as pp]
    [clojure.string :as str])
   #?(:cljs (:require-macros [plumcp.core.util :refer [catch!]])
@@ -510,6 +511,35 @@
   (err pp/pprint arg))
 
 
+(defn humanize
+  "Make given value (maybe large graph of data) human-readable for the
+   ultimate purpose of human-inspection. Original data is transformed."
+  [x]
+  (let [prim? (fn [y] (or (nil? y)
+                          (string? y)
+                          (number? y)
+                          (boolean? y)
+                          (char? y)
+                          (keyword? y)
+                          (symbol? y)))
+        x (try
+            (cp/datafy x)
+            (catch #?(:clj Exception :cljs :default) _
+              x))]
+    (cond
+      (prim? x)   x
+      (map? x)    (reduce-kv
+                   (fn [m k v]
+                     (assoc m (humanize k)
+                            (humanize v)))
+                   (empty x)
+                   x)
+      (vector? x) (mapv humanize x)
+      (set? x)    (into (empty x) (map humanize x))
+      (list? x)   (apply list (map humanize x))
+      :else       '<+>)))
+
+
 (defn dprint
   "Pretty-print for debugging."
   [header data]
@@ -518,7 +548,7 @@
     (eprintln h-line)
     (eprintln header)
     (eprintln h-line)
-    (epprint data)
+    (epprint (humanize data))
     (eprintln e-line)
     (eprintln)))
 
