@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. This change
 
 - MCP Client
   - Re-implement client as a protocol instance - easy self-reference
+  - Check that _initialized_ ops have session-context before sending request
 - MCP Server
   - Replace "single node" list-changed notifier with one for scale-out
     - Ensure capabilities list is first updated on all server hosts
@@ -39,15 +40,22 @@ All notable changes to this project will be documented in this file. This change
 - [Todo] Roundtrip tests
   - [Todo] test-cancellation
   - [Todo] test-heartbeat
+- [Todo] Unhappy transport tests
+  - [Todo] Client Op without initialization
+  - [Todo] Client Op after server terminates session
 
 ### Changed
 
 - [Todo] Prune redundant client API functions
+- Client: HTTP Client
+  - [Todo] HTTP 400/404/500 are now returned as JSON-RPC error response
+  - Self-contained stopping of CLJ/JVM HTTP client transport
+    - No more (out-of-band) explicitly interrupting GET (stream) thread
 
 ### Fixed
 
-- [Todo] Fix "Cancel" behaviour
-  - [Todo] Inject a "cancel-requested?" flag in every request
+- [Todo] Client: Implement default "Cancel" behaviour
+- [Todo] Server: Fix `initialize` to return session ID when body is `text/event-stream`
 - Fix Server HTTP transport to return 404 for non-existing session-ID
   - https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management
 - Fix timeout option processing in client operations

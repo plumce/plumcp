@@ -88,6 +88,7 @@
         ;; ---
         f-builder       (fn [^HttpClient$Builder
                              cb] {:client ^HttpClient (.build cb)
+                                  :!interrupted? (atom false)
                                   :logger traffic-logger})
         f-executor      (fn [^HttpClient$Builder
                              cb] (.executor cb vt-executor))
@@ -119,9 +120,11 @@
 
 
 (defn stop-client!
-  [^HttpClient client]
+  [{:keys [^HttpClient client
+           !interrupted?]}]
   (let [^java.util.Optional op (.executor client)
         ^Executor e (.get op)]
+    (reset! !interrupted? true)
     (.shutdownNow ^ExecutorService e)  ; is an ExecutorService instance
     (.close ^HttpClient client)
     (System/gc)))
@@ -217,12 +220,20 @@
 
 
 (defn make-call [{:keys [^HttpClient client
+                         !interrupted?
                          logger]} ring-request]
   (p/log-http-request logger ring-request)
-  (let [^HttpRequest  request  (make-request ring-request)
-        ^HttpResponse response (.send client request
-                                      body-handler-input-stream)]
-    (-> (make-ring-response response)
-        (u/dotee #(if (<= 200 (:status %) 299)
-                    (p/log-http-response logger %)
-                    (p/log-http-failure logger %))))))
+  (try
+    (let [^HttpRequest  request  (make-request ring-request)
+          ^HttpResponse response (.send client request
+                                        body-handler-input-stream)]
+      (-> (make-ring-response response)
+          (u/dotee #(if (<= 200 (:status %) 299)
+                      (p/log-http-response logger %)
+                      (p/log-http-failure logger %)))))
+    ;; GET (stream) thread is interrupted when HTTP transport is stopped
+    (catch InterruptedException e
+      (.interrupt (Thread/currentThread))
+      (if (deref !interrupted?)
+        nil
+        (throw e)))))

@@ -82,11 +82,6 @@
                       (as-> (u/json-parse message-str) $  ; decode JSON msg
                         (wrap-message $ headers-lower)
                         (u/invoke (deref msg-receiver) $)))
-        get-thread  (volatile! nil)
-        set-thread! (fn [] #?(:clj (vreset! get-thread
-                                            (Thread/currentThread))))
-        int-thread! (fn [] (when-let [thread (deref get-thread)]
-                             (.interrupt ^java.lang.Thread thread)))
         on-response (fn [retry-401 response-or-promise]
                       (uab/let-await [response response-or-promise]
                         (let [status (:status response)
@@ -137,7 +132,6 @@
                             (on-response (partial thisfn message))))
         fetch-stream (fn thisfn [success extra-headers]
                        (try
-                         (set-thread!)
                          (->> get-request
                               (wrap-reqhdrs success)
                               (wrap-headers extra-headers)
@@ -153,14 +147,9 @@
       (start-client-transport [_ on-message] (vreset! msg-receiver
                                                       on-message))
       (stop-client-transport! [_ _force?] (do
-                                            (u/eprintln "Stopping transport:---")
-                                            (u/eprintln "Interrupting GET thread")
-                                            (int-thread!)
-                                            (u/eprintln "Calling HTTP DELETE")
                                             (->> {:request-method :delete
                                                   :headers (get-auth-hdrs)}
                                                  (p/http-call http-client))
-                                            (u/eprintln "Closing HTTP Client")
                                             (p/stop! http-client)))
       (send-message-to-server [_ message] (post-message message
                                                         (get-auth-hdrs)))
