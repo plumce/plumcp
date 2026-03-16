@@ -10,22 +10,46 @@
 (ns plumcp.core.test.transport-test
   (:require
    [clojure.test :refer [deftest is testing use-fixtures]]
+   [plumcp.core.api.entity-support :as es]
    [plumcp.core.api.mcp-client :as mc]
    [plumcp.core.api.mcp-server :as ms]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
+   [plumcp.core.deps.runtime :as rt]
+   [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.dev.api :as dev]
    [plumcp.core.dev.bling-logger :as blogger]
    [plumcp.core.impl.impl-capability :as ic]
+   [plumcp.core.impl.var-support :as vs]
    [plumcp.core.main.client :as client]
    [plumcp.core.main.main-http-server :as mhs]
-   [plumcp.core.main.server :as server]
+   [plumcp.core.server.server-support :as ss]
    [plumcp.core.server.zero-server :as zs]
    [plumcp.core.test.test-util :as tu]
-   [plumcp.core.util :as u]
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]))
 
 
 (def client-capabilities ic/default-client-capabilities)
+
+
+(defn ^{:mcp-type :tool
+        :mcp-name "delete-session"} delete-session-tool
+  "Delete session"
+  [{:as kwargs}]
+  (u/dprint "Going to delete session" kwargs)
+  (rs/remove-server-session kwargs (rt/?session-id kwargs))
+  "session-deleted")
+
+
+(def test-server-options
+  (-> {:primitives {:tools
+                    [(->> #'delete-session-tool
+                          vs/make-tool-from-var)]}
+       :info (es/make-info "Test Server" "0.1.0"
+                           "Test Server v0.1.0")}
+      (merge dev/server-options)
+      ss/make-server-options))
 
 
 (def command-tokens
@@ -80,7 +104,7 @@
    {:tname "Streamable HTTP transport"
     :maker #(make-http-transport endpoint-uri)}
    {:tname "Zero transport"
-    :maker #(make-zero-transport server/server-options)}])
+    :maker #(make-zero-transport test-server-options)}])
 
 
 (def running-server-atom (atom nil))
@@ -98,7 +122,7 @@
     (tu/pst-rethrow
      (u/eprintln "Starting HTTP server at port 3000")
      (uab/may-await
-       [running-server (as-> server/server-options $
+       [running-server (as-> test-server-options $
                          (assoc $ :transport :http :port 3000)
                          (assoc $ :auth-options (auth-options-fn))
                          (ms/run-mcp-server $))]
@@ -145,3 +169,67 @@
          (testing "Disconnect"
            (mc/disconnect! client-context)
            (is (nil? (mc/get-initialize-result client-context)))))))))
+
+
+(deftest test-unhappy-transport
+  (tu/async-each [{:keys [tname
+                          maker]} transport-makers]
+    (testing tname
+      (u/eprintln "Testing transport:" tname)
+      (let [client-transport (maker)
+            client-context   (-> {:capabilities client-capabilities
+                                  :traffic-logger blogger/client-logger
+                                  :client-transport client-transport}
+                                 (merge client/client-options)
+                                 (mc/make-client))]
+        (tu/async-do
+         (testing "Client Op without handshake (HTTP 400)"
+           (uab/let-await [tools (mc/list-tools client-context
+                                                {:on-error (fn [_id error]
+                                                             error)})]
+             (u/dprint "Tools-list (sync) result" tools)
+             (is (= (if (= tname "Streamable HTTP transport")
+                      {:code -32600,
+                       :message
+                       "Session is missing. Did you call method `initialize`?",
+                       :data {},
+                       :plumcp.core/http-status 400}
+                      {:code -32600,
+                       :message "Initialization notification not received yet",
+                       :data {}})
+                    tools))))
+         (when (#{"Streamable HTTP transport"
+                  "Zero transport"} tname)
+           (testing "Client Op after server deletes session (HTTP 404)"
+             ;; Initialize
+             (uab/let-await [init-result (mc/initialize-and-notify! client-context)]
+               (u/dprint "Initialize Result" init-result)
+               (is (= init-result
+                      (mc/get-initialize-result client-context))))
+             ;; Delete server session
+             (uab/let-await [result (mc/call-tool client-context
+                                                  "delete-session"
+                                                  {}
+                                                  {:on-error (fn [_id error]
+                                                               error)})]
+               (is (= {:content [{:type "text", :text "session-deleted"}],
+                       :isError false,
+                       :data {:_meta nil}}
+                      (-> result
+                          (update-in [:data :_meta] dissoc :progressToken)))))
+             ;; Client-op now
+             (uab/let-await [tools (mc/list-tools client-context
+                                                  {:on-error (fn [_ error]
+                                                               error)})]
+               (u/dprint "Tools-list (sync) result" tools)
+               (is (= (if (= tname "Streamable HTTP transport")
+                        {:code -32601,
+                         :message "Session-ID is not associated with any session",
+                         :data {},
+                         :plumcp.core/http-status 404}
+                        {:code -32600,
+                         :message "Initialization notification not received yet",
+                         :data {}})
+                      tools)))
+             ;; disconnect now
+             (mc/disconnect! client-context))))))))

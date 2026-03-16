@@ -40,9 +40,9 @@ All notable changes to this project will be documented in this file. This change
 - [Todo] Roundtrip tests
   - [Todo] test-cancellation
   - [Todo] test-heartbeat
-- [Todo] Unhappy transport tests
-  - [Todo] Client Op without initialization
-  - [Todo] Client Op after server terminates session
+- Unhappy transport tests
+  - Client Op without initialization
+  - Client Op after server terminates session
 
 ### Changed
 

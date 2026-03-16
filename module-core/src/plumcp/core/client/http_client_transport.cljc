@@ -14,8 +14,9 @@
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.http-client-transport-auth :as hcta]
    [plumcp.core.protocol :as p]
+   [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
-   [plumcp.core.util :as u]
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]))
 
 
@@ -82,6 +83,31 @@
                       (as-> (u/json-parse message-str) $  ; decode JSON msg
                         (wrap-message $ headers-lower)
                         (u/invoke (deref msg-receiver) $)))
+        jsonrpc-err (fn [status data]
+                      (let [err-data (merge {:synthetic? true}
+                                            (u/only-if map? data
+                                                       {:payload data}))]
+                        (-> sd/error-code:http->jsonrpc
+                            (get status sd/error-code-internal-error)
+                            (jr/jsonrpc-failure (-> "Received HTTP %d response"
+                                                    (format status))
+                                                err-data))))
+        receive-err (fn [status message-str headers-lower]
+                      (let [je (if (= (get headers-lower "content-type")
+                                      "application/json")
+                                 (let [data (u/json-parse message-str)]
+                                   (if (jr/jsonrpc-message? data)
+                                     ;; already a JSON-RPC message
+                                     data
+                                     ;; synthesize a JSON-RPC error
+                                     (jsonrpc-err status data)))
+                                 ;; server did not send JSON
+                                 (jsonrpc-err status message-str))]
+                        (as-> je $
+                          (assoc-in $ [:error
+                                       :plumcp.core/http-status] status)
+                          (wrap-message $ headers-lower)
+                          (u/invoke (deref msg-receiver) $))))
         on-response (fn [retry-401 response-or-promise]
                       (uab/let-await [response response-or-promise]
                         (let [status (:status response)
@@ -118,6 +144,17 @@
                                 (u/dprint "Retrying-401 with" tokens)
                                 (retry-401 (tokens->hdrs tokens)))
                               (on-other-response response))
+                            ;;
+                            ;; 400=Bad request or not Initialized yet
+                            ;; 404=Server session does not exist
+                            ;; 500=Internal server error
+                            ;;
+                            (#{400 404 500} status)
+                            (-> (:on-msg response)
+                                (u/invoke (fn [body-text]
+                                            (receive-err status
+                                                         body-text
+                                                         headers-lower))))
                             ;;
                             ;; Error, perhaps
                             ;;
