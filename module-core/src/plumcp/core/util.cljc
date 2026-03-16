@@ -515,29 +515,34 @@
   "Make given value (maybe large graph of data) human-readable for the
    ultimate purpose of human-inspection. Original data is transformed."
   [x]
-  (let [prim? (fn [y] (or (nil? y)
-                          (string? y)
-                          (number? y)
-                          (boolean? y)
-                          (char? y)
-                          (keyword? y)
-                          (symbol? y)))
+  (let [primitive? (fn [y] (or (nil? y)
+                               (string? y)
+                               (number? y)
+                               (boolean? y)
+                               (char? y)
+                               (keyword? y)
+                               (symbol? y)))
         x (try
             (cp/datafy x)
             (catch #?(:clj Exception :cljs :default) _
               x))]
     (cond
-      (prim? x)   x
-      (map? x)    (reduce-kv
-                   (fn [m k v]
-                     (assoc m (humanize k)
-                            (humanize v)))
-                   (empty x)
-                   x)
-      (vector? x) (mapv humanize x)
-      (set? x)    (into (empty x) (map humanize x))
-      (list? x)   (apply list (map humanize x))
-      :else       '<+>)))
+      (primitive? x) x
+      (map? x)       (reduce-kv
+                      (fn [m k v]
+                        (assoc m (humanize k)
+                               (humanize v)))
+                      (empty x)
+                      x)
+      (vector? x)    (mapv humanize x)
+      (set? x)       (into (empty x) (map humanize x))
+      (list? x)      (apply list (map humanize x))
+      (seq? x)       '<lazy-seq>
+      (volatile? x)  '<volatile>
+      (derefable? x) '<to-deref>
+      (var? x)       (str x)
+      (fn? x)        '<fn>
+      :else          '<+>)))
 
 
 (defn dprint
