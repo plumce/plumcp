@@ -72,7 +72,7 @@
 
 
 (def LOG? "Log only if this is true - false by default"
-  false #_true)
+  #_false true)
 
 
 (defmacro log
