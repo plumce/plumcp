@@ -79,16 +79,19 @@
        (update :headers merge headers))))
 
 
+(defn json-response
+  "Return a Ring response with given status and data body, which will be
+   converted to application/json by the JSON middleware."
+  ([status data]
+   {:status status
+    :headers {}
+    :body data})
+  ([status headers body]
+   (-> (json-response status body)
+       (update :headers merge headers))))
+
+
 ;; --- JSON-RPC middleware ---
-
-
-(defn jsonrpc-message?
-  "Return true if argument is a JSON-RPC message (request, notification
-   or response), false otherwise."
-  [msg]
-  (or (jr/jsonrpc-request? msg)
-      (jr/jsonrpc-notification? msg)
-      (jr/jsonrpc-response? msg)))
 
 
 (defn jsonrpc-response->http-status
@@ -436,8 +439,11 @@
   (fn session-not-found-handler [request]
     (if (and (rt/has-session? request)
              (nil? (rt/?session request)))
-      (plain-response 404
-                      "Session-ID is not associated with any session")
+      (let [request-id (get-in request [:body :id])]
+        (-> sd/error-code-method-not-found
+            (jr/jsonrpc-failure "Session-ID is not associated with any session")
+            (jr/add-jsonrpc-id request-id)
+            (->> (json-response 404))))
       (ring-handler request))))
 
 
