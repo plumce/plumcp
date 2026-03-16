@@ -42,13 +42,14 @@ All notable changes to this project will be documented in this file. This change
   - [Todo] test-heartbeat
 - Unhappy transport tests
   - Client Op without initialization
+  - Client Op with fake handshake
   - Client Op after server terminates session
 
 ### Changed
 
 - [Todo] Prune redundant client API functions
 - Client: HTTP Client
-  - [Todo] HTTP 400/404/500 are now returned as JSON-RPC error response
+  - HTTP 400/404/500 are now returned as JSON-RPC error response
   - Self-contained stopping of CLJ/JVM HTTP client transport
     - No more (out-of-band) explicitly interrupting GET (stream) thread
 
