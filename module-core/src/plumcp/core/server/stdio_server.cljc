@@ -25,7 +25,9 @@
   (let [session (or (rs/get-server-session request default-session-id)
                     (rs/set-server-session request default-session-id
                                            msg-pusher))]
-    (rt/?session request session)))
+    (-> request
+        (rt/?session-id default-session-id)
+        (rt/?session session))))
 
 
 (defn wrap-json-processing

@@ -451,7 +451,9 @@
         request)
       (let [session-or-nil (rs/get-server-session request session-id)]
         ;; we handle nil session in `wrap-session-not-found`
-        (rt/?session request session-or-nil)))
+        (-> request
+            (rt/?session-id session-id)
+            (rt/?session session-or-nil))))
     (if (= sd/method-initialize
            (get-in request [:body :method]))  ; method is 'initialize'
       ;; attach a removable session
