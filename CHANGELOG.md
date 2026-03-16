@@ -56,7 +56,7 @@ All notable changes to this project will be documented in this file. This change
 ### Fixed
 
 - [Todo] Client: Implement default "Cancel" behaviour
-- [Todo] Server: Fix `initialize` to return session ID when body is `text/event-stream`
+- Server: Fix `initialize` to return session ID when body is `text/event-stream`
 - Fix Server HTTP transport to return 404 for non-existing session-ID
   - https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management
 - Fix timeout option processing in client operations

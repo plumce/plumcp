@@ -487,7 +487,10 @@
       (let [session-id (get-in request
                                [:headers
                                 sd/mcp-session-id-header-lower])]
-        (if (jr/jsonrpc-result? (get response :body))
+        (if (or (jr/jsonrpc-result? (get response :body))
+                (and (= 200 (:status response))
+                     (header-contains? response
+                                       "Content-Type" ct-text-sse)))
           ;; response is a success, so add session ID to response header
           (assoc-in response
                     [:headers sd/mcp-session-id-header]

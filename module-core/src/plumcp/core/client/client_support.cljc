@@ -140,7 +140,8 @@
       (?cc-session-context new-session-context)))
 
 
-(def key-mcp-session-id
+(def ^{:see [sd/mcp-session-id-header
+             sd/mcp-session-id-header-lower]} key-mcp-session-id
   "Key in JSON-RPC response map to refer to MCP Session ID."
   :mcp-session-id)
 

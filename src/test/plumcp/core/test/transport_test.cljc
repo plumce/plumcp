@@ -38,7 +38,6 @@
         :mcp-name "delete-session"} delete-session-tool
   "Delete session"
   [{:as kwargs}]
-  (u/dprint "Going to delete session" kwargs)
   (rs/remove-server-session kwargs (rt/?session-id kwargs))
   "session-deleted")
 
