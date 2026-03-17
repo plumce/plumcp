@@ -9,12 +9,18 @@ All notable changes to this project will be documented in this file. This change
 - MCP Client
   - Re-implement client as a protocol instance - easy self-reference
   - Check that _initialized_ ops have session-context before sending request
+  - Client app using https://github.com/TimoKramer/charm.clj
 - MCP Server
   - Replace "single node" list-changed notifier with one for scale-out
     - Ensure capabilities list is first updated on all server hosts
       - Capability declaration from a host is enough indication
     - Cache old-capabilities in session - all hosts can share/lead
     - Ensure only one list-changed notification goes to the client
+    - Consider:
+      - https://github.com/filipesilva/sqlatom
+      - https://github.com/jimpil/duratom
+  - Use a fast router for prompt or tool name, resource URI/template etc
+    - Consider https://git.nmm.ee/asko/ruuter
 - MCP Server OAuth
   - Support for non-DCR authorization servers
     - https://github.com/modelcontextprotocol/modelcontextprotocol/discussions/659
@@ -40,6 +46,8 @@ All notable changes to this project will be documented in this file. This change
 - [Todo] Roundtrip tests
   - [Todo] test-cancellation
   - [Todo] test-heartbeat
+- [Todo] Unhappy transport test
+  - [Todo] Connect to a non-existent HTTP endpoint
 
 ### Changed
 
