@@ -40,6 +40,19 @@ All notable changes to this project will be documented in this file. This change
 - [Todo] Roundtrip tests
   - [Todo] test-cancellation
   - [Todo] test-heartbeat
+
+### Changed
+
+- [Todo] Prune redundant client API functions
+
+### Fixed
+
+- [Todo] Client: Implement default "Cancel" behaviour
+
+## [0.2.0-beta4] - 2026-Mar-17
+
+### Added
+
 - Unhappy transport tests
   - Client Op without initialization
   - Client Op with fake handshake
@@ -47,7 +60,6 @@ All notable changes to this project will be documented in this file. This change
 
 ### Changed
 
-- [Todo] Prune redundant client API functions
 - Client: HTTP Client
   - HTTP 400/404/500 are now returned as JSON-RPC error response
   - Self-contained stopping of CLJ/JVM HTTP client transport
@@ -55,7 +67,6 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
-- [Todo] Client: Implement default "Cancel" behaviour
 - Server: Fix `initialize` to return session ID when body is `text/event-stream`
 - Fix Server HTTP transport to return 404 for non-existing session-ID
   - https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management
