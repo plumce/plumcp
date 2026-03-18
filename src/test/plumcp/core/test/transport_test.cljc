@@ -281,3 +281,22 @@
                     tools)))
            ;; disconnect now
            (mc/disconnect! client-context)))))))
+
+
+;; Commented out because NOT ready to test in CLJS yet
+#_(deftest test-unhappy:unreachabe-host
+    (let [maker #(make-http-transport "http://localhost:32123/mcp")
+          transport (maker)
+          client (-> {:capabilities client-capabilities
+                      :traffic-logger blogger/client-logger
+                      :client-transport transport}
+                     (merge client/client-options)
+                     (mc/make-client))]
+      (tu/async-do
+       ;; Initialize
+       (uab/let-await [init-result (mc/initialize-and-notify! client)]
+         (u/dprint "Initialize Result" init-result)
+         (is (= init-result
+                (mc/get-initialize-result client))))
+       ;; disconnect now
+       (mc/disconnect! client))))

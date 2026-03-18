@@ -89,7 +89,8 @@
                                          chunk (us/pget result :value)]
                                      (when-not done?
                                        (read-chunk chunk
-                                                   read-next)))))))]
+                                                   read-next)))))
+                          (.catch us/throw-normalized!)))]
     (read-stream read-stream)))
 
 
@@ -119,7 +120,9 @@
                                                                 on-event)))
                         :on-msg (fn on-msg [on-message]
                                   (-> (.text response) ; returns JS/promise
-                                      (.then on-message)))}
+                                      (.then on-message)
+                                      (.catch us/throw-normalized!)))}
                        (u/dotee #(if (<= 200 status 299)
                                    (p/log-http-response logger %)
-                                   (p/log-http-failure logger %))))))))))
+                                   (p/log-http-failure logger %)))))))
+        (.catch us/throw-normalized!))))

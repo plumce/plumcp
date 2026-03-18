@@ -183,3 +183,28 @@
         remaining #(lazy-seq (stream-chain stream-atom after-idle))]
     (when svec
       (prom-chain svec remaining))))
+
+
+(defn normalize-error
+  "Turn given error to a js/Error."
+  [error]
+  (cond
+    (instance? js/Error
+               error) error
+    (string? error)   (js/Error. error)
+    (object? error)   (let [e (js/Error. (or (.-message error)
+                                             (pr-str error)))]
+                        ;; copy a few useful fields if present
+                        (when-let [code (.-code error)]
+                          (set! (.-code e) code))
+                        (when-let [status (.-status error)]
+                          (set! (.-status e) status))
+                        e)
+    :else             (js/Error. (pr-str error))))
+
+
+(defn throw-normalized!
+  "Throw the given error after turning it into a js/Error."
+  [error]
+  (js/console.error error)
+  (throw (normalize-error error)))
