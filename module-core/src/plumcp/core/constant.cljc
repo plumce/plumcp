@@ -42,3 +42,8 @@
 
 
 (def version "Current PluMCP version" (find-version))
+
+
+(def http-status-key
+  "Keyword to communicate HTTP status as domain info."
+  :plumcp.core/http-status)

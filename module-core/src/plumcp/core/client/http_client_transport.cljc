@@ -13,6 +13,7 @@
    [clojure.string :as str]
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.http-client-transport-auth :as hcta]
+   [plumcp.core.constant :as const]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
@@ -105,7 +106,7 @@
                                  (jsonrpc-err status message-str))]
                         (as-> je $
                           (assoc-in $ [:error
-                                       :plumcp.core/http-status] status)
+                                       const/http-status-key] status)
                           (wrap-message $ headers-lower)
                           (u/invoke (deref msg-receiver) $))))
         on-response (fn [retry-401 response-or-promise]
