@@ -113,7 +113,7 @@
                                        const/http-status-key] status)
                           (wrap-message $ headers-lower)
                           (u/invoke (deref msg-receiver) $))))
-        on-response (fn [retry-401 response-or-promise]
+        on-response (fn [retry-401 status-handlers response-or-promise]
                       (uab/let-await [response response-or-promise]
                         (let [status (:status response)
                               headers (:headers response)
@@ -161,6 +161,13 @@
                                 (retry-401 (tokens->hdrs tokens)))
                               (on-err))
                             ;;
+                            ;; Caller's status handling (exceptions)
+                            ;;
+                            (contains? status-handlers status)
+                            (-> status-handlers
+                                (get status)
+                                (u/invoke response))
+                            ;;
                             ;; Error, perhaps
                             ;; 400=Bad request or not Initialized yet
                             ;; 404=Server session does not exist
@@ -175,18 +182,32 @@
                             (wrap-headers extra-headers)
                             (wrap-reqbody message)
                             (p/http-call http-client)
-                            (on-response (partial thisfn message))))
+                            (on-response (partial thisfn message)
+                                         {})))
+        stream-unsup {405 (fn [_]
+                            (u/eprintln
+                             "Server does not support GET-stream"))}
         fetch-stream (fn thisfn [success extra-headers]
-                       (try
-                         (->> get-request
-                              (wrap-reqhdrs success)
-                              (wrap-headers extra-headers)
-                              (p/http-call http-client)
-                              (on-response (partial thisfn success)))
-                         #?(:clj (catch java.io.IOException _
-                                   (u/eprintln "Got IOException")))
-                         (finally
-                           (u/eprintln "Exiting GET-stream"))))]
+                       (let [f #(->> get-request
+                                     (wrap-reqhdrs success)
+                                     (wrap-headers extra-headers)
+                                     (p/http-call http-client)
+                                     (on-response (partial thisfn
+                                                           success)
+                                                  stream-unsup))]
+                         #?(:cljs
+                            (f)
+                            :clj
+                            (try
+                              (f)
+                              (catch java.io.IOException _
+                                (u/eprintln
+                                 "Got IOException reading GET-stream, retrying")
+                                (try
+                                  (f)
+                                  (catch java.io.IOException _ nil)))
+                              (finally
+                                (u/eprintln "Stopped fetching GET-stream"))))))]
     (reify
       p/IClientTransport
       (client-transport-info [_] (merge (p/client-info http-client) {:id :http}))
