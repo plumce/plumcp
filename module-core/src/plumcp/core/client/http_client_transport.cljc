@@ -28,18 +28,14 @@
    :auth-options      - (default: auth disabled) OAuth handling options
                         see p.c.c.h-c-t-a/make-client-auth-options
    :get-auth-tokens   - (fn [headers-lower auth-options])->tokens
-                        see p.c.c.h-c-t-a/get-tokens
-   :on-other-response - (fn [response]) - unexpected response handler"
+                        see p.c.c.h-c-t-a/get-tokens"
   [http-client
    & {:keys [start-get-stream?
              ^{:see [hcta/make-client-auth-options]} auth-options
-             ^{:see [hcta/get-tokens]} get-auth-tokens
-             on-other-response]
+             ^{:see [hcta/get-tokens]} get-auth-tokens]
       :or {start-get-stream? true
            auth-options      {:auth-enabled? false}
-           get-auth-tokens   hcta/get-tokens
-           on-other-response #(-> "[Streamable HTTP Response]"
-                                  (u/eprintln %))}}]
+           get-auth-tokens   hcta/get-tokens}}]
   (let [auth-enabled? (boolean (:auth-enabled? auth-options))
         tokens->hdrs  (fn [tokens]
                         {"Authorization" (str "Bearer "
@@ -84,22 +80,30 @@
                       (as-> (u/json-parse message-str) $  ; decode JSON msg
                         (wrap-message $ headers-lower)
                         (u/invoke (deref msg-receiver) $)))
+        http-errmsg (fn [status]
+                      (-> "Received HTTP %d response"
+                          (format status)))
         jsonrpc-err (fn [status data]
                       (let [err-data (merge {:synthetic? true}
                                             (u/only-if map? data
                                                        {:payload data}))]
                         (-> sd/error-code:http->jsonrpc
                             (get status sd/error-code-internal-error)
-                            (jr/jsonrpc-failure (-> "Received HTTP %d response"
-                                                    (format status))
+                            (jr/jsonrpc-failure (http-errmsg status)
                                                 err-data))))
         receive-err (fn [status message-str headers-lower]
-                      (let [je (if (= (get headers-lower "content-type")
-                                      "application/json")
+                      ;; We assume we are receiving JSON-RPC response
+                      ;; (otherwise coerced as one) even though it might
+                      ;; as well be a JSON-RPC request or notification
+                      (let [je (if (#{"application/json"
+                                      "text/event-stream"}
+                                    (get headers-lower "content-type"))
                                  (let [data (u/json-parse message-str)]
                                    (if (jr/jsonrpc-message? data)
                                      ;; already a JSON-RPC message
-                                     data
+                                     (update-in data [:error :message]
+                                                #(or % ; server msg wins
+                                                     (http-errmsg status)))
                                      ;; synthesize a JSON-RPC error
                                      (jsonrpc-err status data)))
                                  ;; server did not send JSON
@@ -114,7 +118,18 @@
                         (let [status (:status response)
                               headers (:headers response)
                               headers-lower (update-keys headers
-                                                         str/lower-case)]
+                                                         str/lower-case)
+                              rx-err (fn [err-text]
+                                       (receive-err status
+                                                    err-text
+                                                    headers-lower))
+                              on-err (fn []
+                                       (-> (if (= (get headers-lower
+                                                       "content-type")
+                                                  "text/event-stream")
+                                             (:on-sse response)
+                                             (:on-msg response))
+                                           (u/invoke rx-err)))]
                           (cond
                             ;;
                             ;; SSE body
@@ -144,23 +159,16 @@
                               (uab/may-await [tokens sora-tokens]
                                 (u/dprint "Retrying-401 with" tokens)
                                 (retry-401 (tokens->hdrs tokens)))
-                              (on-other-response response))
+                              (on-err))
                             ;;
+                            ;; Error, perhaps
                             ;; 400=Bad request or not Initialized yet
                             ;; 404=Server session does not exist
                             ;; 500=Internal server error
-                            ;;
-                            (#{400 404 500} status)
-                            (-> (:on-msg response)
-                                (u/invoke (fn [body-text]
-                                            (receive-err status
-                                                         body-text
-                                                         headers-lower))))
-                            ;;
-                            ;; Error, perhaps
+                            ;; ...and more...
                             ;;
                             :else
-                            (on-other-response response)))))
+                            (on-err)))))
         post-message (fn thisfn [message extra-headers]
                        (->> post-request
                             (wrap-reqhdrs message)

@@ -52,6 +52,12 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 
 - [Todo] Prune redundant client API functions
+- Client:
+  - HTTP transport: Treat all non-200 responses as errors, not just 400/404/500
+    - JSON-RPC errors have `:plumcp.core/http-status` placed under `:error`
+    - Remove support for `:on-other-response` option kwarg
+  - [Todo] HTTP Transport should detect GET (stream) supported or not
+    then just log as INFO and stay quiet.
 
 ### Fixed
 
