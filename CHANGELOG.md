@@ -7,9 +7,10 @@ All notable changes to this project will be documented in this file. This change
 ### Added
 
 - MCP Client
-  - Re-implement client as a protocol instance - easy self-reference
   - Check that _initialized_ ops have session-context before sending request
   - Client app using https://github.com/TimoKramer/charm.clj
+  - Client: Add option in `make-client` to auto-reinitialize on HTTP 404
+    - Refactor to have session-context in the HTTP transport itself
 - MCP Server
   - Replace "single node" list-changed notifier with one for scale-out
     - Ensure capabilities list is first updated on all server hosts
@@ -36,18 +37,32 @@ All notable changes to this project will be documented in this file. This change
 - Readable Last-access time
   - Server: In server-session
   - Client: In client state
+- Unhappy transport test
+  - Connect to a non-existent HTTP endpoint
+
+### Changed
+
+- MCP Client
+  - Re-implement client as a protocol instance - easy self-reference
+- Zero transport
+  - Make Zero-transport bidirectionally asynchronous (like STDIO/HTTP)
+  - Synchronous Zero-transport fails tests unless tweaked as background call
 
 ## [Unreleased] - 2026-???-??
 
 ### Added
 
+- "Sampling" entity generator fns in `p.c.a.entity-support` ns
+  - `make-sampling-text-message`
+  - `make-sampling-text-message-request`
+  - `make-sampling-text-message-result`
+- [Todo] Client/Server "Cancellation" fns in `p.c.a.mcp-client`/`p.c.a.mcp-server`
+  - `cancel-sent-request`
+  - `cancel-request-received?`
 - [Todo] Add public API `mcp-runtime` ns, with fns moved from `mcp-server`
-- [Todo] Client: Add option in `make-client` to auto-reinitialize on 404/500+
 - [Todo] Roundtrip tests
   - [Todo] test-cancellation
   - [Todo] test-heartbeat
-- [Todo] Unhappy transport test
-  - [Todo] Connect to a non-existent HTTP endpoint
 
 ### Changed
 
@@ -58,10 +73,6 @@ All notable changes to this project will be documented in this file. This change
     - Remove support for `:on-other-response` option kwarg
   - Gracefully handle server not supporting GET (stream)
     - Retry fetching GET-stream (only once) after JVM/IOException
-
-### Fixed
-
-- [Todo] Client: Implement default "Cancel" behaviour
 
 ## [0.2.0-beta4] - 2026-Mar-17
 
