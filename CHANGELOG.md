@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file. This change
   - Client: Add option in `make-client` to auto-reinitialize on HTTP 404
     - Refactor to have session-context in the HTTP transport itself
 - MCP Server
+  - Server: Drop idle sessions
+    - Kwarg: `:drop-idle-session?` (default=false)
+    - Kwarg: `:idle-session-timeout` (default=30mins)
   - Replace "single node" list-changed notifier with one for scale-out
     - Ensure capabilities list is first updated on all server hosts
       - Capability declaration from a host is enough indication
@@ -37,6 +40,8 @@ All notable changes to this project will be documented in this file. This change
 - Readable Last-access time
   - Server: In server-session
   - Client: In client state
+- Happy transport test
+  - test-heartbeat (requires server capable of dropping idle session)
 - Unhappy transport test
   - Connect to a non-existent HTTP endpoint
 
@@ -60,9 +65,9 @@ All notable changes to this project will be documented in this file. This change
   - `cancel-sent-request`
   - `cancel-request-received?`
 - [Todo] Add public API `mcp-runtime` ns, with fns moved from `mcp-server`
-- [Todo] Roundtrip tests
-  - test-client-cancellation, test-server-cancellation
-  - [Todo] test-heartbeat
+- Roundtrip tests
+  - test-client-cancellation
+  - test-server-cancellation
 
 ### Changed
 
@@ -70,7 +75,7 @@ All notable changes to this project will be documented in this file. This change
 - Client HTTP transport:
   - Treat all non-200 responses as errors, not just 400/404/500
     - JSON-RPC errors have `:plumcp.core/http-status` placed under `:error`
-    - Remove support for `:on-other-response` option kwarg
+    - Remove support for redundant `:on-other-response` option kwarg
   - Gracefully handle server not supporting GET (stream)
     - Retry fetching GET-stream (only once) after JVM/IOException
 

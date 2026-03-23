@@ -176,6 +176,18 @@
            (is (nil? (mc/get-initialize-result client-context)))))))))
 
 
+;; Commented out because it needs server support to kill idle session
+#_(deftest test-heartbeat
+    ;; 1. start server
+    ;; 2. client connects with heartbeat=ENABLED
+    ;; 3. client pauses for (1.5 * heartbeat interval) duration
+    ;; 4. assert server received the heartbeat
+    ;; 5. assert server session is updated with last access-time
+    ;; 6. disconnect client
+    ;; 7. stop server
+    :FIXME)
+
+
 (deftest test-unhappy:client-op-without-handshake
   (tu/async-each [{:keys [tname
                           maker]} transport-makers]

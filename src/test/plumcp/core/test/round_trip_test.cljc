@@ -933,14 +933,3 @@
        (mc/disconnect! client)
        (ms/stop-server running-server)
        (done!)))))
-
-
-(deftest test-heartbeat
-  ;; 1. start server
-  ;; 2. client connects with heartbeat=ENABLED
-  ;; 3. client pauses for (1.5 * heartbeat interval) duration
-  ;; 4. assert server received the heartbeat
-  ;; 5. assert server session is updated with last access-time
-  ;; 6. disconnect client
-  ;; 7. stop server
-  :FIXME)
