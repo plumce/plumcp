@@ -57,6 +57,17 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
+- [Todo] Add public API `mcp-runtime` ns, with fns moved from `mcp-server`
+
+### Changed
+
+- [Todo] Prune redundant client API functions
+- [Todo] Bump dependencies - Bling, Malli
+
+## [0.2.0-beta5] - 2026-Mar-23
+
+### Added
+
 - "Sampling" entity generator fns in `p.c.a.entity-support` ns
   - `make-sampling-text-message`
   - `make-sampling-text-message-request`
@@ -64,20 +75,22 @@ All notable changes to this project will be documented in this file. This change
 - Client/Server "Cancellation" fns in `p.c.a.mcp-client`/`p.c.a.mcp-server`
   - `cancel-sent-request`
   - `cancel-request-received?`
-- [Todo] Add public API `mcp-runtime` ns, with fns moved from `mcp-server`
 - Roundtrip tests
-  - test-client-cancellation
-  - test-server-cancellation
+  - test-client-request-cancellation
+  - test-server-request-cancellation
 
 ### Changed
 
-- [Todo] Prune redundant client API functions
 - Client HTTP transport:
   - Treat all non-200 responses as errors, not just 400/404/500
     - JSON-RPC errors have `:plumcp.core/http-status` placed under `:error`
     - Remove support for redundant `:on-other-response` option kwarg
   - Gracefully handle server not supporting GET (stream)
     - Retry fetching GET-stream (only once) after JVM/IOException
+
+### Fixed
+
+- Request cancellation for both client and server
 
 ## [0.2.0-beta4] - 2026-Mar-17
 
