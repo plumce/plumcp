@@ -74,7 +74,32 @@
   (rt/dissoc-runtime context))
 
 
-;; Session utility
+;; Request cancellation
+
+
+(defn cancel-sent-request
+  "Cancel the request sent to client."
+  [context request-id & {:as options}]
+  ;; send cancellation notification
+  (->> (eg/make-cancellation-notification request-id options)
+       (rs/send-notification-to-client context))
+  ;; clear from pending
+  (-> (rt/?session context)
+      (p/clear-pending-requests [request-id])))
+
+
+(defn cancel-request-received?
+  "Return true if cancellation request is received for given request ID,
+   false otherwise."
+  ([context request-id]
+   (->> request-id
+        (rs/cancel-requested? context)))
+  ([context]
+   (->> (rt/?request-id context)
+        (cancel-request-received? context))))
+
+
+;; Progress tracking
 
 
 (defn register-server-request-progress-tokens

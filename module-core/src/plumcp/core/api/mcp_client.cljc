@@ -288,6 +288,32 @@
 ;; --- Meta functions ---
 
 
+;; Request cancellation
+
+
+(defn cancel-sent-request
+  "Cancel the request sent to server."
+  [client request-id & {:as options}]
+  ;; send cancellation notification
+  (->> (eg/make-cancellation-notification request-id options)
+       (cs/send-notification-to-server client))
+  ;; clear from pending
+  (-> (cs/get-client-cache-atom client)
+      (cs/remove-pending-client-request! request-id))
+  nil)
+
+
+(defn cancel-request-received?
+  "Return true if cancellation request is received for given request ID,
+   false otherwise."
+  [client request-id]
+  (-> (cs/get-client-cache-atom client)
+      (cs/is-cancelled-request? request-id)))
+
+
+;; Progress tracking
+
+
 (defn register-client-request-progress-tokens
   "Register progress tokens against a request ID, so that progress
    notifications from server may update the pending-request status."

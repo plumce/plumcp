@@ -70,6 +70,7 @@
 (defcckey ?cc-resources-list {:default nil})
 (defcckey ?cc-resource-templates-list {:default nil})
 (defcckey ?cc-tools-list {:default nil})
+(defcckey ?cc-cancelled-requests {:default #{#_req-id..}})
 (defcckey ?cc-progress-tracking-dict {:default ;; many-to-1
                                       {#_pending-req-id #_progress-tokens
                                        #_each-prog-token #_pending-req-id}})
@@ -98,6 +99,39 @@
   []
   (doto (atom {})
     (reset-client-cache-atom!)))
+
+
+;; ----- Low-level state operations -----
+
+
+(defn get-client-cache-atom
+  [client]
+  (?client-cache client))
+
+
+(defn add-cancelled-request
+  [client-cache-atom request-id]
+  (?cc-cancelled-requests client-cache-atom
+                          conj request-id))
+
+
+(defn is-cancelled-request?
+  [client-cache-atom request-id]
+  (-> (?cc-cancelled-requests client-cache-atom)
+      (contains? request-id)))
+
+
+(defn add-pending-client-request!
+  [client-cache-atom request-id]
+  (?cc-pending-client-requests client-cache-atom
+                               assoc-in
+                               [request-id :ts] (u/now-millis)))
+
+
+(defn remove-pending-client-request!
+  [client-cache-atom request-id]
+  (?cc-pending-client-requests client-cache-atom
+                               dissoc request-id))
 
 
 ;; ----- Heartbeat running -----

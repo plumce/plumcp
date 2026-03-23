@@ -286,8 +286,9 @@
 (defn cancel-requested?
   "Return true if cancellation requested for request ID, false otherwise
    - use current request ID if request ID is unspecified."
-  [session request-id]
-  (p/cancel-requested? session request-id))
+  [context request-id]
+  (-> (rt/?session context)
+      (p/cancel-requested? request-id)))
 
 
 (defn request-cancellation

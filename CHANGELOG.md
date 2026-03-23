@@ -56,12 +56,12 @@ All notable changes to this project will be documented in this file. This change
   - `make-sampling-text-message`
   - `make-sampling-text-message-request`
   - `make-sampling-text-message-result`
-- [Todo] Client/Server "Cancellation" fns in `p.c.a.mcp-client`/`p.c.a.mcp-server`
+- Client/Server "Cancellation" fns in `p.c.a.mcp-client`/`p.c.a.mcp-server`
   - `cancel-sent-request`
   - `cancel-request-received?`
 - [Todo] Add public API `mcp-runtime` ns, with fns moved from `mcp-server`
 - [Todo] Roundtrip tests
-  - [Todo] test-cancellation
+  - test-client-cancellation, test-server-cancellation
   - [Todo] test-heartbeat
 
 ### Changed

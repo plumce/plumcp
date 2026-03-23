@@ -465,30 +465,156 @@
        (done!)))))
 
 
-(deftest test-cancellation
-  (testing "server task cancellation"
-    ;; 1. start server
-    ;; 2. client connects to server
-    ;; 3. client calls a server-tool that will blocks until flag=true
-    ;; 4. client times out in one second
-    ;; 5. client cancels the job
-    ;; 6. client receives cancelled notification (assert)
-    ;; 7. assert request cancelled at client end
-    ;; 8. assert request cancelled at server end
-    ;; 9. disconnect client
-    ;; 10. stop server
-    :FIXME)
-  (testing "client task cancellation"
-    ;; 1. start server
-    ;; 2. client connects to server
-    ;; 3. client calls a server-tool that requests a client sampling
-    ;; 4. client sampling blocks until flag=true
-    ;; 5. the server-tool in #3 times out and cancels the request
-    ;; 6. assert request cancelled at client end
-    ;; 7. assert request cancelled at server end
-    ;; 8. disconnect client
-    ;; 9. stop server
-    :FIXME))
+(deftest test-client-cancels-task
+  ;; 1. start server
+  ;; 2. client connects to server
+  ;; 3. client calls a server-tool that blocks until flag=true
+  ;; 4. client times out in one second
+  ;; 5. client cancels the job
+  ;; 6. server receives cancelled notification (assert)
+  ;; 7. assert request cancelled at server end
+  ;; 8. disconnect client
+  ;; 9. stop server
+  (tu/async-test [done!]
+    (let [tool-name "block-until-flag"
+          tool-started? (atom false)
+          !tool-result (atom nil)
+          server-processed-cancel? (atom false)
+          tools [(->> (fn [kwargs]
+                        (reset! tool-started? true)
+                        (tu/async-do
+                         (uab/until #(ms/cancel-request-received? kwargs)
+                                    10)
+                         "unblocked"))
+                      (cap/make-tool-item tool-name
+                                          (eg/make-tool-input-output-schema
+                                           {} [])))]
+          {:keys [server-primitives
+                  running-server
+                  client]} (-> {:server-options {:primitives {:tools tools}
+                                                 :notification-handlers
+                                                 {sd/method-notifications-cancelled
+                                                  (fn [arg]
+                                                    (ss/cancel-client-request arg)
+                                                    (reset! server-processed-cancel?
+                                                            true))}}}
+                               make-test-ingredients)]
+      (tu/async-do
+       ;; client connects
+       (mc/initialize-and-notify! client)
+       ;; call a tool asynchronously
+       (let [request (eg/make-call-tool-request tool-name {})
+             request-id (:id request)]
+         (tu/async-do
+          (u/background
+            (uab/may-await [result (-> request
+                                       (cs/request->response client)
+                                       (cs/response->result-or-throw! "call-tool"))]
+              ;; unreachable code: client no more has pending request
+              (reset! !tool-result result)))
+          ;; wait for tool to start
+          (uab/until #(true? (deref tool-started?)) 10)
+          ;; cancel the task
+          (mc/cancel-sent-request client request-id)
+          ;; wait for server to process notification
+          (uab/until #(true? (deref server-processed-cancel?)) 10)
+          ;; allow time for the server to communicate the response
+          (uab/until 100)
+          ;; assertions
+          (is (true? (deref server-processed-cancel?)))
+          (is (nil? (deref !tool-result)) "Cancelled Tool response not recorded")
+          (is (nil? (-> (cs/?client-cache client)
+                        cs/?cc-pending-client-requests
+                        (get request-id))))))
+       ;; All done
+       (mc/disconnect! client)
+       (ms/stop-server running-server)
+       (done!)))))
+
+
+(deftest test-server-cancels-task
+  ;; 1. start server
+  ;; 2. client connects to server
+  ;; 3. client calls a server-tool that requests a client sampling
+  ;; 4. client sampling blocks until cancel-processed flag=true
+  ;; 5. the server-tool in #3 times out and cancels the sent request
+  ;; 6. assert request cancelled at client end
+  ;; 7. assert request cancelled at server end
+  ;; 8. disconnect client
+  ;; 9. stop server
+  (tu/async-test [done!]
+    (let [tool-name "ask-client-for-sampling"
+          !tool-started? (atom false)
+          !sampling-handler-ran? (atom false)
+          !client-processed-cancel? (atom false)
+          sampling-request (es/make-sampling-text-message-request sd/role-user
+                                                                  "test"
+                                                                  123)
+          sampling-callback (ms/make-callback-context "sampling-handler")
+          sampling-handler (-> (fn [kwargs]
+                                 (tu/async-do
+                                  (reset! !sampling-handler-ran? true)
+                                  ;; wait until request is cancelled
+                                  (uab/until #(deref !client-processed-cancel?)
+                                             10)
+                                  ;; now return the result as usual
+                                  (es/make-sampling-text-message-result
+                                   "test-model" sd/role-user "test")))
+                               cap/make-sampling-handler)
+          server-callbacks {"sampling-handler" u/nop}
+          client-notific-h (fn [notif]
+                             (cs/cancel-server-request notif)
+                             (reset! !client-processed-cancel? true))
+
+          tools [(->> (fn [kwargs]
+                        (tu/async-do
+                         (reset! !tool-started? true)
+                         (u/background
+                           (ms/send-request-to-client kwargs
+                                                      sampling-request
+                                                      sampling-callback))
+                         ;;wait for the request to proceed
+                         (uab/until 100)
+                         ;; cancel the earlier-sent request
+                         (ms/cancel-sent-request kwargs
+                                                 (:id sampling-request))
+                         ;;
+                         "cancel-notification-sent"))
+                      (cap/make-tool-item tool-name
+                                          (eg/make-tool-input-output-schema
+                                           {} [])))]
+          {:keys [server-primitives
+                  running-server
+                  client]} (-> {:client-options {:primitives
+                                                 {:sampling sampling-handler}
+                                                 :notification-handlers
+                                                 {sd/method-notifications-cancelled
+                                                  client-notific-h}}
+                                :server-options {:primitives
+                                                 {:tools tools
+                                                  :callbacks server-callbacks}}}
+                               make-test-ingredients)]
+      (tu/async-do
+       ;; client connects
+       (mc/initialize-and-notify! client)
+       ;; call a server tool
+       (let [request (eg/make-call-tool-request tool-name {})
+             request-id (:id request)]
+         (uab/let-await [result (-> request
+                                    (cs/request->response client)
+                                    (cs/response->result-or-throw! "call-tool"))]
+           (is (= {:content [{:type "text", :text "cancel-notification-sent"}],
+                   :isError false}
+                  result)))
+         (uab/until 500))
+       (is (true? (deref !tool-started?)) "Server tool ran")
+       (is (true? (deref !sampling-handler-ran?)) "Sampling handler ran")
+       (is (true? (deref !client-processed-cancel?))
+           "Client-notification handler ran")
+       ;; All done
+       (mc/disconnect! client)
+       (ms/stop-server running-server)
+       (done!)))))
 
 
 (defn ^{:mcp-type :tool} progress-meter
