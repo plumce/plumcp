@@ -62,7 +62,9 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 
 - [Todo] Prune redundant client API functions
-- [Todo] Bump dependencies - Bling, Malli
+- Bump dependencies in `plumcp.core-dev` module
+  - Bling (from `0.9.2` to `0.10.0`)
+  - Malli (from `0.20.0` to `0.20.1`)
 
 ### Fixed
 

@@ -7,9 +7,9 @@
                 *assert* true
                 *unchecked-math* :warn-on-boxed}
   :dependencies [[io.github.plumce/plumcp.core "{{version}}"]
-                 [io.github.paintparty/bling "0.9.2"
+                 [io.github.paintparty/bling "0.10.0"
                   :exclusions [org.clojure/clojure]]
-                 [metosin/malli "0.20.0"
+                 [metosin/malli "0.20.1"
                   :exclusions [org.clojure/clojure]]]
   :repl-options {:init-ns plumcp.core}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}}
