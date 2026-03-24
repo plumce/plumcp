@@ -13,12 +13,12 @@
    #?(:cljs ["readline" :as readline])
    [clojure.string :as str]
    [plumcp.core.api.mcp-client :as mc]
-   [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.main.client :as client]
    [plumcp.core.protocol :as p]
    [plumcp.core.test.test-util :as tu]
-   [plumcp.core.util :as u :refer [#?(:cljs format)]]))
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]
+   [plumcp.core.util.async-bridge :as uab]))
 
 
 (defn make-stdio-transport
@@ -65,9 +65,9 @@
 
 (defn command-ping [client]
   (tu/until-done [done! 10]
-    (->> (fn [result]
-           (done!))
-         (cs/async-ping client))))
+    (uab/may-await [result (mc/ping client)]
+      (u/dprint "Ping result" result)
+      (done!))))
 
 
 (def commands
@@ -77,38 +77,29 @@
    "ping" command-ping
    "init" (fn [client]
             (tu/until-done [done! 10]
-              (->> (fn [result]
-                     (u/eprintln "Initialize response:" result)
-                     (u/eprintln "Sending notifications/initialized")
-                     (cs/notify-initialized client)
-                     (u/eprintln "Done sending notifications/initialized")
-                     (done!))
-                   cs/on-result->on-response
-                   (cs/async-initialize! client))))
+              (uab/may-await [result (mc/initialize-and-notify! client)]
+                (u/dprint "Init result" result)
+                (done!))))
    "prompts" (fn [client]
                (tu/until-done [done! 10]
-                 (->> (fn [prompts]
-                        (u/dprint "Prompts:" prompts)
-                        (done!))
-                      (cs/async-list-prompts client))))
+                 (uab/may-await [prompts (mc/list-prompts client)]
+                   (u/dprint "Prompts:" prompts)
+                   (done!))))
    "resources" (fn [client]
                  (tu/until-done [done! 10]
-                   (->> (fn [resources]
-                          (u/dprint "Resources:" resources)
-                          (done!))
-                        (cs/async-list-resources client))))
+                   (uab/may-await [resources (mc/list-resources client)]
+                     (u/dprint "Resources:" resources)
+                     (done!))))
    "templates" (fn [client]
                  (tu/until-done [done! 10]
-                   (->> (fn [templates]
-                          (u/dprint "Resource templates:" templates)
-                          (done!))
-                        (cs/async-list-resource-templates client))))
+                   (uab/may-await [templates (mc/list-resource-templates client)]
+                     (u/dprint "Resource templates:" templates)
+                     (done!))))
    "tools" (fn [client]
              (tu/until-done [done! 10]
-               (->> (fn [tools]
-                      (u/dprint "Tools:" tools)
-                      (done!))
-                    (cs/async-list-tools client))))
+               (uab/may-await [tools (mc/list-tools client)]
+                 (u/dprint "Tools:" tools)
+                 (done!))))
    "quit" (fn [client]
             (exit-app))})
 
