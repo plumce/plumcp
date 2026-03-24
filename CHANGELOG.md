@@ -64,6 +64,17 @@ All notable changes to this project will be documented in this file. This change
 - [Todo] Prune redundant client API functions
 - [Todo] Bump dependencies - Bling, Malli
 
+### Fixed
+
+- [Todo] Client: Fix server listing to be pagination aware
+  - list-prompts
+  - list-resources
+  - list-resource-templates
+  - list-tools
+- [Todo] Server: Explore pagination strategies
+  - Option kwarg `page-size` (default `nil`, meaning no pagination)
+  - Paginated capability
+
 ## [0.2.0-beta5] - 2026-Mar-23
 
 ### Added
