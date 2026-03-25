@@ -264,6 +264,17 @@
      :client client}))
 
 
+;; Commented out as this needs server support for paginated items
+#_(deftest test-list-paginated-items
+    ;; 1. start-server (with paginated endpoints returning pages of items)
+    ;; 2. client connects
+    ;; 3. client fetches prompts
+    ;;   3.1 client asserts the final list
+    ;; 4. server tracks the cursors received
+    ;;   4.1 assert cursors
+    :FIXME)
+
+
 (deftest test-list-changed-prompts
   ;; 1. start-server
   ;; 2. client connects

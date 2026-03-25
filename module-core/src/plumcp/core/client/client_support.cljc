@@ -836,6 +836,70 @@
                                (dissoc :on-result)))))
 
 
+(defn ^{:see [sd/PaginatedResult]} fetch-paginated-items
+  "Fetch (from server) and return the list of pagination-capable MCP
+   primitives (value in CLJ, js/Promise in CLJS) supported by the server
+   on success, nil on error (printed to STDERR).
+   Options:
+   - `:request-maker` (required) - (fn [options])->jsonrpc-request
+   - `:items-keyword` (required) - (items-keyword jsonrpc-result)->items
+   - `:cursor` (default nil) - next-page cursor
+   - `:follow-next-cursor?` (default true) - follow pagination cursor?
+   - `:stash` (default []) - old items to which we add next page items
+   - `:on-result` (default identity) - pre-process result before return
+   - see `plumcp.core.util.async-bridge/as-async`
+   - see `on-jsonrpc-response`"
+  [client
+   & ^{:see [uab/as-async
+             on-jsonrpc-response]} {:keys [request-maker  ; required
+                                           items-keyword  ; required
+                                           cursor ; use by request-maker
+                                           follow-next-cursor?
+                                           stash
+                                           on-result]
+                                    :or {follow-next-cursor? true
+                                         stash []
+                                         on-result identity}
+                                    :as options}]
+  (u/expected! request-maker fn?
+               ":request-maker to be a (fn [opts])->request")
+  (u/expected! items-keyword keyword?
+               ":items-keyword to be a keyword under JSON-RPC result")
+  (let [request (request-maker options)
+        handler (fn [result]
+                  (let [items (->> (items-keyword result)
+                                   (concat stash)
+                                   vec)]
+                    (if-let [ncursor (and follow-next-cursor?
+                                          (:nextCursor result))]
+                      (->> {:stash items
+                            :cursor ncursor}
+                           (merge options)
+                           (fetch-paginated-items client))
+                      ;; coerce as a result with all paginated items
+                      (-> result
+                          (assoc items-keyword items)
+                          on-result))))]
+    (-> (uab/as-async
+          [return]
+          options
+          (send-request-to-server client request
+                                  return))
+        (on-jsonrpc-response "fetch-paginated-items"
+                             (-> options
+                                 (assoc :on-result handler))))))
+
+
+(defn make-caching-on-result
+  "Return a `(fn [jsonrpc-result])` that caches the JSON-RPC result and
+   uses `(on-result jsonrpc-result)` to return the final result."
+  [client cache-setter on-result]
+  (fn [result]
+    (->> cache-setter
+         (set-into-cache result client))
+    (on-result result)))
+
+
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListPromptsResult
               sd/JSONRPCError
@@ -853,18 +917,13 @@
              on-jsonrpc-response]} {:keys [on-result]
                                     :or {on-result sd/result-key-prompts}
                                     :as options}]
-  (let [result-handler (fn [result]
-                         (->> ?cc-prompts-list
-                              (set-into-cache result client))
-                         (on-result result))]
-    (-> (uab/as-async
-          [return]
-          options
-          (async-list-prompts client
-                              return))
-        (on-jsonrpc-response "list-prompts"
-                             (-> options
-                                 (assoc :on-result result-handler))))))
+  (->> {:request-maker eg/make-list-prompts-request
+        :items-keyword sd/result-key-prompts
+        :on-result (make-caching-on-result client
+                                           ?cc-prompts-list
+                                           on-result)}
+       (merge options)
+       (fetch-paginated-items client)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -884,18 +943,13 @@
              on-jsonrpc-response]} {:keys [on-result]
                                     :or {on-result sd/result-key-resources}
                                     :as options}]
-  (let [result-handler (fn [result]
-                         (->> ?cc-resources-list
-                              (set-into-cache result client))
-                         (on-result result))]
-    (-> (uab/as-async
-          [return]
-          options
-          (async-list-resources client
-                                return))
-        (on-jsonrpc-response "list-resources"
-                             (-> options
-                                 (assoc :on-result result-handler))))))
+  (->> {:request-maker eg/make-list-resources-request
+        :items-keyword sd/result-key-resources
+        :on-result (make-caching-on-result client
+                                           ?cc-resources-list
+                                           on-result)}
+       (merge options)
+       (fetch-paginated-items client)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -916,18 +970,13 @@
                                     :or {on-result
                                          sd/result-key-resource-templates}
                                     :as options}]
-  (let [result-handler (fn [result]
-                         (->> ?cc-resource-templates-list
-                              (set-into-cache result client))
-                         (on-result result))]
-    (-> (uab/as-async
-          [return]
-          options
-          (async-list-resource-templates client
-                                         return))
-        (on-jsonrpc-response "list-resource-templates"
-                             (-> options
-                                 (assoc :on-result result-handler))))))
+  (->> {:request-maker eg/make-list-resource-templates-request
+        :items-keyword sd/result-key-resource-templates
+        :on-result (make-caching-on-result client
+                                           ?cc-resource-templates-list
+                                           on-result)}
+       (merge options)
+       (fetch-paginated-items client)))
 
 
 (defn ^{:see [sd/JSONRPCResponse
@@ -947,18 +996,13 @@
              on-jsonrpc-response]} {:keys [on-result]
                                     :or {on-result sd/result-key-tools}
                                     :as options}]
-  (let [result-handler (fn [result]
-                         (->> ?cc-tools-list
-                              (set-into-cache result client))
-                         (on-result result))]
-    (-> (uab/as-async
-          [return]
-          options
-          (async-list-tools client
-                            return))
-        (on-jsonrpc-response "list-tools"
-                             (-> options
-                                 (assoc :on-result result-handler))))))
+  (->> {:request-maker eg/make-list-tools-request
+        :items-keyword sd/result-key-tools
+        :on-result (make-caching-on-result client
+                                           ?cc-tools-list
+                                           on-result)}
+       (merge options)
+       (fetch-paginated-items client)))
 
 
 ;; --- Notification Handling ---

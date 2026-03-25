@@ -12,9 +12,15 @@ All notable changes to this project will be documented in this file. This change
   - Client: Add option in `make-client` to auto-reinitialize on HTTP 404
     - Refactor to have session-context in the HTTP transport itself
 - MCP Server
-  - Server: Drop idle sessions
+  - Drop idle sessions
     - Kwarg: `:drop-idle-session?` (default=false)
     - Kwarg: `:idle-session-timeout` (default=30mins)
+  - Pagination support
+    - Paginated endpoints
+  - Tag selector support (for listed server items)
+    - Each list item may have zero or more tags
+    - `tags=foo,bar` should select items with tags `foo` and `bar`
+    - All transports to support this (STDIO, HTTP, Zero)
   - Replace "single node" list-changed notifier with one for scale-out
     - Ensure capabilities list is first updated on all server hosts
       - Capability declaration from a host is enough indication
@@ -62,20 +68,18 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 
 - [Todo] Prune redundant client API functions
+- [Todo-BREAKING] Client: Drop async functions
 - Bump dependencies in `plumcp.core-dev` module
   - Bling (from `0.9.2` to `0.10.0`)
   - Malli (from `0.20.0` to `0.20.1`)
 
 ### Fixed
 
-- [Todo] Client: Fix server listing to be pagination aware
-  - list-prompts
-  - list-resources
-  - list-resource-templates
-  - list-tools
-- [Todo] Server: Explore pagination strategies
-  - Option kwarg `page-size` (default `nil`, meaning no pagination)
-  - Paginated capability
+- Client: Transparently handle paginated list items
+  - `list-prompts`
+  - `list-resources`
+  - `list-resource-templates`
+  - `list-tools`
 
 ## [0.2.0-beta5] - 2026-Mar-23
 
