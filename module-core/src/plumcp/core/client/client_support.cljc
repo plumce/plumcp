@@ -189,6 +189,19 @@
   (select-keys jsonrpc-response [key-mcp-session-id]))
 
 
+(defn save-session-context!
+  "Save the session-context (if available) from given JSON-RPC message
+   into the client. Return true if session context was found and saved,
+   nil otherwise."
+  [client jsonrpc-message]
+  (when-let [session-context (->> jsonrpc-message
+                                  get-message-session-context
+                                  (u/only-when seq))]
+    (set-session-context! client session-context)
+    true)
+  nil)
+
+
 (defn send-message-to-server
   [client jsonrpc-message]
   (let [client-cache-atom (?client-cache client)
@@ -777,7 +790,7 @@
    Options:
    - see `plumcp.core.util.async-bridge/as-async`"
   ^{:see [on-jsonrpc-response]}
-  [request client & options]
+  [request client & {:as options}]
   (uab/as-async
     [return]
     options
@@ -789,7 +802,7 @@
   "Given an MCP (JSON-RPC) response (value in CLJ, js/Promise in CLJS)
    extract/return result on success, print error/return nil otherwise.
    Return a value in CLJ, or a js/Promise in CLJS."
-  [jsonrpc-response client-op-name & options]
+  [jsonrpc-response client-op-name & {:as options}]
   (as-> (on-jsonrpc-response-error-print client-op-name) $
     (merge $ options)
     (on-jsonrpc-response jsonrpc-response client-op-name $)))
@@ -801,7 +814,7 @@
    Return a value in CLJ, or a js/Promise in CLJS.
    Options:
    - see on-jsonrpc-response"
-  [jsonrpc-response client-op-name & options]
+  [jsonrpc-response client-op-name & {:as options}]
   (as-> (on-jsonrpc-response-error-throw! client-op-name) $
     (merge $ options)
     (on-jsonrpc-response jsonrpc-response client-op-name $)))
@@ -813,7 +826,6 @@
 (defn ^{:see [sd/JSONRPCResponse
               sd/InitializeResult
               sd/JSONRPCError
-              async-initialize!
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-initialize!
   "Send initialize request to the MCP server and setup a session
@@ -826,11 +838,14 @@
    - kwarg `:on-result` is ignored"
   [client & ^{:see [uab/as-async
                     on-jsonrpc-response]} {:as options}]
-  (-> (uab/as-async
-        [return]
-        options
-        (async-initialize! client
-                           return))
+  (-> (eg/make-initialize-request sd/protocol-version-max
+                                  (-> (?capabilities client)
+                                      ic/get-client-capability-declaration)
+                                  (rt/?client-info client))
+      (request->response client options)
+      (u/dotee (fn [async-jsonrpc-message]
+                 (uab/let-await [jsonrpc-message async-jsonrpc-message]
+                   (save-session-context! client jsonrpc-message))))
       (on-jsonrpc-response "initialize"
                            (-> options
                                (dissoc :on-result)))))
