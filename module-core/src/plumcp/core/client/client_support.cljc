@@ -820,6 +820,16 @@
     (on-jsonrpc-response jsonrpc-response client-op-name $)))
 
 
+(defn make-caching-on-result
+  "Return a `(fn [jsonrpc-result])` that caches the JSON-RPC result and
+   uses `(on-result jsonrpc-result)` to return the final result."
+  [client cache-setter on-result]
+  (fn [result]
+    (->> cache-setter
+         (set-into-cache result client))
+    (on-result result)))
+
+
 ;; Operations
 
 
@@ -831,13 +841,14 @@
   "Send initialize request to the MCP server and setup a session
    returning initialize result (value in CLJ, js/Promise in CLJS) on
    success, nil on error (printed to STDERR). Initialize result is
-   cached is caching is enabled.
+   cached if caching is enabled.
    Options:
    - see `plumcp.core.util.async-bridge/as-async`
-   - see `on-jsonrpc-response`
-   - kwarg `:on-result` is ignored"
+   - see `on-jsonrpc-response`"
   [client & ^{:see [uab/as-async
-                    on-jsonrpc-response]} {:as options}]
+                    on-jsonrpc-response]} {:keys [on-result]
+                                           :or {on-result identity}
+                                           :as options}]
   (-> (eg/make-initialize-request sd/protocol-version-max
                                   (-> (?capabilities client)
                                       ic/get-client-capability-declaration)
@@ -847,8 +858,10 @@
                  (uab/let-await [jsonrpc-message async-jsonrpc-message]
                    (save-session-context! client jsonrpc-message))))
       (on-jsonrpc-response "initialize"
-                           (-> options
-                               (dissoc :on-result)))))
+                           (->> (make-caching-on-result client
+                                                        ?cc-initialize-result
+                                                        on-result)
+                                (assoc options :on-result)))))
 
 
 (defn ^{:see [sd/PaginatedResult]} fetch-paginated-items
@@ -903,16 +916,6 @@
         (on-jsonrpc-response "fetch-paginated-items"
                              (-> options
                                  (assoc :on-result handler))))))
-
-
-(defn make-caching-on-result
-  "Return a `(fn [jsonrpc-result])` that caches the JSON-RPC result and
-   uses `(on-result jsonrpc-result)` to return the final result."
-  [client cache-setter on-result]
-  (fn [result]
-    (->> cache-setter
-         (set-into-cache result client))
-    (on-result result)))
 
 
 (defn ^{:see [sd/JSONRPCResponse

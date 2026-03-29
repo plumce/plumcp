@@ -34,25 +34,25 @@
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} initialize-and-notify!
   "Send initialize request to the MCP server and on success, setup a
-   session and notify the MCP server of a successful initialization
-   after caching the initialize result.
+   session and notify the MCP server of a successful initialization.
    Return initialize result (value in CLJ, js/Promise in CLJS) on
    success, nil on error (printed to STDERR).
    Options:
    - see plumcp.core.util.async-bridge/as-async
-   - see plumcp.core.client.client-support/on-jsonrpc-response
-   - kwarg `:on-result` is ignored"
+   - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
-                    cs/on-jsonrpc-response]} {:as options}]
-  (uab/let-await [init-result (cs/caching-initialize! client options)]
+                    cs/on-jsonrpc-response]} {:keys [on-result]
+                                              :or {on-result identity}
+                                              :as options}]
+  (uab/let-await [init-result (->> (dissoc options :on-result)
+                                   (cs/caching-initialize! client))]
     (when init-result
-      (cs/set-initialize-result! client init-result)
       (cs/notify-initialized client))
-    init-result))
+    (on-result init-result)))
 
 
 (defn ^{:see [sd/InitializeResult]} get-initialize-result
-  "Return the initialization result from the server."
+  "Return the (cached) initialization result from the server."
   [client]
   (-> (cs/?client-cache client)
       cs/?cc-initialize-result))
