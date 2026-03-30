@@ -51,11 +51,20 @@
     (on-result init-result)))
 
 
-(defn ^{:see [sd/InitializeResult]} get-initialize-result
-  "Return the (cached) initialization result from the server."
+(defn get-initialize-tstamp
+  "Return the initialization timestamp if initialized, nil otherwise."
   [client]
   (-> (cs/?client-cache client)
-      cs/?cc-initialize-result))
+      cs/?cc-initialized-info
+      :tstamp))
+
+
+(defn ^{:see [sd/InitializeResult]} get-initialize-result
+  "Return the initialization result if initialized, nil otherwise."
+  [client]
+  (-> (cs/?client-cache client)
+      cs/?cc-initialized-info
+      :result))
 
 
 (defn disconnect!

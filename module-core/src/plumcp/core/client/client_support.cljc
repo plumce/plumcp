@@ -64,12 +64,7 @@
                               :get kl/?atom-get-invoke
                               :assoc kl/?atom-assoc-thunk
                               :update kl/?atom-update-thunk})
-(defcckey ?cc-initialize-result {:default nil})
 (defcckey ?cc-session-context {:default {}})
-(defcckey ?cc-prompts-list {:default nil})
-(defcckey ?cc-resources-list {:default nil})
-(defcckey ?cc-resource-templates-list {:default nil})
-(defcckey ?cc-tools-list {:default nil})
 (defcckey ?cc-cancelled-requests {:default #{#_req-id..}})
 (defcckey ?cc-progress-tracking-dict {:default ;; many-to-1
                                       {#_pending-req-id #_progress-tokens
@@ -83,16 +78,30 @@
 (defcckey ?cc-pending-server-requests {:default {#_req-id #_{:ts <ms>}}})
 (defcckey ?cc-listnotif-worker {:default nil})
 (defcckey ?cc-heartbeat-worker {:default nil})
+(defcckey ?cc-initialized-info {:default {:tstamp nil :result nil}})
+
+;; subject to caching enabled
+(defcckey ?cc-prompts-list {:default nil})
+(defcckey ?cc-resources-list {:default nil})
+(defcckey ?cc-resource-templates-list {:default nil})
+(defcckey ?cc-tools-list {:default nil})
 
 
 (defn reset-client-cache-atom!
   [client-cache-atom]
   (doto client-cache-atom
+    (?cc-cancelled-requests #{})
     (?cc-progress-tracking-dict  {})
     (?cc-pending-client-requests {})
     (?cc-pending-server-requests {})
     (?cc-session-context {})
-    (?cc-client-context nil)))
+    (?cc-client-context nil)
+    (?cc-initialized-info {:tstamp nil :result nil})
+    ;; subject to caching enabled
+    (?cc-prompts-list nil)
+    (?cc-resources-list nil)
+    (?cc-resource-templates-list nil)
+    (?cc-tools-list nil)))
 
 
 (defn make-client-cache-atom
@@ -534,7 +543,9 @@
   "Set the initialization result from the server."
   [client init-result]
   (-> (?client-cache client)
-      (?cc-initialize-result init-result)))
+      (?cc-initialized-info {:tstamp (when init-result
+                                       (u/now-millis))
+                             :result init-result})))
 
 
 (defn notify-initialized
@@ -841,7 +852,7 @@
   "Send initialize request to the MCP server and setup a session
    returning initialize result (value in CLJ, js/Promise in CLJS) on
    success, nil on error (printed to STDERR). Initialize result is
-   cached if caching is enabled.
+   always cached on success.
    Options:
    - see `plumcp.core.util.async-bridge/as-async`
    - see `on-jsonrpc-response`"
@@ -858,9 +869,9 @@
                  (uab/let-await [jsonrpc-message async-jsonrpc-message]
                    (save-session-context! client jsonrpc-message))))
       (on-jsonrpc-response "initialize"
-                           (->> (make-caching-on-result client
-                                                        ?cc-initialize-result
-                                                        on-result)
+                           (->> (fn [result]
+                                  (set-initialize-result! client result)
+                                  (on-result result))
                                 (assoc options :on-result)))))
 
 
@@ -1046,7 +1057,8 @@
      (if-let [client (-> jsonrpc-message-with-deps
                          jsonrpc-message-with-deps->client)]
        (if (-> (?client-cache client)
-               ?cc-initialize-result)
+               ?cc-initialized-info
+               :result)
          (f jsonrpc-message-with-deps)
          not-initialized-value)
        not-initialized-value)))
