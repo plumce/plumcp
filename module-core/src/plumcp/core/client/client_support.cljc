@@ -863,7 +863,8 @@
   (-> (eg/make-initialize-request sd/protocol-version-max
                                   (-> (?capabilities client)
                                       ic/get-client-capability-declaration)
-                                  (rt/?client-info client))
+                                  (rt/?client-info client)
+                                  options)
       (request->response client options)
       (u/dotee (fn [async-jsonrpc-message]
                  (uab/let-await [jsonrpc-message async-jsonrpc-message]
