@@ -49,12 +49,12 @@
       (format prefix
               (:status response)
               (let [ct (get-in response [:headers "Content-Type"])]
-                (case ct
-                  nil                ""
-                  "application/json" "JSON"
-                  "text/event-stream" "SSE Stream"
-                  "text/plain"        "Plaintext"
-                  ct)))
+                (cond
+                  (nil? ct)                        ""
+                  (str/starts-with? ct "application/json") "JSON"
+                  (str/starts-with? ct "text/event-stream") "SSE Stream"
+                  (str/starts-with? ct "text/plain")        "Plaintext"
+                  :else                            ct)))
       u/eprintln))
 
 

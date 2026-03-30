@@ -76,6 +76,12 @@
                             (dissoc jsonrpc-message)
                             u/json-write  ; encode message as JSON body
                             (assoc post-request :body)))
+        ct-match?   (fn [headers-lower expected]
+                      (when-let [ct (get headers-lower "content-type")]
+                        (-> (str/split ct #";")
+                            first
+                            str/trim
+                            (= expected))))
         receive-msg (fn [message-str headers-lower]
                       (as-> (u/json-parse message-str) $  ; decode JSON msg
                         (wrap-message $ headers-lower)
@@ -95,9 +101,10 @@
                       ;; We assume we are receiving JSON-RPC response
                       ;; (otherwise coerced as one) even though it might
                       ;; as well be a JSON-RPC request or notification
-                      (let [je (if (#{"application/json"
-                                      "text/event-stream"}
-                                    (get headers-lower "content-type"))
+                      (let [je (if (or (ct-match? headers-lower
+                                                  "application/json")
+                                        (ct-match? headers-lower
+                                                   "text/event-stream"))
                                  (let [data (u/json-parse message-str)]
                                    (if (jr/jsonrpc-message? data)
                                      ;; already a JSON-RPC message
@@ -124,9 +131,8 @@
                                                     err-text
                                                     headers-lower))
                               on-err (fn []
-                                       (-> (if (= (get headers-lower
-                                                       "content-type")
-                                                  "text/event-stream")
+                                       (-> (if (ct-match? headers-lower
+                                                          "text/event-stream")
                                              (:on-sse response)
                                              (:on-msg response))
                                            (u/invoke rx-err)))]
@@ -135,16 +141,16 @@
                             ;; SSE body
                             ;;
                             (and (= 200 status)
-                                 (= (get headers-lower "content-type")
-                                    "text/event-stream"))
+                                 (ct-match? headers-lower
+                                            "text/event-stream"))
                             (-> (:on-sse response)
                                 (u/invoke #(receive-msg % headers-lower)))
                             ;;
                             ;; JSON body
                             ;;
                             (and (= 200 status)
-                                 (= (get headers-lower "content-type")
-                                    "application/json"))
+                                 (ct-match? headers-lower
+                                            "application/json"))
                             (-> (:on-msg response)
                                 (u/invoke #(receive-msg % headers-lower)))
                             ;;
