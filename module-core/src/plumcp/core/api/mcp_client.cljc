@@ -124,12 +124,9 @@
   [client prompt-or-template-name prompt-args
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
-  (-> (uab/as-async
-        [return]
-        options
-        (cs/async-get-prompt client
-                             prompt-or-template-name prompt-args
-                             return))
+  (-> (eg/make-get-prompt-request prompt-or-template-name
+                                  (assoc options :args prompt-args))
+      (cs/request->response client options)
       (cs/on-jsonrpc-response "get-prompt" options)))
 
 
@@ -197,12 +194,8 @@
   [client resource-uri
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
-  (-> (uab/as-async
-        [return]
-        options
-        (cs/async-read-resource client
-                                resource-uri
-                                return))
+  (-> (eg/make-read-resource-request resource-uri)
+      (cs/request->response client options)
       (cs/on-jsonrpc-response "read-resource" options)))
 
 
@@ -243,12 +236,10 @@
   [client tool-name tool-args
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
-  (-> (uab/as-async
-        [return]
-        options
-        (cs/async-call-tool client
-                            tool-name tool-args
-                            return))
+  (-> (eg/make-call-tool-request tool-name
+                                 tool-args
+                                 options)
+      (cs/request->response client options)
       (cs/on-jsonrpc-response "call-tool" options)))
 
 
@@ -266,12 +257,8 @@
   [client ^{:see [eg/make-complete-request]} complete-request
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
-  (-> (uab/as-async
-        [return]
-        options
-        (cs/async-complete client
-                           complete-request
-                           return))
+  (-> complete-request
+      (cs/request->response client options)
       (cs/on-jsonrpc-response "complete" options)))
 
 
@@ -286,11 +273,8 @@
    - see plumcp.core.client.client-support/on-jsonrpc-response"
   [client & ^{:see [uab/as-async
                     cs/on-jsonrpc-response]} {:as options}]
-  (-> (uab/as-async
-        [return]
-        options
-        (cs/async-ping client
-                       return))
+  (-> (eg/make-ping-request options)
+      (cs/request->response client options)
       (cs/on-jsonrpc-response "ping" options)))
 
 
