@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
+- Protocol
+  - Spec: 2025-11-25
+  - https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/
 - MCP Client
   - Check that _initialized_ ops have session-context before sending request
   - Client app using https://github.com/TimoKramer/charm.clj
@@ -58,6 +61,10 @@ All notable changes to this project will be documented in this file. This change
 - Zero transport
   - Make Zero-transport bidirectionally asynchronous (like STDIO/HTTP)
   - Synchronous Zero-transport fails tests unless tweaked as background call
+- Factor out HTTP Server/Client
+  - WebSocket server
+    - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
+    - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
 ## [Unreleased] - 2026-???-??
 
@@ -68,7 +75,18 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 
 - [Todo] Prune redundant client API functions
-- [Todo-BREAKING] Client: Drop async functions
+- [BREAKING] Client: Drop async API functions in `p.c.c.client-support` ns
+  - `async-initialize!`
+  - `async-initialize-and-notify!`
+  - `async-list-tools`
+  - `async-call-tool`
+  - `async-list-resources`
+  - `async-list-resource-templates`
+  - `async-read-resource`
+  - `async-list-prompts`
+  - `async-get-prompt`
+  - `async-complete`
+  - `async-ping`
 - Bump dependencies in `plumcp.core-dev` module
   - Bling (from `0.9.2` to `0.10.0`)
   - Malli (from `0.20.0` to `0.20.1`)
