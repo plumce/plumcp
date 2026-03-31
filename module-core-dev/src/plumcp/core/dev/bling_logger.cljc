@@ -58,8 +58,8 @@
 (defn ring-response-text
   [response]
   (when (and (map? response)
-             (= (get-in response [:headers "Content-Type"])
-                "text/plain"))
+             (some-> (get-in response [:headers "Content-Type"])
+                     (string/starts-with? "text/plain")))
     (get response :body)))
 
 
