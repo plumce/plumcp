@@ -632,7 +632,7 @@
   "Progress meter"
   [{:as kwargs}]
   (let [all-prog (atom [20 40 60 80 100])
-        ext-prog (fn []  ; extract!
+        ext-prog (fn ^long []  ; extract!
                    (-> all-prog
                        (swap-vals! next)
                        ffirst))
@@ -643,7 +643,7 @@
                                                     {:total 100})
                      (ms/send-notification-to-client kwargs $)))
         run-loop (fn thisfn [progress-percent return]
-                   (if (< progress-percent 100)
+                   (if (< ^long progress-percent 100)
                      (do (notify-p progress-percent)
                          #?(:cljs (js/setTimeout
                                    #(thisfn (ext-prog) return) 100)
