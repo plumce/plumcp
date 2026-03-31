@@ -75,6 +75,13 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 
 - [Todo] Prune redundant client API functions
+
+### Fixed
+
+## [0.2.0-beta6] - 2026-Mar-31
+
+### Changed
+
 - [BREAKING] Client: Drop async API functions in `p.c.c.client-support` ns
   - `async-initialize!`
   - `async-initialize-and-notify!`
@@ -98,6 +105,7 @@ All notable changes to this project will be documented in this file. This change
   - `list-resources`
   - `list-resource-templates`
   - `list-tools`
+- Fix strict Content-Type matching in HTTP client transport - @ericdallo
 
 ## [0.2.0-beta5] - 2026-Mar-23
 
