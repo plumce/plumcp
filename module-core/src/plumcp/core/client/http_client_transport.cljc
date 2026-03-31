@@ -103,8 +103,8 @@
                       ;; as well be a JSON-RPC request or notification
                       (let [je (if (or (ct-match? headers-lower
                                                   "application/json")
-                                        (ct-match? headers-lower
-                                                   "text/event-stream"))
+                                       (ct-match? headers-lower
+                                                  "text/event-stream"))
                                  (let [data (u/json-parse message-str)]
                                    (if (jr/jsonrpc-message? data)
                                      ;; already a JSON-RPC message
