@@ -75,6 +75,8 @@ All notable changes to this project will be documented in this file. This change
 ### Changed
 
 - [Todo] Prune redundant client API functions
+- [Todo] Bump dependency in `plumcp.core-auth` module
+  - [Todo] jose (npm)
 
 ### Fixed
 
