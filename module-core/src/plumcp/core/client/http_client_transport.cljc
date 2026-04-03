@@ -18,7 +18,8 @@
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
-   [plumcp.core.util.async-bridge :as uab]))
+   [plumcp.core.util.async-bridge :as uab]
+   [plumcp.core.util.ring-util :as uru]))
 
 
 (defn make-streamable-http-transport
@@ -76,12 +77,9 @@
                             (dissoc jsonrpc-message)
                             u/json-write  ; encode message as JSON body
                             (assoc post-request :body)))
-        ct-match?   (fn [headers-lower expected]
-                      (when-let [ct (get headers-lower "content-type")]
-                        (-> (str/split ct #";")
-                            first
-                            str/trim
-                            (= expected))))
+        ->media-type (fn [headers-lower]
+                       (-> (get headers-lower "content-type")
+                           uru/content-type->media-type))
         receive-msg (fn [message-str headers-lower]
                       (as-> (u/json-parse message-str) $  ; decode JSON msg
                         (wrap-message $ headers-lower)
@@ -101,10 +99,9 @@
                       ;; We assume we are receiving JSON-RPC response
                       ;; (otherwise coerced as one) even though it might
                       ;; as well be a JSON-RPC request or notification
-                      (let [je (if (or (ct-match? headers-lower
-                                                  "application/json")
-                                       (ct-match? headers-lower
-                                                  "text/event-stream"))
+                      (let [je (if (#{"application/json"
+                                      "text/event-stream"}
+                                    (->media-type headers-lower))
                                  (let [data (u/json-parse message-str)]
                                    (if (jr/jsonrpc-message? data)
                                      ;; already a JSON-RPC message
@@ -126,13 +123,14 @@
                               headers (:headers response)
                               headers-lower (update-keys headers
                                                          str/lower-case)
+                              media-type (->media-type headers-lower)
                               rx-err (fn [err-text]
                                        (receive-err status
                                                     err-text
                                                     headers-lower))
                               on-err (fn []
-                                       (-> (if (ct-match? headers-lower
-                                                          "text/event-stream")
+                                       (-> (if (= media-type
+                                                  "text/event-stream")
                                              (:on-sse response)
                                              (:on-msg response))
                                            (u/invoke rx-err)))]
@@ -141,16 +139,14 @@
                             ;; SSE body
                             ;;
                             (and (= 200 status)
-                                 (ct-match? headers-lower
-                                            "text/event-stream"))
+                                 (= media-type "text/event-stream"))
                             (-> (:on-sse response)
                                 (u/invoke #(receive-msg % headers-lower)))
                             ;;
                             ;; JSON body
                             ;;
                             (and (= 200 status)
-                                 (ct-match? headers-lower
-                                            "application/json"))
+                                 (= media-type "application/json"))
                             (-> (:on-msg response)
                                 (u/invoke #(receive-msg % headers-lower)))
                             ;;

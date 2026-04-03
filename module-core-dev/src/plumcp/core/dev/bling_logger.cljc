@@ -13,11 +13,12 @@
    [bling.core :refer [bling]]
    [clojure.pprint :as pp]
    [clojure.string :as string]
+   [plumcp.core.deps.runtime :as rt]
    [plumcp.core.protocol :as p]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
-   [plumcp.core.deps.runtime :as rt]))
+   [plumcp.core.util.ring-util :as uru]))
 
 
 (defn pretty-string
@@ -58,8 +59,9 @@
 (defn ring-response-text
   [response]
   (when (and (map? response)
-             (some-> (get-in response [:headers "Content-Type"])
-                     (string/starts-with? "text/plain")))
+             (-> (get-in response [:headers "Content-Type"])
+                 uru/content-type->media-type
+                 (= "text/plain")))
     (get response :body)))
 
 
