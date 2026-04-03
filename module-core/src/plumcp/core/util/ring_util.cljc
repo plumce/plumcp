@@ -25,3 +25,29 @@
           (str/split #";")
           first
           str/trim))
+
+
+(defn accept-media-types
+  "Get all 'Accept' header media types (ignoring charset) as a set from
+   the given Ring request."
+  [request]
+  (->> (some-> request
+               (get [:headers "accept"])
+               (str/split #",")) ;; all accepted content types
+       (map content-type->media-type)
+       (reduce conj #{})))
+
+
+(defn content-media-type
+  "Get content media-type from given request or response."
+  ([request-or-response content-type-header-key]
+   (-> request-or-response
+       (get-in [:headers content-type-header-key])
+       content-type->media-type))
+  ([request-or-response]
+   (let [find-content-type (fn [m]
+                             (or (get m "content-type")
+                                 (get m "Content-Type")))]
+     (some-> (:headers request-or-response)
+             find-content-type
+             content-type->media-type))))

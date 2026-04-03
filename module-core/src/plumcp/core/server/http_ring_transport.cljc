@@ -19,6 +19,7 @@
    [plumcp.core.server.http-ring-stream :as hrs]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
+   [plumcp.core.util.ring-util :as uru]
    [plumcp.core.util.stream :as um]))
 
 
@@ -57,15 +58,6 @@
 
 
 ;; --- Utility ---
-
-
-(defn header-contains?
-  [request header-name expected-header-value]
-  (if-let [header-value (get-in request [:headers header-name])]
-    (->> (str/split header-value #"[,;]")
-         (some #(= expected-header-value (str/trim %)))
-         boolean)
-    false))
 
 
 (defn plain-response
@@ -214,8 +206,8 @@
          lone-polling-millis 10}}]
   (fn mcp-sse-or-jsonrpc-handler [request]
     (if (contains? #{:get :post} (:request-method request))
-      (let [sse-eligible? (and (header-contains? request "accept"
-                                                 ct-text-sse)
+      (let [sse-eligible? (and (-> (uru/accept-media-types request)
+                                   (contains? ct-text-sse))
                                (rt/has-session? request))
             method (:request-method request)
             request-body (:body request)
@@ -241,7 +233,7 @@
           ;; POST request
           ;;
           (= :post method)
-          (if (header-contains? request "content-type" ct-app-json)
+          (if (= (uru/content-media-type request) ct-app-json)
             (cond
               ;;
               ;; JSON-RPC request
@@ -323,7 +315,7 @@
 (defn wrap-json-request
   [handler]
   (fn json-request-middleware [request]
-    (if (header-contains? request "content-type" ct-app-json)
+    (if (= (uru/content-media-type request) ct-app-json)
       (let [[maybe-text body-ex] (u/catch! (-> (:on-msg request)
                                                (u/invoke identity)))]
         (if (some? body-ex)
@@ -489,8 +481,8 @@
                                 sd/mcp-session-id-header-lower])]
         (if (or (jr/jsonrpc-result? (get response :body))
                 (and (= 200 (:status response))
-                     (header-contains? response
-                                       "Content-Type" ct-text-sse)))
+                     (= (uru/content-media-type response "Content-Type")
+                        ct-text-sse)))
           ;; response is a success, so add session ID to response header
           (assoc-in response
                     [:headers sd/mcp-session-id-header]
@@ -645,9 +637,7 @@
                    :expected ct-app-json
                    :actual (get-in request [:headers "content-type"])
                    :match? (match? (case (:request-method request)
-                                     :post (= (get-in request
-                                                      [:headers
-                                                       "content-type"])
+                                     :post (= (uru/content-media-type request)
                                               ct-app-json)
                                      :get true
                                      true))}
@@ -656,9 +646,8 @@
                                      ct-app-json
                                      ct-text-sse)
                    :actual (get-in request [:headers "accept"])
-                   :match? (let [a (get-in request [:headers "accept"])]
-                             (match? (or
-                                      (str/includes? a ct-text-sse)
-                                      (str/includes? a ct-app-json))))}]))]
+                   :match? (let [amt (uru/accept-media-types request)]
+                             (match? (or (contains? amt ct-text-sse)
+                                         (contains? amt ct-app-json))))}]))]
     (plain-response 400 (str "Invalid MCP/JSON-RPC request\n"
                              table))))
