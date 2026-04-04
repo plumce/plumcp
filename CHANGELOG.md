@@ -75,10 +75,19 @@ All notable changes to this project will be documented in this file. This change
   - `get-request-id` (moved from `mcp-server`)
   - `get-runtime` (moved from `mcp-server`)
   - `remove-runtime` (moved from `mcp-server`)
+- [Todo] Add one-way communication utility fns
+  - [Todo] Client: send-message-to-server
+  - [Todo] Server: send-message-to-client
 
 ### Changed
 
-- [Todo] Prune redundant client API functions
+- [BREAKING] Prune redundant client API functions in `p.c.a.mcp-client`
+  - `notify-cancelled`
+  - `notify-progress`
+  - `notify-roots-list-changed`
+  - `respond-roots-list`
+  - `respond-sampling-create-message`
+  - `respond-create-elicitation`
 - [Todo] Bump dependency in `plumcp.core-auth` module
   - [Todo] jose (npm)
 
