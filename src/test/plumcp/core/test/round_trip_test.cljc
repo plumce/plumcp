@@ -15,6 +15,7 @@
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.api.mcp-client :as mc]
+   [plumcp.core.api.mcp-runtime :as mr]
    [plumcp.core.api.mcp-server :as ms]
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.zero-client-transport :as zct]
@@ -637,7 +638,7 @@
                        (swap-vals! next)
                        ffirst))
         notify-p (fn [progress-percent]
-                   (as-> (ms/get-request-params-meta kwargs) $
+                   (as-> (mr/get-request-params-meta kwargs) $
                      (:progressToken $)
                      (eg/make-progress-notification $ progress-percent
                                                     {:total 100})
@@ -730,7 +731,7 @@
         :mcp-name "request-sampling"} request-sampling
   "Requst sampling from client"
   [{:as kwargs}]
-  (let [progress-token (-> (ms/get-request-params-meta kwargs)
+  (let [progress-token (-> (mr/get-request-params-meta kwargs)
                            :progressToken)
         sampling-request (as-> (eg/make-text-content "test") $
                            (eg/make-sampling-message sd/role-user $)
@@ -753,7 +754,7 @@
   "Respond to sampling request from server"
   [{:as kwargs}]
   (let [client (cs/jsonrpc-message-with-deps->client kwargs)
-        ptoken (-> (ms/get-request-params-meta kwargs) :progressToken)
+        ptoken (-> (mr/get-request-params-meta kwargs) :progressToken)
         !progs (atom [20 40 60 80])
         x-prog (fn []  ; extract!
                  (-> !progs
@@ -771,7 +772,7 @@
                    ;; return
                    (->> (eg/make-text-content "test-sampling")
                         (eg/make-create-message-result "test-model" sd/role-user)
-                        (jr/jsonrpc-success (ms/get-request-id kwargs))
+                        (jr/jsonrpc-success (mr/get-request-id kwargs))
                         return)))]
     (uab/as-async [return reject]
       (loopit return))))
@@ -870,7 +871,7 @@
           store (atom [])
           logit (fn [log-notification]
                   (swap! store conj (-> log-notification
-                                        ms/remove-runtime
+                                        mr/remove-runtime
                                         :params))
                   (cs/log-message log-notification))
           {:keys [running-server

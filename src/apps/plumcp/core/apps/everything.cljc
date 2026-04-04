@@ -11,6 +11,7 @@
   (:require
    [clojure.string :as str]
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.api.mcp-runtime :as mr]
    [plumcp.core.api.mcp-server :as ms]
    [plumcp.core.dev.schema-malli :as sm]
    [plumcp.core.impl.var-support :as vs]
@@ -94,7 +95,7 @@
     :as args}]
   (let [^double
         step-duration (/ duration steps)
-        params-meta (ms/get-request-params-meta args)
+        params-meta (mr/get-request-params-meta args)
         progress-token (:progressToken params-meta)
         exec-steps (fn thisfn [^long step-index return]
                      (if (<= step-index steps)  ; index is 1-based
@@ -180,7 +181,7 @@
   (let [request (make-sampling-request prompt "sampleLLM" max-tokens)
         waiting (make-promise)
         context (->> {:promise-pair waiting ; not JSON-serializable, needs sticky session
-                      :request-id (ms/get-request-id args)}
+                      :request-id (mr/get-request-id args)}
                      (ms/make-callback-context "sample-llm-callback"))]
     (ms/send-request-to-client args request context)
     ;; as of MCP 2025-06-18 only synchronous tool-calls are allowed
@@ -325,7 +326,7 @@
           [(eg/make-text-content "⚠️ User cancelled the elicitation dialog.")])
         (conj (eg/make-text-content (str "\nRaw result: "
                                          (-> elicitation-result
-                                             ms/remove-runtime
+                                             mr/remove-runtime
                                              u/pprint-str))))
         (eg/make-call-tool-result)
         (promise-deliver))))

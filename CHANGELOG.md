@@ -70,7 +70,11 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
-- [Todo] Add public API `mcp-runtime` ns, with fns moved from `mcp-server`
+- Add public API `p.c.a.mcp-runtime` ns
+  - `get-request-params-meta` (moved from `mcp-server`)
+  - `get-request-id` (moved from `mcp-server`)
+  - `get-runtime` (moved from `mcp-server`)
+  - `remove-runtime` (moved from `mcp-server`)
 
 ### Changed
 

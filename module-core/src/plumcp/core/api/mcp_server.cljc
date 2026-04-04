@@ -12,6 +12,7 @@
    Ref: https://github.com/cyanheads/model-context-protocol-resources/blob/main/guides/mcp-server-development-guide.md"
   (:require
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.api.mcp-runtime :as mr]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.protocol :as p]
@@ -29,21 +30,7 @@
 ;; --- Server-runtime utility ---
 
 
-;; Request utility
-
-
-(defn get-request-params-meta
-  "Every MCP request potentially includes optional metadata, which
-   you may extract from args passed to a server handler function."
-  [kwargs]
-  (rt/?request-params-meta kwargs))
-
-
-(defn get-request-id
-  "Every MCP request includes a request ID, which you may extract from
-   the keyword-args passed to a server handler function."
-  [kwargs]
-  (rt/?request-id kwargs))
+;; Server callback utility
 
 
 (defn get-callback-context
@@ -62,16 +49,6 @@
           rs/callback-name-key (u/as-str callback-name)))
   ([callback-name]
    {rs/callback-name-key (u/as-str callback-name)}))
-
-
-(defn get-runtime
-  [args]
-  (rt/get-runtime args))
-
-
-(defn remove-runtime
-  [context]
-  (rt/dissoc-runtime context))
 
 
 ;; Request cancellation
@@ -110,7 +87,7 @@
        (p/add-progress-tokens request-id progress-tokens)))
   ([request progress-tokens]
    (register-server-request-progress-tokens request
-                                            (get-request-id request)
+                                            (mr/get-request-id request)
                                             progress-tokens)))
 
 
@@ -127,7 +104,7 @@
        (p/read-pending-request request-id)
        :progress))
   ([request]
-   (get-server-request-progress request (get-request-id request))))
+   (get-server-request-progress request (mr/get-request-id request))))
 
 
 ;; Notifications
