@@ -32,7 +32,7 @@
    the given Ring request."
   [request]
   (->> (some-> request
-               (get [:headers "accept"])
+               (get-in [:headers "accept"])
                (str/split #",")) ;; all accepted content types
        (map content-type->media-type)
        (reduce conj #{})))
