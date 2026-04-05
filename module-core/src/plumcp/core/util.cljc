@@ -555,7 +555,8 @@
     (eprintln h-line)
     (epprint (humanize data))
     (eprintln e-line)
-    (eprintln)))
+    (eprintln))
+  data)
 
 
 (defn print-stack-trace
