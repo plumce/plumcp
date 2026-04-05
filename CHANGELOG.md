@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This change log follows the conventions of [keepachangelog.com](https://keepachangelog.com/).
 
-## [TODO/IDEA] - ????-??-??
+## [TODO/IDEA]
 
 ### Added
 
@@ -92,6 +92,8 @@ All notable changes to this project will be documented in this file. This change
   - [Todo] jose (npm)
 
 ### Fixed
+
+- HTTP Client Transport: Handle HTTP 202 Accepted response from server
 
 ## [0.2.0-beta6] - 2026-Mar-31
 

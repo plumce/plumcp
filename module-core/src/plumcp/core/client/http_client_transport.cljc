@@ -150,6 +150,12 @@
                             (-> (:on-msg response)
                                 (u/invoke #(receive-msg % headers-lower)))
                             ;;
+                            ;; No body (for sent notification/response)
+                            ;;
+                            (and (= 202 status)
+                                 (nil? media-type))
+                            nil  ; do nothing, server accepted request
+                            ;;
                             ;; Auth error
                             ;;
                             (and auth-enabled?
