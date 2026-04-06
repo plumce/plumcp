@@ -1,1 +1,1 @@
-{:npm-deps {"jose" "^6.1.3"}}
+{:npm-deps {"jose" "^6.2.2"}}

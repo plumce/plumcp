@@ -88,8 +88,8 @@ All notable changes to this project will be documented in this file. This change
   - `respond-roots-list`
   - `respond-sampling-create-message`
   - `respond-create-elicitation`
-- [Todo] Bump dependency in `plumcp.core-auth` module
-  - [Todo] jose (npm)
+- Bump dependency in `plumcp.core-auth` module
+  - CLJS Dependency `jose` (npm) from `6.1.3` to `6.2.2`
 
 ### Fixed
 

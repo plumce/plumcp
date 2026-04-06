@@ -1,5 +1,5 @@
 {"dependencies": {
-  "jose": "^6.1.3"
+  "jose": "^6.2.2"
  },
  "devDependencies": {
     "shadow-cljs": "^3.2.1",
