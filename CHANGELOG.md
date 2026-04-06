@@ -75,9 +75,9 @@ All notable changes to this project will be documented in this file. This change
   - `get-request-id` (moved from `mcp-server`)
   - `get-runtime` (moved from `mcp-server`)
   - `remove-runtime` (moved from `mcp-server`)
-- [Todo] Add one-way communication utility fns
-  - [Todo] Client: send-message-to-server
-  - [Todo] Server: send-message-to-client
+- Client: Add client-to-server communication utility fns
+  - `send-message-to-server`
+  - `request->response`
 
 ### Changed
 

@@ -16,13 +16,31 @@
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.protocol :as p]
-   [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.banner-print :as bp]
    [plumcp.core.util :as u]
    [plumcp.core.util.async-bridge :as uab]
    [plumcp.core.util.key-lookup :as kl])
   #?(:cljs (:require-macros [plumcp.core.api.mcp-client])))
+
+
+;; --- Low level communication with server ---
+
+
+(defn send-message-to-server
+  "Send a JSON-RPC message from client to server. Useful for sending
+   JSON-RPC notification or response to server, or as low-level plumbing
+   to send a request to server before awaiting a response. In the latter
+   case consider `request->response` as alternative."
+  [jsonrpc-message client]
+  (cs/send-message-to-server client jsonrpc-message))
+
+
+(defn request->response
+  "Send a JSON-RPC request from client to server, and return a JSON-RPC
+   response as a value in CLJ, or js/Promise in CLJS."
+  [jsonrpc-request client & {:as options}]
+  (cs/request->response jsonrpc-request client options))
 
 
 ;; --- MCP Initilization / de-initialization / handshake ---
@@ -126,7 +144,7 @@
              cs/on-jsonrpc-response]} {:as options}]
   (-> (eg/make-get-prompt-request prompt-or-template-name
                                   (assoc options :args prompt-args))
-      (cs/request->response client options)
+      (request->response client options)
       (cs/on-jsonrpc-response "get-prompt" options)))
 
 
@@ -195,7 +213,7 @@
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
   (-> (eg/make-read-resource-request resource-uri)
-      (cs/request->response client options)
+      (request->response client options)
       (cs/on-jsonrpc-response "read-resource" options)))
 
 
@@ -239,7 +257,7 @@
   (-> (eg/make-call-tool-request tool-name
                                  tool-args
                                  options)
-      (cs/request->response client options)
+      (request->response client options)
       (cs/on-jsonrpc-response "call-tool" options)))
 
 
@@ -258,7 +276,7 @@
    & ^{:see [uab/as-async
              cs/on-jsonrpc-response]} {:as options}]
   (-> complete-request
-      (cs/request->response client options)
+      (request->response client options)
       (cs/on-jsonrpc-response "complete" options)))
 
 
@@ -274,7 +292,7 @@
   [client & ^{:see [uab/as-async
                     cs/on-jsonrpc-response]} {:as options}]
   (-> (eg/make-ping-request options)
-      (cs/request->response client options)
+      (request->response client options)
       (cs/on-jsonrpc-response "ping" options)))
 
 
@@ -346,23 +364,23 @@
                   sd/log-level-4-warning
                   sd/log-level-5-notice
                   sd/log-level-6-info
-                  sd/log-level-7-debug]} log-level]
-  (let [request (eg/make-set-level-request log-level)]
-    (cs/send-message-to-server client request)))
+                  sd/log-level-7-debug]} log-level & {:as options}]
+  (-> (eg/make-set-level-request log-level options)
+      (send-message-to-server client)))
 
 
 (defn resource-subscribe
   "Subscribe to the resource identified by the given resource-uri."
-  [client resource-uri]
-  (let [request (eg/make-subscribe-request resource-uri)]
-    (cs/send-message-to-server client request)))
+  [client resource-uri & {:as options}]
+  (-> (eg/make-subscribe-request resource-uri options)
+      (send-message-to-server client)))
 
 
 (defn resource-unsubscribe
   "Unsubscribe to the resource identified by the given resource-uri."
-  [client resource-uri]
-  (let [request (eg/make-unsubscribe-request resource-uri)]
-    (cs/send-message-to-server client request)))
+  [client resource-uri & {:as options}]
+  (-> (eg/make-unsubscribe-request resource-uri options)
+      (send-message-to-server client)))
 
 
 ;; ----- Making Client -----
