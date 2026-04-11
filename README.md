@@ -22,6 +22,19 @@ with AI Agents using MCP and idiomatic Clojure.
 - _Flexible:_ Composable design with configurable/overridable defaults
 - _Secure:_ OAuth 2.1 integrated with Streamable HTTP transport
 
+## Who is using PluMCP?
+
+- [Editor Code Assistant](https://eca.dev/)
+- [Nubank](https://nubank.com.br/)
+- [\<_Using PluMCP? Tell us!_\>](https://clojurians.slack.com/archives/plumcp)
+  ([Need invite?](http://clojurians.net/))
+
+## Funding and Support
+
+Show your support, star the Github repo!
+
+You can sponsor this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
+
 ## Development
 
 There are Makefile targets for various development tasks:
@@ -48,10 +61,6 @@ Module release:
 make install-all-modules
 make clean-all-modules
 ```
-
-## Funding and Support
-
-You can support this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
 
 # License
 
