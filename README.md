@@ -5,9 +5,9 @@
 [![Clojurians Slack](https://img.shields.io/badge/clojurians-%23plumcp-4A154B?logo=slack)](https://clojurians.slack.com/archives/plumcp)
 [![Ask DeepWiki (useful but watch  for hallucinations)](https://deepwiki.com/badge.svg)](https://deepwiki.com/plumce/plumcp)
 
-[Model Context Protocol (MCP)](https://modelcontextprotocol.io/) SDK
+**[Model Context Protocol (MCP)](https://modelcontextprotocol.io/) SDK
 for Java and JavaScript runtimes. Build MCP clients and servers using
-[Clojure](https://clojure.org)/[ClojureScript](https://clojurescript.org).
+[Clojure](https://clojure.org)/[ClojureScript](https://clojurescript.org).**
 
 PluMCP is a low-dependency Clojure/ClojureScript library for making MCP
 clients and servers. Connect your business (data, process and software)
@@ -31,7 +31,7 @@ with AI Agents using MCP and idiomatic Clojure.
 
 ## Funding and Support
 
-Show your support, star the Github repo!
+_Show your support, star the Github repo!_
 
 You can sponsor this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
 
