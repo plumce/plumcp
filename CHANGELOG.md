@@ -66,7 +66,7 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
-## [Unreleased] - 2026-Apr-??
+## [0.2.0-rc2] - 2026-Apr-14
 
 ### Changed
 
