@@ -7,7 +7,7 @@
                 *assert* true
                 *unchecked-math* :warn-on-boxed}
   :dependencies [[io.github.plumce/plumcp.core "{{version}}"]
-                 [org.clojure/data.json "2.5.1"]]
+                 [org.clojure/data.json "2.5.2"]]
   :repl-options {:init-ns plumcp.core}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}}
   :scm {:dir ".."}

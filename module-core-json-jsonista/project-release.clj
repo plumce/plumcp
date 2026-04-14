@@ -7,7 +7,7 @@
                 *assert* true
                 *unchecked-math* :warn-on-boxed}
   :dependencies [[io.github.plumce/plumcp.core "{{version}}"]
-                 [metosin/jsonista "0.3.13"]]
+                 [metosin/jsonista "1.0.0"]]
   :repl-options {:init-ns plumcp.core}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}}
   :scm {:dir ".."}
