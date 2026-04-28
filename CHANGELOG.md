@@ -66,7 +66,7 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
-## [0.2.0] - 2026-Apr-?? (Changes since `0.1.0`)
+## [0.2.0] - 2026-Apr-28 (Changes since `0.1.0`)
 
 ### Added
 
@@ -668,3 +668,4 @@ All notable changes to this project will be documented in this file. This change
   - Ring based HTTP Client and Server implementation
 
 [Unreleased]: https://github.com/plumce/plumcp/compare/v0.1.0...HEAD
+[0.2]: https://github.com/plumce/plumcp/compare/v0.1.0...v0.2.0
