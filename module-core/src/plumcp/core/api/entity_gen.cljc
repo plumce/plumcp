@@ -607,10 +607,11 @@
            make-embedded-resource]} content-block-coll
    & {:keys [error?
              _meta]
+      :or {error? false}  ; always be explicit about the error flag
       :as opt}]
   (-> (make-result opt)
-      (assoc :content (vec content-block-coll))
-      (u/assoc-some :isError error?)))
+      (assoc :content (vec content-block-coll)
+             :isError error?)))
 
 
 (defn ^{:see sd/CallToolRequest} make-call-tool-request
@@ -687,6 +688,7 @@
 
 
 (defn ^{:see sd/CreateMessageRequest} make-create-message-request
+  "Make sampling create-message request from given arguments."
   [sampling-message-coll max-token-count & {:keys [model-preferences
                                                    system-prompt
                                                    include-context

@@ -50,7 +50,8 @@ clj-test:
 
 cljs-test:
 	@# Help: Run CLJS tests
-	clj -M:cljs-test
+	NODE_OPTIONS=--enable-source-maps clj -M:cljs-test \
+	  -c test-compiler.edn
 
 lint:
 	@# Help: Run linter

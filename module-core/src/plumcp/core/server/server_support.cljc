@@ -9,16 +9,81 @@
 
 (ns plumcp.core.server.server-support
   (:require
-   [plumcp.core.api.capability-support :as cs]
+   [plumcp.core.api.capability :as cap]
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.impl.var-support :as vs]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u]))
+
+
+;; --- Notification handling ---
+
+
+;; client/server common notification handlers
+
+
+(defn cancel-client-request
+  "Cancel client request (to server) based on a CanelledNotification
+   received from client."
+  [^{:see [sd/CancelledNotification]} jsonrpc-notification-with-deps]
+  (when (rt/has-session? jsonrpc-notification-with-deps)
+    (->> (get-in jsonrpc-notification-with-deps [:params :requestId])
+         (rs/request-cancellation jsonrpc-notification-with-deps))))
+
+
+(defn update-server-request-progress
+  "Update progress of pending server request based on the received
+   ProgressNotification."
+  [^{:see [sd/ProgressNotification]} jsonrpc-notification-with-deps]
+  (when (rt/has-session? jsonrpc-notification-with-deps)
+    (let [progress (:params jsonrpc-notification-with-deps)
+          p-token (:progressToken progress)
+          session (rt/?session jsonrpc-notification-with-deps)
+          req-id (p/progress-token->id session p-token)]
+      (when req-id
+        (-> session
+            (p/save-request-progress req-id progress))))))
+
+
+;; server-only notification handlers
+
+
+(defn set-init-timestamp
+  "Set initialization timestamp"
+  [^{:see [sd/InitializedNotification]} jsonrpc-notification-with-deps]
+  (rs/set-initialized-timestamp jsonrpc-notification-with-deps))
+
+
+(defn refetch-roots
+  "Refetch roots from client."
+  [^{:see [sd/RootsListChangedNotification]} jsonrpc-notification-with-deps]
+  (rs/fetch-roots jsonrpc-notification-with-deps))
+
+
+;; Notification handler map
+
+
+(def server-callbacks
+  {rs/roots-callback-name rs/callback-fetch-roots})
+
+
+(def server-notification-handlers
+  {;; -- received by both client and server --
+   sd/method-notifications-cancelled cancel-client-request
+   sd/method-notifications-progress update-server-request-progress
+   ;; -- received by server --
+   sd/method-notifications-initialized set-init-timestamp
+   sd/method-notifications-roots-list_changed refetch-roots})
+
+
+;; --- Server options making ---
 
 
 (defn copy-result-deps
@@ -26,7 +91,7 @@
   (-> args
       (rt/copy-runtime jsonrpc-response)
       (rt/?request-id (:id jsonrpc-response))
-      (rt/?request-context request-context)))
+      (rt/?callback-context request-context)))
 
 
 (defn make-jsonrpc-response-handler
@@ -36,11 +101,12 @@
   (fn jsonrpc-response-handler [jsonrpc-response]
     (let [request-id (:id jsonrpc-response)]
       (rs/log-incoming-jsonrpc-response jsonrpc-response)
-      (if-some [request-context (rs/extract-pending-request-context
+      (if-some [request-context (rs/extract-callback-context
                                  jsonrpc-response request-id)]
         (if-let [error (:error jsonrpc-response)]
           {} ; because error received
-          (if-some [callback-handler (->> (get request-context :callback-name)
+          (if-some [callback-handler (->> rs/callback-name-key
+                                          (get request-context)
                                           (get callback-name-handler-map))]
             (-> (:result jsonrpc-response)
                 (copy-result-deps jsonrpc-response request-context)
@@ -84,18 +150,19 @@
 
 (defn make-server-options
   "Make server options from given input map, returning an output map:
-   | Keyword-option        | Default  | Description                        |
-   |-----------------------|----------|------------------------------------|
-   |:info                  |          | see p.c.a.entity-support/make-info |
-   |:instructions          |          | Server instructions for MCP client |
-   |:capabilities          | Required | Given/made from :primitives        |
-   |:primitives            | --       | Given/made from :vars              |
-   |:vars                  | --       | To make primitives                 |
-   |:traffic-logger        | No-op    | MCP transport traffic logger       |
-   |:runtime               | --       | Made from :impl,:capabilities,:tr..|
-   |:override              | {}       | Merged into final runtime          |
-   |:mcp-methods-wrapper   | No-op    | Wraper for MCP-methods impl        |
-   |:jsonrpc-handler       | --       | Made from impl and options         |
+   | Keyword-option       |Default | Description                          |
+   |----------------------|--------|--------------------------------------|
+   |:info                 |        |see p.c.a.entity-support/make-info    |
+   |:instructions         |        |Server instructions for MCP client    |
+   |:capabilities         |Required|Given/made from :primitives           |
+   |:primitives           | --     |Given/made from :vars                 |
+   |:vars                 | --     |To make primitives                    |
+   |:traffic-logger       | No-op  |MCP transport traffic logger          |
+   |:notification-handlers| {}     |Map notification methodName->handlerFn|
+   |:runtime              | --     |Made from :impl,:capabilities,:traff..|
+   |:override             | {}     |Merged into final runtime             |
+   |:mcp-methods-wrapper  | No-op  |Wraper for MCP-methods impl           |
+   |:jsonrpc-handler      | --     |Made from impl and options            |
 
    Option kwargs when JSON-RPC handler is constructed:
    |Keyword option               |Default|Description                      |
@@ -114,11 +181,13 @@
            primitives
            vars
            traffic-logger
+           notification-handlers
            runtime
            override
            mcp-methods-wrapper
            jsonrpc-handler]
     :or {traffic-logger stl/compact-server-traffic-logger
+         notification-handlers {}
          override {}
          mcp-methods-wrapper identity}
     :as server-options}]
@@ -138,7 +207,7 @@
         get-capabilities (fn []
                            (or capabilities
                                (some-> (get-primitives)
-                                       cs/primitives->server-capabilities)))
+                                       cap/primitives->server-capabilities)))
         get-runtime (fn []
                       (-> runtime
                           (or (-> {}
@@ -147,6 +216,9 @@
                                                         instructions))
                                   (rt/?server-capabilities (get-capabilities))
                                   (rt/?traffic-logger traffic-logger)
+                                  (rt/?notification-handlers merge
+                                                             server-notification-handlers
+                                                             notification-handlers)
                                   (rt/get-runtime)))
                           (merge override)))
         get-jsonrpc-handler (fn []
@@ -155,8 +227,65 @@
                                       (u/assoc-some :request-methods-wrapper
                                                     mcp-methods-wrapper)
                                       (u/assoc-some :callback-handlers
-                                                    (:callbacks primitives))
+                                                    (merge
+                                                     server-callbacks
+                                                     (:callbacks primitives)))
                                       make-server-jsonrpc-message-handler)))]
     (-> server-options
         (merge {:runtime (get-runtime)
                 :jsonrpc-handler (get-jsonrpc-handler)}))))
+
+
+;; --- Helpers for running the server ---
+
+
+(defn run-list-notifier
+  [runtime list-notifier-options]
+  (ic/run-list-changed-notifier
+   (-> (rt/upsert-runtime {} runtime)
+       rt/?server-capabilities
+       ic/get-server-listed-capabilities)
+   (let [context (rt/upsert-runtime
+                  {} runtime)]
+     (fn [notification]
+       (rs/notify-initialized-clients
+        context notification)))
+   list-notifier-options))
+
+
+(defrecord RunningServer [server list-notifier]
+  p/IStoppable
+  (stop! [_] (try (when list-notifier (p/stop! list-notifier))
+                  (finally
+                    (when server (p/stop! server))))))
+
+
+(defn run-server-daemons
+  "Given functions to run MCP server and notifier, run both and return a
+   unified RunningServer instance that may be stopped together."
+  [run-server run-list-notifier]
+  (let [running-notifier (run-list-notifier)
+        ;; ran notifier first because the (STDIO) server may block
+        running-server (run-server)]
+    (->RunningServer running-server running-notifier)))
+
+
+;; Server-running entrypoints
+
+
+(defn run-http-mcp-server
+  [ring-server run-list-notifier]
+  (run-server-daemons (constantly ring-server)
+                      run-list-notifier))
+
+
+(defn run-stdio-mcpserver
+  [stdio-handler run-list-notifier]
+  (run-server-daemons stdio-handler run-list-notifier))
+
+
+(defn run-zero-mcp-server
+  [runtime]
+  (let [run-notifier (partial run-list-notifier runtime {})
+        run-server u/nop]
+    (run-server-daemons run-server run-notifier)))

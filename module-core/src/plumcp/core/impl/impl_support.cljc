@@ -82,7 +82,8 @@
       (merge server-received-notification-handlers)
       ;; wrap the method impls with session check/propagation
       (update-vals (fn [handler]
-                     (->> "Session is missing"
+                     (->> sd/method-initialize
+                          (format "Session is missing. Did you call method `%s`?")
                           (jr/jsonrpc-failure sd/error-code-invalid-request)
                           (rt/wrap-session-required handler))))))
 

@@ -35,6 +35,9 @@
            cache
            credentials
            referrer-policy
+           dispatcher  ; for Node.js HTTPS proxy agent
+           agent  ; for _legacy_ Node HTTPS proxy agent
+           proxy  ; for Bun.js proxy: https://bun.sh/guides/http/proxy
            signal]
     :or {redirect "follow"
          mode "cors"
@@ -54,6 +57,9 @@
                     :cache cache
                     :credentials credentials
                     :referrer-policy referrer-policy
+                    :dispatcher dispatcher  ; Node.js only
+                    :agent agent  ; _legacy_ Node.js only
+                    :proxy proxy  ; Bun.js only
                     :signal signal)
       clj->js))
 
@@ -83,7 +89,8 @@
                                          chunk (us/pget result :value)]
                                      (when-not done?
                                        (read-chunk chunk
-                                                   read-next)))))))]
+                                                   read-next)))))
+                          (.catch us/throw-normalized!)))]
     (read-stream read-stream)))
 
 
@@ -113,7 +120,9 @@
                                                                 on-event)))
                         :on-msg (fn on-msg [on-message]
                                   (-> (.text response) ; returns JS/promise
-                                      (.then on-message)))}
+                                      (.then on-message)
+                                      (.catch us/throw-normalized!)))}
                        (u/dotee #(if (<= 200 status 299)
                                    (p/log-http-response logger %)
-                                   (p/log-http-failure logger %))))))))))
+                                   (p/log-http-failure logger %)))))))
+        (.catch us/throw-normalized!))))

@@ -1,0 +1,5 @@
+{:source-map true
+ :source-map-detail-level :all
+ :optimizations :none
+ :pretty-print true}
+

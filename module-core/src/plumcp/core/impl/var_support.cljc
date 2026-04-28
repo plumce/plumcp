@@ -11,9 +11,10 @@
   "Var integration and support for capability primitives."
   (:require
    [clojure.set :as set]
-   [plumcp.core.api.capability-support :as cs]
+   [clojure.string :as str]
+   [plumcp.core.api.capability :as cap]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.method-handler :as mh]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
@@ -27,28 +28,40 @@
    :required-arg-meta-exeg "^{:doc \"description\"} arg-name"})
 
 
-(defn validate-kwargs!
-  "Throw exception when the given var-meta arglists is not kwargs."
-  [arglists]
-  (when-not (and (= 1 (count arglists))
-                 (= 1 (count (first arglists)))
-                 (map? (ffirst arglists)))
-    (u/throw! "Expected arity-1 function with map-destructuring"
-              {:arglists arglists
-               :expected "Example: (defn foo [{:keys [bar]}])"})))
+(defn validate-var-kwargs!
+  "Return arglists if conforms. Throw exception when the given var-meta
+   arglists is not arity-1 and not coercible as kwargs."
+  [the-var]
+  (let [arglists (-> (meta the-var)
+                     :arglists)]
+    (when-not (and (= 1 (count arglists))
+                   (= 1 (count (first arglists))))
+      (u/throw! "Expected arity-1 function (with map-destructuring)"
+                {:var-name (symbol the-var)
+                 :arglists arglists
+                 :expected "Example: (defn foo [{:keys [bar]}])"}))
+    (let [lone-arg (ffirst arglists)]
+      (when-not (or (map? lone-arg)
+                    (and (symbol? lone-arg)
+                         (-> (str lone-arg)
+                             (str/starts-with? "_"))))
+        (u/throw! "Expected arity-1 function to have map-destructuring"
+                  {:arglists arglists
+                   :expected "Example: (defn foo [{:keys [bar]}])"})))
+    arglists))
 
 
 (defn validate-var-arglists
   "Validate arglists in an MCP artifact handler var. Return the list of
    arg symbols or throw exception with relevant error message."
-  [arglists {:keys [required-arg-meta-keys
-                    required-arg-meta-exeg]
-             :or {required-arg-meta-keys (get default-mcp-artifact-opts
-                                              :required-arg-meta-keys)
-                  required-arg-meta-exeg (get default-mcp-artifact-opts
-                                              :required-arg-meta-exeg)}}]
-  (validate-kwargs! arglists)
-  (let [args-spec (ffirst arglists)  ; this is a map
+  [the-var {:keys [required-arg-meta-keys
+                   required-arg-meta-exeg]
+            :or {required-arg-meta-keys (get default-mcp-artifact-opts
+                                             :required-arg-meta-keys)
+                 required-arg-meta-exeg (get default-mcp-artifact-opts
+                                             :required-arg-meta-exeg)}}]
+  (let [arglists (validate-var-kwargs! the-var)
+        args-spec (u/only-if map? (ffirst arglists) {})  ; this is a map
         args-syms (concat (:keys args-spec)
                           (->> (keys args-spec)
                                (remove keyword?)))]
@@ -60,11 +73,12 @@
       (let [arg-meta (meta each-sym)]
         (when-not (->> required-arg-meta-keys
                        (every? #(string? (get arg-meta %))))
-          (u/throw! (format "Metadata %s missing for argument %s"
-                            required-arg-meta-keys
-                            each-sym)
+          (u/throw! (-> "Metadata %s missing (or not a string) for argument %s"
+                        (format required-arg-meta-keys
+                                each-sym))
                     {:argument each-sym
-                     :expected (str "Example: " required-arg-meta-exeg)}))
+                     :expected (str "Example: " required-arg-meta-exeg)
+                     :found (select-keys arg-meta required-arg-meta-keys)}))
         (when (and (contains? arg-meta :required?)
                    (not (boolean? (:required? arg-meta))))
           (u/throw! (str "Metadata :required? not a boolean for argument "
@@ -79,6 +93,9 @@
 (def tool-opts
   {:required-arg-meta-keys [:type :doc]
    :required-arg-meta-emsg "^{:type \"number\" :doc \"description\"} arg-name"})
+(def no-arg-keys-opts
+  {:required-arg-meta-keys []
+   :required-arg-meta-emsg ""})
 
 
 ;; ----- Callback making -----
@@ -97,9 +114,8 @@
   (u/expected! var-instance var? "argument to be a var")
   (let [vm (meta var-instance)
         callback-name (or (:mcp-name vm)
-                          (str (:name vm)))
-        arglists (:arglists vm)]
-    (validate-var-arglists arglists callback-opts)
+                          (str (:name vm)))]
+    (validate-var-arglists var-instance callback-opts)
     {callback-name (-> var-instance
                        var-handler)}))
 
@@ -121,10 +137,8 @@
      ,,,)
    ```
    Note:
-   - Attributes `:mcp-name` (inferred from symbol when not specified) and
-     `:mime-type` are optional.
-   - Argument `uri` and its `:doc` metadata are mandatory. The `:doc` value
-     should be the resource URI."
+   - Attribute `:mcp-name` is inferred from var-name when not specified.
+   - The `:doc` metadata is mandatory for all keyword arguments."
   [var-instance & {:keys [var-handler]
                    :or {var-handler identity}}]
   (u/expected! var-instance var? "argument to be a var")
@@ -135,8 +149,7 @@
                      (u/expected! (:doc vm)
                                   (format "prompt var '%s' to have a docstring"
                                           (:name vm))))
-        arglists (:arglists vm)
-        arg-syms (validate-var-arglists arglists prompt-opts)
+        arg-syms (validate-var-arglists var-instance prompt-opts)
         args-vec (->> arg-syms
                       (mapv (fn [sym]
                               (let [sm (meta sym)]
@@ -149,7 +162,7 @@
                      mh/make-get-prompt-handler)]
     (-> (eg/make-prompt mcp-name {:description descrip
                                   :args args-vec})
-        (cap/make-prompts-capability-item handler))))
+        (ic/make-prompts-capability-item handler))))
 
 
 ;; ----- Resource making -----
@@ -181,8 +194,7 @@
                       (:doc vm)
                       (format "resource/template var '%s' to have a docstring"
                               (:name vm))))
-        arglists (:arglists vm)
-        arg-syms (validate-var-arglists arglists resource-opts)
+        arg-syms (validate-var-arglists var-instance resource-opts)
         uri-str  (if-some [uri-sym (some #(when (= (name %) "uri") %)
                                          arg-syms)]
                    (let [uri-str (-> (meta uri-sym)
@@ -194,34 +206,17 @@
                         {:found uri-sym
                          :expected "Example: ^{:doc \"...\"} uri"})))
                    (u/expected! arg-syms
-                                "an arg symbol named `uri`"))
+                                "a keyword-arg symbol named `uri`"))
         handler  (-> var-instance
                      var-handler
                      mh/make-read-resource-handler)]
     (-> (eg/make-resource uri-str mcp-name
                           (-> {:description descrip}
                               (u/assoc-some :mime-type (:mime-type vm))))
-        (cap/make-resources-capability-resource-item handler))))
+        (ic/make-resources-capability-resource-item handler))))
 
 
 ;; ----- Resource-template making -----
-
-
-(defn add-uri-template-matcher
-  "Add a URI-template matcher that returns a map of {param-name param-val}"
-  [m]
-  (u/expected! (:uriTemplate m) string?
-               ":uriTemplate value in map to be a string")
-  (letfn [(make-matcher [ut]
-            (let [param-names (u/uri-template->variable-names ut)
-                  param-regex (u/uri-template->matching-regex ut)]
-              (fn uri-template-matcher [uri]
-                (when-let [[_ & param-vals] (re-matches param-regex uri)]
-                  (zipmap param-names param-vals)))))]
-    (let [ut (:uriTemplate m)]
-      (update m :matcher (fn [old]
-                           (or old
-                               (make-matcher ut)))))))
 
 
 (defn ^{:see sd/ResourceTemplate}  make-resource-template-from-var
@@ -243,7 +238,7 @@
   [var-instance & {:as opts}]
   (-> (make-resource-from-var var-instance opts)
       (set/rename-keys {:uri :uriTemplate})
-      (add-uri-template-matcher)))
+      (ic/add-uri-template-matcher)))
 
 
 ;; ----- Tool making -----
@@ -282,8 +277,7 @@
                      (u/expected! (:doc vm)
                                   (format "tool var '%s' to have a docstring"
                                           (:name vm))))
-        arglists (:arglists vm)
-        arg-syms (validate-var-arglists arglists tool-opts)
+        arg-syms (validate-var-arglists var-instance tool-opts)
         properties (zipmap (->> arg-syms
                                 (map (fn [sym]
                                        (or (:name (meta sym))
@@ -307,7 +301,7 @@
                      mh/make-call-tool-handler)]
     (-> (eg/make-tool mcp-name inschema
                       {:description tool-doc})
-        (cap/make-tools-capability-item handler))))
+        (ic/make-tools-capability-item handler))))
 
 
 ;; ----- Sampling -----
@@ -329,9 +323,10 @@
                    :or {var-handler identity}}]
   (when-not (var? var-instance)
     (u/expected! var-instance "argument to be a var"))
+  (validate-var-arglists var-instance no-arg-keys-opts)
   (-> var-instance
       var-handler
-      cs/make-sampling-handler))
+      cap/make-sampling-handler))
 
 
 ;; ----- Elicitation -----
@@ -353,9 +348,10 @@
                    :or {var-handler identity}}]
   (when-not (var? var-instance)
     (u/expected! var-instance "argument to be a var"))
+  (validate-var-arglists var-instance no-arg-keys-opts)
   (-> var-instance
       var-handler
-      cs/make-elicitation-handler))
+      cap/make-elicitation-handler))
 
 
 ;; ----- Vars -----

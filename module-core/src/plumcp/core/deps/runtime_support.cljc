@@ -54,7 +54,8 @@
   (->> (fn [session]
          (when (p/get-init-ts session)
            (p/send-message-to-client session (rt/?session context session)
-                                     notification)))
+                                     notification))
+         session)
        (update-server-sessions context)))
 
 
@@ -143,31 +144,13 @@
            (p/send-message-to-client session context)))))
 
 
-(defmacro with-logger
-  "Associate logger (for log events) in the lexical scope."
-  [[context logger] & body]
-  (assert (symbol? context))
-  `(let [~context (du/?mcp-logger ~context (u/as-str ~logger))]
-     ~@body))
-
-
-(defn log-7-debug     [ctx entry] (log ctx sd/log-level-7-debug entry))
-(defn log-6-info      [ctx entry] (log ctx sd/log-level-6-info entry))
-(defn log-5-notice    [ctx entry] (log ctx sd/log-level-5-notice entry))
-(defn log-4-warning   [ctx entry] (log ctx sd/log-level-4-warning entry))
-(defn log-3-error     [ctx entry] (log ctx sd/log-level-3-error entry))
-(defn log-2-critical  [ctx entry] (log ctx sd/log-level-2-critical entry))
-(defn log-1-alert     [ctx entry] (log ctx sd/log-level-1-alert entry))
-(defn log-0-emergency [ctx entry] (log ctx sd/log-level-0-emergency entry))
-
-
 ;; --- Session ---
 
 
 ;; Initialization info
 
 
-(defn get-initialized-params
+(defn ^{:see [sd/InitializeRequest]} get-initialized-params
   [context]
   (-> (rt/?session context)
       p/get-init-params))
@@ -219,13 +202,16 @@
 ;; Server-sent requests to client
 
 
+(def ^:const callback-name-key :callback-name)
+
+
 (defn send-request-to-client
   [context new-request callback-context]
   (let [session (rt/?session context)]
-    ;; install the request-context first (to facilitate callback)
+    ;; install the callback-context first (to facilitate callback)
     (u/expected! (:id new-request) some? "request-ID to be a valid request ID")
-    (p/append-pending-requests session (-> (:id new-request)
-                                           (array-map callback-context)))
+    (->> {(:id new-request) {:callback callback-context}}
+         (p/append-pending-requests session))
     ;; send out the server request
     (p/send-message-to-client session context new-request)
     new-request))
@@ -249,23 +235,49 @@
       (p/send-message-to-client context message)))
 
 
+;; Client roots
+
+
+(defn set-client-roots
+  [context roots]
+  (-> (rt/?session context)
+      (p/set-client-roots roots)))
+
+
+(defn get-client-roots
+  [context]
+  (-> (rt/?session context)
+      (p/get-client-roots)))
+
+
+(def roots-callback-name "plumcp.core/roots-list-callback")
+
+
+(defn ^{:mcp-name roots-callback-name
+        :mcp-type :callback} callback-fetch-roots
+  [^{:see [sd/ListRootsResult]}
+   {roots :roots
+    :as list-roots-result}]
+  ;; write roots into session
+  (set-client-roots list-roots-result roots))
+
+
+(defn fetch-roots
+  "Send a list-roots request to the client as a callback"
+  [context]
+  (let [request (eg/make-list-roots-request)
+        callback-context {callback-name-key roots-callback-name}]
+    (send-request-to-client context request callback-context)))
+
+
 ;; Server request tracking
 
 
-(defn extract-pending-request-context
+(defn extract-callback-context
   [context request-id]
   (-> (rt/?session context)
-      (p/extract-pending-request request-id)))
-
-
-;; Progress tracking
-
-
-(defn update-peer-progress
-  "Update the progress reported."
-  [context progress-token progress]
-  (-> (rt/?session context)
-      (p/update-progress progress-token progress)))
+      (p/extract-pending-request request-id)
+      :callback))
 
 
 ;; Task cancellation
@@ -274,8 +286,9 @@
 (defn cancel-requested?
   "Return true if cancellation requested for request ID, false otherwise
    - use current request ID if request ID is unspecified."
-  [session request-id]
-  (p/cancel-requested? session request-id))
+  [context request-id]
+  (-> (rt/?session context)
+      (p/cancel-requested? request-id)))
 
 
 (defn request-cancellation

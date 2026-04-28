@@ -15,6 +15,58 @@
    [plumcp.core.util :as u]))
 
 
+(defn pred-valid-method?
+  [m]
+  (let [method (:method m)]
+    (and (string? method)
+         (seq method))))
+
+
+(defn pred-valid-id?
+  [m]
+  (let [id (:id m)]
+    (or (integer? id)
+        (and (string? id)
+             (seq id)))))
+
+
+(defn pred-notification?
+  [m]
+  (:method m))
+
+
+(defn pred-request?
+  [m]
+  (and (:method m)
+       (:id m)))
+
+
+(defn pred-response?
+  [m]
+  (or (:result m)
+      (:error m)))
+
+
+(defn ^{:see [pred-request?
+              pred-notification?
+              pred-response?]} jsonrpc-message?
+  "Return true if given argument (map) is a JSON-RPC message, false
+   otherwise. Pass predicate for a specific check as follows:
+   | JSON-RPC message      | Predicate            |
+   |-----------------------|----------------------|
+   | JSON-RPC request      | `pred-request?`      |
+   | JSON-RPC notification | `pred-notification?` |
+   | JSON-RPC Response     | `pred-response?`     |"
+  ([m pred]
+   (and (map? m)
+        (= (:jsonrpc m) sd/jsonrpc-version)
+        (pred m)))
+  ([m]
+   (jsonrpc-message? m (some-fn pred-request?
+                                pred-notification?
+                                pred-response?))))
+
+
 (defn add-jsonrpc-id
   "Add ID to JSON-RPC request or response."
   [m id]
@@ -51,7 +103,7 @@
    :id (in request only)"
   [m]
   (and (map? m)
-       (= (:jsonrpc m) "2.0")
+       (= (:jsonrpc m) sd/jsonrpc-version)
        (let [method (:method m)]
          (and (string? method)
               (seq method)))))
@@ -86,6 +138,7 @@
   "Return true if given map is a JSON-RPC error, false otherwise."
   [m]
   (and (map? m)
+       (= (:jsonrpc m) sd/jsonrpc-version)
        (:error m)))
 
 
@@ -103,6 +156,7 @@
   "Return true if given map is a JSON-RPC result, false otherwise."
   [m]
   (and (map? m)
+       (= (:jsonrpc m) sd/jsonrpc-version)
        (not (:error m))
        (:result m)))
 
@@ -121,6 +175,7 @@
   "Return true if given map is a JSON-RPC response, false otherwise."
   [m]
   (and (map? m)
+       (= (:jsonrpc m) sd/jsonrpc-version)
        (or (:result m)
            (:error m))))
 

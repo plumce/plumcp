@@ -13,7 +13,7 @@
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
@@ -59,16 +59,11 @@
                   :clj Exception) ex
           (rs/log-mcpcall-failure context ex)
           (if-some [[message data] (u/ex-info-parts ex)]
-            (do
-              (rs/log-3-error context {:message message
-                                       :data data})
-              (jr/jsonrpc-failure sd/error-code-internal-error
-                                  message
-                                  data))
-            (do
-              (rs/log-3-error context (str ex))
-              (jr/jsonrpc-failure sd/error-code-internal-error
-                                  (str ex))))))
+            (jr/jsonrpc-failure sd/error-code-internal-error
+                                message
+                                data)
+            (jr/jsonrpc-failure sd/error-code-internal-error
+                                (str ex)))))
       (if (rt/has-session? context)
         (jr/jsonrpc-failure sd/error-code-invalid-request
                             "Initialization notification not received yet")
@@ -84,19 +79,19 @@
 
 (defn with-roots-capability [request f]
   (let [roots-capability (-> (rt/?client-capabilities request)
-                             (cap/get-capability-roots))]
+                             (ic/get-capability-roots))]
     (with-capability request "roots" roots-capability f)))
 
 
 (defn with-sampling-capability [request f]
   (let [sampling-capability (-> (rt/?client-capabilities request)
-                                (cap/get-capability-sampling))]
+                                (ic/get-capability-sampling))]
     (with-capability request "sampling" sampling-capability f)))
 
 
 (defn with-elicitation-capability [request f]
   (let [elicitation-capability (-> (rt/?client-capabilities request)
-                                   (cap/get-capability-elicitation))]
+                                   (ic/get-capability-elicitation))]
     (with-capability request "elicitation" elicitation-capability f)))
 
 
@@ -105,31 +100,31 @@
 
 (defn with-logging-capability [request f]
   (let [logging-capability (-> (rt/?server-capabilities request)
-                               (cap/get-capability-logging))]
+                               (ic/get-capability-logging))]
     (with-capability request "logging" logging-capability f)))
 
 
 (defn with-completions-capability [request f]
   (let [completions-capability (-> (rt/?server-capabilities request)
-                                   (cap/get-capability-completions))]
+                                   (ic/get-capability-completions))]
     (with-capability request "completions" completions-capability f)))
 
 
 (defn with-prompts-capability [request f]
   (let [prompts-capability (-> (rt/?server-capabilities request)
-                               (cap/get-capability-prompts))]
+                               (ic/get-capability-prompts))]
     (with-capability request "prompts" prompts-capability f)))
 
 
 (defn with-resources-capability [request f]
   (let [resources-capability (-> (rt/?server-capabilities request)
-                                 (cap/get-capability-resources))]
+                                 (ic/get-capability-resources))]
     (with-capability request "resources" resources-capability f)))
 
 
 (defn with-tools-capability [request f]
   (let [tools-capability (-> (rt/?server-capabilities request)
-                             (cap/get-capability-tools))]
+                             (ic/get-capability-tools))]
     (with-capability request "tools" tools-capability f)))
 
 
@@ -149,7 +144,7 @@
   [jsonrpc-request supported-protocol-version]
   (let [protocol-version supported-protocol-version
         server-capabilities (-> (rt/?server-capabilities jsonrpc-request)
-                                (cap/get-server-capability-declaration))
+                                (ic/get-server-capability-declaration))
         server-info (rt/?server-info jsonrpc-request)
         server-instructions (rt/?server-instructions jsonrpc-request)]
     (->> (-> {}
@@ -293,15 +288,10 @@
               (copy-deps jsonrpc-request)
               handler
               make-result)
-          (do
-            (rs/log-3-error jsonrpc-request
-                            {:message "Requested prompt-name does not exist"
-                             :prompt-name prompt-name
-                             :prompt-args prompt-args})
-            (jr/jsonrpc-failure sd/error-code-invalid-params
-                                "Requested prompt-name does not exist"
-                                {:prompt-name prompt-name
-                                 :prompt-args prompt-args})))))))
+          (jr/jsonrpc-failure sd/error-code-invalid-params
+                              "Requested prompt-name does not exist"
+                              {:prompt-name prompt-name
+                               :prompt-args prompt-args}))))))
 
 
 (defn ^{:see [sd/ListResourcesRequest
@@ -333,13 +323,9 @@
               (copy-deps jsonrpc-request)
               handler
               make-result)
-          (do
-            (rs/log-3-error jsonrpc-request
-                            {:message "Requested invalid resource URI"
-                             :uri uri})
-            (jr/jsonrpc-failure sd/error-code-invalid-params
-                                "Requested invalid resource URI"
-                                {:uri uri})))))))
+          (jr/jsonrpc-failure sd/error-code-invalid-params
+                              "Requested invalid resource URI"
+                              {:uri uri}))))))
 
 
 (defn ^{:see [sd/SubscribeRequest
@@ -439,14 +425,9 @@
               eg/make-cancellation-notification]} notifications-cancelled
   [{params :params
     :as jsonrpc-notification}]
-  (let [request-id (:requestId params)
-        reason (:reason params)]
+  (let [request-id (:requestId params)]
     (when (rt/has-session? jsonrpc-notification)  ; this is true on server
-      (rs/request-cancellation jsonrpc-notification request-id)
-      (rs/log-7-debug jsonrpc-notification
-                      (-> {:message "Cancel requested for task"
-                           :request-id request-id}
-                          (u/assoc-some :reason reason))))
+      (rs/request-cancellation jsonrpc-notification request-id))
     (call-notification-handler jsonrpc-notification
                                sd/method-notifications-cancelled))
   {:result {}})
@@ -454,11 +435,7 @@
 
 (defn ^{:see [sd/ProgressNotification
               eg/make-progress-notification]} notifications-progress
-  [{progress :params
-    :as jsonrpc-notification}]
-  (when (rt/has-session? jsonrpc-notification)  ; this is true on server
-    (rs/update-peer-progress jsonrpc-notification
-                             (:progressToken progress) progress))
+  [{:as jsonrpc-notification}]
   (call-notification-handler jsonrpc-notification
                              sd/method-notifications-progress)
   {:result {}})
@@ -513,6 +490,7 @@
               eg/make-roots-list-changed-notification]}
   notifications-roots-list_changed
   [{:as jsonrpc-notification}]
+  (rs/fetch-roots jsonrpc-notification)
   (call-notification-handler jsonrpc-notification
                              sd/method-notifications-roots-list_changed)
   {:result {}})

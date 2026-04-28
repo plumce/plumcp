@@ -10,13 +10,14 @@
 (ns plumcp.core.test.mcp-method-test
   (:require
    [clojure.test :refer [deftest is testing]]
+   [plumcp.core.api.capability :as cap]
    [plumcp.core.api.entity-gen :as eg]
-   [plumcp.core.api.capability-support :as cs]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-method :as im]
-   [plumcp.core.schema.schema-defs :as sd])
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.test.test-support :as ts])
   #?(:clj (:import
            [clojure.lang ExceptionInfo])))
 
@@ -26,43 +27,43 @@
 
 (def runtime-client-caps
   (let [roots-cap (-> (eg/make-root "dir://a")
-                      cap/make-roots-capability-item
+                      ic/make-roots-capability-item
                       vector
-                      cap/make-roots-capability)
+                      ic/make-roots-capability)
         sampling-cap (-> (fn [{messages :messages
                                max-tokens :maxTokens
                                :as kwargs}]
                            {:messages messages
                             :max-tokens max-tokens})
-                         cap/make-sampling-capability)
+                         ic/make-sampling-capability)
         elicitation-cap (-> (fn [{message :message
                                   requested-schema :requestedSchema
                                   :as kwargs}]
                               {:message message
                                :requested-schema requested-schema})
-                            cap/make-elicitation-capability)
-        client-caps (-> cap/default-client-capabilities
-                        (cap/update-roots-capability roots-cap)
-                        (cap/update-sampling-capability sampling-cap)
-                        (cap/update-elicitation-capability elicitation-cap))
+                            ic/make-elicitation-capability)
+        client-caps (-> ic/default-client-capabilities
+                        (ic/update-roots-capability roots-cap)
+                        (ic/update-sampling-capability sampling-cap)
+                        (ic/update-elicitation-capability elicitation-cap))
         context (-> {}
                     (rt/?client-capabilities client-caps))]
     (rt/get-runtime context)))
 
 
-(def missing-ref-item (cs/make-completions-reference-item
+(def missing-ref-item (cap/make-completions-reference-item
                        (eg/make-prompt-reference "missing-prompt-ref")
                        (fn [{:keys [ref argument]}]
                          [:prompt argument])))
 
 
-(def prompt-ref-item (cs/make-completions-reference-item
+(def prompt-ref-item (cap/make-completions-reference-item
                       (eg/make-prompt-reference "test-prompt-ref")
                       (fn [{:keys [ref argument]}]
                         [:prompt argument])))
 
 
-(def resource-ref-item (cs/make-completions-reference-item
+(def resource-ref-item (cap/make-completions-reference-item
                         (eg/make-resource-template-reference "res://test")
                         (fn [{:keys [ref argument]}]
                           [:resource argument])))
@@ -70,58 +71,49 @@
 
 (def runtime-server-caps
   "Runtime with server capabilities"
-  (let [completions-cap (cap/make-completions-capability [prompt-ref-item]
-                                                         [resource-ref-item])
+  (let [completions-cap (ic/make-completions-capability [prompt-ref-item]
+                                                        [resource-ref-item])
         prompts-cap (-> (eg/make-prompt "prompt1")
-                        (cap/make-prompts-capability-item (fn [kwargs]
-                                                            {:out :prompt1}))
+                        (ic/make-prompts-capability-item (fn [kwargs]
+                                                           {:out :prompt1}))
                         vector
-                        cap/make-prompts-capability)
+                        ic/make-prompts-capability)
         resource-cap-item (-> (eg/make-resource "test://resource1" "resource1")
-                              (cap/make-resources-capability-resource-item
+                              (ic/make-resources-capability-resource-item
                                (fn [{uri :uri
                                      :as kwargs}]
                                  {:out :resource1
                                   :uri uri})))
         template-cap-item (-> (eg/make-resource-template "test://res/{id}" "template1")
-                              (cap/make-resources-capability-resource-template-item
+                              (ic/make-resources-capability-resource-template-item
                                (fn [{uri :uri
                                      {id :id} :params
                                      :as kwargs}]
                                  {:out :template1
                                   :uri uri
                                   :id id})))
-        resources-cap (cap/make-resources-capability [resource-cap-item]
-                                                     [template-cap-item])
+        resources-cap (ic/make-resources-capability [resource-cap-item]
+                                                    [template-cap-item])
         tools-cap (-> (eg/make-tool "tool1"
                                     (-> {"a" {:type "number" :description "first number"}
                                          "b" {:type "number" :description "second number"}}
                                         (eg/make-tool-input-output-schema ["a" "b"])))
-                      (cap/make-tools-capability-item (fn [{:keys [^long a ^long b]}]
-                                                        {:out (+ a b)}))
+                      (ic/make-tools-capability-item (fn [{:keys [^long a ^long b]}]
+                                                       {:out (+ a b)}))
                       vector
-                      cap/make-tools-capability)
-        server-caps (-> cap/default-server-capabilities
-                        (cap/update-completions-capability completions-cap)
-                        (cap/update-prompts-capability prompts-cap)
-                        (cap/update-resources-capability resources-cap)
-                        (cap/update-tools-capability tools-cap))
+                      ic/make-tools-capability)
+        server-caps (-> ic/default-server-capabilities
+                        (ic/update-completions-capability completions-cap)
+                        (ic/update-prompts-capability prompts-cap)
+                        (ic/update-resources-capability resources-cap)
+                        (ic/update-tools-capability tools-cap))
         context (-> {}
                     (rt/?server-capabilities server-caps))]
     (rt/get-runtime context)))
 
 
 (def runtime-server-session
-  (let [context {}
-        server-session (rs/set-server-session context :test-session-id
-                                              (fn [context message]
-                                                #_(u/eprintln "->Client:"
-                                                              message)))
-        context (-> context
-                    (rt/upsert-runtime runtime-server-caps)
-                    (rt/?session server-session))]
-    (rs/set-initialized-timestamp context)
-    (rt/get-runtime context)))
+  (ts/make-runtime-server-session runtime-server-caps))
 
 
 ;; --- Server tests ---
@@ -132,10 +124,10 @@
     (is (thrown-with-msg?
          ExceptionInfo #"Expected container-map to have path.+"
          (-> (rt/upsert-runtime {} runtime-empty)
-             (rs/log-0-emergency "test-log"))))
+             (rs/log sd/log-level-0-emergency "test-log"))))
     (is (= nil
            (-> (rt/upsert-runtime {} runtime-server-session)
-               (rs/log-0-emergency "test-log")))))
+               (rs/log sd/log-level-0-emergency "test-log")))))
   (testing "setLevel (logging)"
     (is (= {:jsonrpc "2.0"
             :error {:code sd/error-code-invalid-request
@@ -403,7 +395,7 @@
     (is (= {:result {}}
            (-> sd/method-notifications-roots-list_changed
                eg/make-notification
-               (rt/upsert-runtime runtime-client-caps)
+               (rt/upsert-runtime runtime-server-session)
                im/notifications-roots-list_changed))))
   (testing "client-only notification handlers"
     (is (= {:result {}}

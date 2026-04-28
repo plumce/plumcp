@@ -5,22 +5,35 @@
 [![Clojurians Slack](https://img.shields.io/badge/clojurians-%23plumcp-4A154B?logo=slack)](https://clojurians.slack.com/archives/plumcp)
 [![Ask DeepWiki (useful but watch  for hallucinations)](https://deepwiki.com/badge.svg)](https://deepwiki.com/plumce/plumcp)
 
+**[Model Context Protocol (MCP)](https://modelcontextprotocol.io/) SDK
+for Java and JavaScript runtimes. Build MCP clients and servers using
+[Clojure](https://clojure.org)/[ClojureScript](https://clojurescript.org).**
 
-PluMCP is a low-dependency
-[Clojure](https://clojure.org)/[ClojureScript](https://clojurescript.org)
-library for making
-[Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
+PluMCP is a low-dependency Clojure/ClojureScript library for making MCP
 clients and servers. Connect your business (data, process and software)
 with AI Agents using MCP and idiomatic Clojure.
 
 ### Rationale
 
-- _Complete:_ Enjoy almost all non-deprecated MCP features and transports
+- _Complete:_ Enjoy all non-deprecated MCP features and transports
 - _Reach:_ Clojure/ClojureScript reaches Java/JavaScript eco-systems
 - _Ergonomic:_ User-friendly API, automatic error-checking
 - _Light:_ Low dependency, Bring your own dependency
 - _Flexible:_ Composable design with configurable/overridable defaults
 - _Secure:_ OAuth 2.1 integrated with Streamable HTTP transport
+
+## Who is using PluMCP?
+
+- [Editor Code Assistant](https://eca.dev/)
+- [Nubank](https://nubank.com.br/)
+- [\<_Using PluMCP? Tell us!_\>](https://clojurians.slack.com/archives/plumcp)
+  ([Need invite?](http://clojurians.net/))
+
+## Funding and Support
+
+_Show your support, star the Github repo!_
+
+You can sponsor this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
 
 ## Development
 
@@ -48,10 +61,6 @@ Module release:
 make install-all-modules
 make clean-all-modules
 ```
-
-## Funding and Support
-
-You can support this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
 
 # License
 

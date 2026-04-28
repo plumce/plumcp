@@ -16,11 +16,13 @@
    #?(:cljs [plumcp.core.util-cljs :as us]
       :clj [plumcp.core.util-java :as uj])
    #?(:clj [plumcp.core.util.json :as json])
+   [clojure.core.protocols :as cp]
    [clojure.pprint :as pp]
    [clojure.string :as str])
   #?(:cljs (:require-macros [plumcp.core.util :refer [catch!]])
      :clj (:import
            [clojure.lang ExceptionInfo]
+           [java.io PrintWriter]
            [java.net URLDecoder URLEncoder]
            [java.nio.charset StandardCharsets]
            [java.text SimpleDateFormat]
@@ -159,7 +161,7 @@
     s))
 
 
-;; --- common predicates ---
+;; --- Common predicates ---
 
 
 (defn non-empty-string?
@@ -255,6 +257,28 @@
              map))
 
 
+(defn dict-assoc
+  "Assoc K/values in a dictionary (bi-directional map) where both K and
+   each value are keys of the same map."
+  [m k values]
+  (-> (assoc m k values)
+      (merge (zipmap values (repeat k)))))
+
+
+(defn dict-dissoc
+  "Dissoc K from a dictionary (bi-directional map) where both K and
+   (each of) the corresponding values are keys of the same map."
+  [m k]
+  (if (contains? m k)
+    (let [v (get m k)]
+      (-> (if (coll? v)
+            (-> dict-dissoc
+                (reduce m v))
+            (dissoc m v))
+          (dissoc k)))
+    m))
+
+
 ;; --- Exception convenience ---
 
 
@@ -266,7 +290,7 @@
     `(try
        [(do ~@body) nil]
        (catch :default ex#  ; catch everything, not just js/Error
-               [nil ex#]))
+         [nil ex#]))
     `(try
        [(do ~@body) nil]
        (catch Exception ex# ; Throwable is NOT meant to be handled
@@ -358,11 +382,18 @@
    (apply f arg more)))
 
 
+(defn only-if
+  "Return `x` only when `(pred x)` returns truthy, `y` otherwise."
+  [pred x y]
+  (if (pred x)
+    x
+    y))
+
+
 (defn only-when
-  "Return argument only when `(pred x)` returns truthy, `nil` otherwise."
+  "Return `x` only when `(pred x)` returns truthy, `nil` otherwise."
   [pred x]
-  (when (pred x)
-    x))
+  (only-if pred x nil))
 
 
 (defn tee
@@ -445,7 +476,11 @@
   [printer-f & args]
   (let [s (with-out-str (apply printer-f args))]
     #?(:cljs (if us/env-node-js?
-               (.write js/process.stderr s) ; print no extra newline
+               (do (.write js/process.stderr s) ; print no extra newline
+                   ; Returns: false if the stream wishes for the calling
+                   ; code to wait for the 'drain' event to be emitted before
+                   ; continuing to write additional data; otherwise true
+                   nil)
                (js/console.error s))
        :clj (binding [*out* *err*]
               (print s)
@@ -476,6 +511,40 @@
   (err pp/pprint arg))
 
 
+(defn humanize
+  "Make given value (maybe large graph of data) human-readable for the
+   ultimate purpose of human-inspection. Original data is transformed."
+  [x]
+  (let [primitive? (fn [y] (or (nil? y)
+                               (string? y)
+                               (number? y)
+                               (boolean? y)
+                               (char? y)
+                               (keyword? y)
+                               (symbol? y)))
+        x (try
+            (cp/datafy x)
+            (catch #?(:clj Exception :cljs :default) _
+              x))]
+    (cond
+      (primitive? x) x
+      (map? x)       (reduce-kv
+                      (fn [m k v]
+                        (assoc m (humanize k)
+                               (humanize v)))
+                      (empty x)
+                      x)
+      (vector? x)    (mapv humanize x)
+      (set? x)       (into (empty x) (map humanize x))
+      (list? x)      (apply list (map humanize x))
+      (seq? x)       '<lazy-seq>
+      (volatile? x)  '<volatile>
+      (derefable? x) '<to-deref>
+      (var? x)       (str x)
+      (fn? x)        '<fn>
+      :else          '<+>)))
+
+
 (defn dprint
   "Pretty-print for debugging."
   [header data]
@@ -484,16 +553,18 @@
     (eprintln h-line)
     (eprintln header)
     (eprintln h-line)
-    (epprint data)
+    (epprint (humanize data))
     (eprintln e-line)
-    (eprintln)))
+    (eprintln))
+  data)
 
 
 (defn print-stack-trace
+  "Print stack trace to the STDERR or error console."
   [e]
   (eprintln e)
   #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
-     :clj (.printStackTrace ^Throwable e)))
+     :clj (.printStackTrace ^Throwable e ^PrintWriter *err*)))
 
 
 (defn wraptee

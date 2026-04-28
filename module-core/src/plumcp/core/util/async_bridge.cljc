@@ -65,8 +65,7 @@
   (assert (or (symbol? reject-sym)
               (nil? reject-sym)) "reject-sym must be a symbol")
   (let [reject-sym (or reject-sym (gensym "reject"))
-        [options body] (if (and (> (count opts+body) 1)
-                                (map? (first opts+body)))
+        [options body] (if (> (count opts+body) 1)
                          [(first opts+body) (rest opts+body)]
                          [{} opts+body])]
     (if (:ns &env) ;; :ns only exists in CLJS
@@ -75,7 +74,7 @@
                                               ~@body
                                               (catch js/Error e#
                                                 (~reject-sym e#)))))
-             options# ~options
+             options# (u/only-if map? ~options {})
              timeout-millis# (:timeout-millis options#)]
          (if (nil? timeout-millis#)
            result-promise#
@@ -90,7 +89,7 @@
                              (string? error#) (u/throw! error#)
                              (map? error#) (u/throw! "Error" error#)
                              :else (u/throw! "Error" {:context error#})))
-             options# ~options
+             options# (u/only-if map? ~options {})
              timeout-millis# (:timeout-millis options#)]
          (u/background
            (try
@@ -144,6 +143,42 @@
     `(let [~binding-sym ~val-or-prom
            ~@more]
        ~@body)))
+
+
+(defn until
+  "Sleep until a condition or a timeout is met, returning a value (after
+   blocking) in CLJ or js/Promise in CLJS. When `f-check` is specified,
+   keep invoking `(f-check)` repeatedly at `idle-millis` interval until
+   it returns truthy, which is finally returned. Return timeout value on
+   timeout if timeout params are passed."
+  ([f-check ^long idle-millis ^long timeout-millis timeout-value]
+   #?(:cljs (-> (until f-check idle-millis)
+                (timeout-promise timeout-millis timeout-value))
+      :clj (let [start (u/now-millis)]
+             (loop [result (f-check)]
+               (or result (if (>= (u/now-millis start)
+                                  timeout-millis)
+                            timeout-value
+                            (do
+                              (Thread/sleep idle-millis)
+                              (recur (f-check)))))))))
+  ([f-check ^long idle-millis]
+   #?(:cljs (let [check (fn thisfn [return]
+                          (may-await [r (f-check)]
+                            (if r
+                              (return r)
+                              (js/setTimeout #(thisfn return)
+                                             idle-millis))))]
+              (js/Promise. check))
+      :clj (loop [r (f-check)]
+             (or r (do
+                     (Thread/sleep idle-millis)
+                     (recur (f-check)))))))
+  ([^long idle-millis]
+   #?(:cljs (js/Promise. (fn [return]
+                           (js/setTimeout #(return nil)
+                                          idle-millis)))
+      :clj (Thread/sleep idle-millis))))
 
 
 (defn iterator?
@@ -241,7 +276,7 @@
             (u/expected! iterator "an iterator"))))
 
 
-(defmacro await->
+(defmacro may-await->
   "Equivalent of clojure.core/-> for awaitable intermediate results."
   [expr & forms]
   (let [result-sym (gensym 'result)
@@ -257,7 +292,7 @@
        ~result-sym)))
 
 
-(defmacro await->>
+(defmacro may-await->>
   "Equivalent of clojure.core/->> for awaitable intermediate results."
   [expr & forms]
   (let [result-sym (gensym 'result)
@@ -274,7 +309,7 @@
        ~result-sym)))
 
 
-(defmacro await-as->
+(defmacro may-await-as->
   "Equivalent of clojure.core/as-> for awaitable intermediate results."
   [expr name & forms]
   `(may-await [~name ~expr

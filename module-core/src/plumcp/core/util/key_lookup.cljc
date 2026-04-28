@@ -62,7 +62,17 @@
   (#?(:cljs -invoke
       :clj invoke) [this context-map f arg1 arg2] (f-update context-map
                                                             this f
-                                                            arg1 arg2)))
+                                                            arg1 arg2))
+  (#?(:cljs -invoke
+      :clj invoke) [this context-map f
+                    arg1 arg2 arg3] (f-update context-map
+                                              this f
+                                              arg1 arg2 arg3))
+  (#?(:cljs -invoke
+      :clj invoke) [this context-map f
+                    arg1 arg2 arg3 arg4] (f-update context-map
+                                                   this f
+                                                   arg1 arg2 arg3 arg4)))
 
 
 (defn keydef?

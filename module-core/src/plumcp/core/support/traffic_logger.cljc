@@ -13,7 +13,8 @@
    [clojure.string :as str]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
-   [plumcp.core.util :as u :refer [#?(:cljs format)]]))
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]
+   [plumcp.core.util.ring-util :as uru]))
 
 
 (def nop-traffic-logger
@@ -48,13 +49,14 @@
   (-> "%s[%d] %s"
       (format prefix
               (:status response)
-              (let [ct (get-in response [:headers "Content-Type"])]
-                (case ct
-                  nil                ""
-                  "application/json" "JSON"
+              (let [mt (-> (get-in response [:headers "Content-Type"])
+                           uru/content-type->media-type)]
+                (case mt
+                  nil? ""
+                  "application/json"  "JSON"
                   "text/event-stream" "SSE Stream"
                   "text/plain"        "Plaintext"
-                  ct)))
+                  mt)))
       u/eprintln))
 
 

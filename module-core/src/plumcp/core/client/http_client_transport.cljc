@@ -13,10 +13,13 @@
    [clojure.string :as str]
    [plumcp.core.client.client-support :as cs]
    [plumcp.core.client.http-client-transport-auth :as hcta]
+   [plumcp.core.constant :as const]
    [plumcp.core.protocol :as p]
+   [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
-   [plumcp.core.util :as u]
-   [plumcp.core.util.async-bridge :as uab]))
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]
+   [plumcp.core.util.async-bridge :as uab]
+   [plumcp.core.util.ring-util :as uru]))
 
 
 (defn make-streamable-http-transport
@@ -26,18 +29,14 @@
    :auth-options      - (default: auth disabled) OAuth handling options
                         see p.c.c.h-c-t-a/make-client-auth-options
    :get-auth-tokens   - (fn [headers-lower auth-options])->tokens
-                        see p.c.c.h-c-t-a/get-tokens
-   :on-other-response - (fn [response]) - unexpected response handler"
+                        see p.c.c.h-c-t-a/get-tokens"
   [http-client
    & {:keys [start-get-stream?
              ^{:see [hcta/make-client-auth-options]} auth-options
-             ^{:see [hcta/get-tokens]} get-auth-tokens
-             on-other-response]
+             ^{:see [hcta/get-tokens]} get-auth-tokens]
       :or {start-get-stream? true
            auth-options      {:auth-enabled? false}
-           get-auth-tokens   hcta/get-tokens
-           on-other-response #(-> "[Streamable HTTP Response]"
-                                  (u/eprintln %))}}]
+           get-auth-tokens   hcta/get-tokens}}]
   (let [auth-enabled? (boolean (:auth-enabled? auth-options))
         tokens->hdrs  (fn [tokens]
                         {"Authorization" (str "Bearer "
@@ -78,38 +77,84 @@
                             (dissoc jsonrpc-message)
                             u/json-write  ; encode message as JSON body
                             (assoc post-request :body)))
+        ->media-type (fn [headers-lower]
+                       (-> (get headers-lower "content-type")
+                           uru/content-type->media-type))
         receive-msg (fn [message-str headers-lower]
                       (as-> (u/json-parse message-str) $  ; decode JSON msg
                         (wrap-message $ headers-lower)
                         (u/invoke (deref msg-receiver) $)))
-        get-thread  (volatile! nil)
-        set-thread! (fn [] #?(:clj (vreset! get-thread
-                                            (Thread/currentThread))))
-        int-thread! (fn [] (when-let [thread (deref get-thread)]
-                             (.interrupt ^java.lang.Thread thread)))
-        on-response (fn [retry-401 response-or-promise]
+        http-errmsg (fn [status]
+                      (-> "Received HTTP %d response"
+                          (format status)))
+        jsonrpc-err (fn [status data]
+                      (let [err-data (merge {:synthetic? true}
+                                            (u/only-if map? data
+                                                       {:payload data}))]
+                        (-> sd/error-code:http->jsonrpc
+                            (get status sd/error-code-internal-error)
+                            (jr/jsonrpc-failure (http-errmsg status)
+                                                err-data))))
+        receive-err (fn [status message-str headers-lower]
+                      ;; We assume we are receiving JSON-RPC response
+                      ;; (otherwise coerced as one) even though it might
+                      ;; as well be a JSON-RPC request or notification
+                      (let [je (if (#{"application/json"
+                                      "text/event-stream"}
+                                    (->media-type headers-lower))
+                                 (let [data (u/json-parse message-str)]
+                                   (if (jr/jsonrpc-message? data)
+                                     ;; already a JSON-RPC message
+                                     (update-in data [:error :message]
+                                                #(or % ; server msg wins
+                                                     (http-errmsg status)))
+                                     ;; synthesize a JSON-RPC error
+                                     (jsonrpc-err status data)))
+                                 ;; server did not send JSON
+                                 (jsonrpc-err status message-str))]
+                        (as-> je $
+                          (assoc-in $ [:error
+                                       const/http-status-key] status)
+                          (wrap-message $ headers-lower)
+                          (u/invoke (deref msg-receiver) $))))
+        on-response (fn [retry-401 status-handlers response-or-promise]
                       (uab/let-await [response response-or-promise]
                         (let [status (:status response)
                               headers (:headers response)
                               headers-lower (update-keys headers
-                                                         str/lower-case)]
+                                                         str/lower-case)
+                              media-type (->media-type headers-lower)
+                              rx-err (fn [err-text]
+                                       (receive-err status
+                                                    err-text
+                                                    headers-lower))
+                              on-err (fn []
+                                       (-> (if (= media-type
+                                                  "text/event-stream")
+                                             (:on-sse response)
+                                             (:on-msg response))
+                                           (u/invoke rx-err)))]
                           (cond
                             ;;
                             ;; SSE body
                             ;;
                             (and (= 200 status)
-                                 (= (get headers-lower "content-type")
-                                    "text/event-stream"))
+                                 (= media-type "text/event-stream"))
                             (-> (:on-sse response)
                                 (u/invoke #(receive-msg % headers-lower)))
                             ;;
                             ;; JSON body
                             ;;
                             (and (= 200 status)
-                                 (= (get headers-lower "content-type")
-                                    "application/json"))
+                                 (= media-type "application/json"))
                             (-> (:on-msg response)
                                 (u/invoke #(receive-msg % headers-lower)))
+                            ;;
+                            ;; No body (for sent notification/response)
+                            ;;
+                            (and (= 202 status)
+                                 (nil? media-type))
+                            nil  ; do nothing, server accepted request
                             ;;
                             ;; Auth error
                             ;;
@@ -122,45 +167,64 @@
                               (uab/may-await [tokens sora-tokens]
                                 (u/dprint "Retrying-401 with" tokens)
                                 (retry-401 (tokens->hdrs tokens)))
-                              (on-other-response response))
+                              (on-err))
+                            ;;
+                            ;; Caller's status handling (exceptions)
+                            ;;
+                            (contains? status-handlers status)
+                            (-> status-handlers
+                                (get status)
+                                (u/invoke response))
                             ;;
                             ;; Error, perhaps
+                            ;; 400=Bad request or not Initialized yet
+                            ;; 404=Server session does not exist
+                            ;; 500=Internal server error
+                            ;; ...and more...
                             ;;
                             :else
-                            (on-other-response response)))))
+                            (on-err)))))
         post-message (fn thisfn [message extra-headers]
                        (->> post-request
                             (wrap-reqhdrs message)
                             (wrap-headers extra-headers)
                             (wrap-reqbody message)
                             (p/http-call http-client)
-                            (on-response (partial thisfn message))))
+                            (on-response (partial thisfn message)
+                                         {})))
+        stream-unsup {405 (fn [_]
+                            (u/eprintln
+                             "Server does not support GET-stream"))}
         fetch-stream (fn thisfn [success extra-headers]
-                       (try
-                         (set-thread!)
-                         (->> get-request
-                              (wrap-reqhdrs success)
-                              (wrap-headers extra-headers)
-                              (p/http-call http-client)
-                              (on-response (partial thisfn success)))
-                         #?(:clj (catch java.io.IOException _
-                                   (u/eprintln "Got IOException")))
-                         (finally
-                           (u/eprintln "Exiting GET-stream"))))]
+                       (let [f #(->> get-request
+                                     (wrap-reqhdrs success)
+                                     (wrap-headers extra-headers)
+                                     (p/http-call http-client)
+                                     (on-response (partial thisfn
+                                                           success)
+                                                  stream-unsup))]
+                         #?(:cljs
+                            (f)
+                            :clj
+                            (try
+                              (f)
+                              (catch java.io.IOException _
+                                (u/eprintln
+                                 "Got IOException reading GET-stream, retrying")
+                                (try
+                                  (f)
+                                  (catch java.io.IOException _ nil)))
+                              (finally
+                                (u/eprintln "Stopped fetching GET-stream"))))))]
     (reify
       p/IClientTransport
       (client-transport-info [_] (merge (p/client-info http-client) {:id :http}))
       (start-client-transport [_ on-message] (vreset! msg-receiver
                                                       on-message))
       (stop-client-transport! [_ _force?] (do
-                                            (u/eprintln "Stopping transport:---")
-                                            (u/eprintln "Interrupting GET thread")
-                                            (int-thread!)
-                                            (u/eprintln "Calling HTTP DELETE")
                                             (->> {:request-method :delete
                                                   :headers (get-auth-hdrs)}
                                                  (p/http-call http-client))
-                                            (u/eprintln "Closing HTTP Client")
                                             (p/stop! http-client)))
       (send-message-to-server [_ message] (post-message message
                                                         (get-auth-hdrs)))

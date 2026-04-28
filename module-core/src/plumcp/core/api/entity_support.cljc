@@ -85,6 +85,15 @@
       eg/make-call-tool-result))
 
 
+(defn make-text-tool-result-error
+  "Make single text call-tool result as an error."
+  [text]
+  (-> text
+      eg/make-text-content
+      vector
+      (eg/make-call-tool-result {:error? true})))
+
+
 (defn make-image-tool-result
   "Make single image call-tool result."
   [image mime-type]
@@ -128,3 +137,33 @@
       eg/make-embedded-resource
       vector
       eg/make-call-tool-result))
+
+
+;; --- Sampling ---
+
+
+(defn ^{:see [eg/make-sampling-message]} make-sampling-text-message
+  "Make sampling message from given role, text (content) and options."
+  [role text & {:as options}]
+  (->> (eg/make-text-content text options)
+       (eg/make-sampling-message role)))
+
+
+(defn ^{:see [eg/make-create-message-request]}
+  make-sampling-text-message-request
+  "Make sampling message request from given role, text (content) and
+   options."
+  [role text max-token-count & {:as options}]
+  (-> (make-sampling-text-message role text options)
+      vector
+      (eg/make-create-message-request max-token-count options)))
+
+
+(defn ^{:see [eg/make-create-message-result]}
+  make-sampling-text-message-result
+  "Make sampling message result from given model-name, role, text (content)
+   and options."
+  [model-name role text & {:as options}]
+  (eg/make-create-message-result model-name role
+                                 (eg/make-text-content text options)
+                                 options))

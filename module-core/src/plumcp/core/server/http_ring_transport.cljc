@@ -19,6 +19,7 @@
    [plumcp.core.server.http-ring-stream :as hrs]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
+   [plumcp.core.util.ring-util :as uru]
    [plumcp.core.util.stream :as um]))
 
 
@@ -59,15 +60,6 @@
 ;; --- Utility ---
 
 
-(defn header-contains?
-  [request header-name expected-header-value]
-  (if-let [header-value (get-in request [:headers header-name])]
-    (->> (str/split header-value #"[,;]")
-         (some #(= expected-header-value (str/trim %)))
-         boolean)
-    false))
-
-
 (defn plain-response
   "Return a Ring response with given status and text/plain body."
   ([status body]
@@ -79,16 +71,19 @@
        (update :headers merge headers))))
 
 
+(defn json-response
+  "Return a Ring response with given status and data body, which will be
+   converted to application/json by the JSON middleware."
+  ([status data]
+   {:status status
+    :headers {}
+    :body data})
+  ([status headers body]
+   (-> (json-response status body)
+       (update :headers merge headers))))
+
+
 ;; --- JSON-RPC middleware ---
-
-
-(defn jsonrpc-message?
-  "Return true if argument is a JSON-RPC message (request, notification
-   or response), false otherwise."
-  [msg]
-  (or (jr/jsonrpc-request? msg)
-      (jr/jsonrpc-notification? msg)
-      (jr/jsonrpc-response? msg)))
 
 
 (defn jsonrpc-response->http-status
@@ -98,14 +93,7 @@
     (cond
       (jr/jsonrpc-error? jsonrpc-response)
       (let [error-code (get-in jsonrpc-response [:error :code])]
-        (get {; standard JSON-RPC error codes
-              sd/error-code-parse-error 500
-              sd/error-code-invalid-request 400
-              sd/error-code-method-not-found 404
-              sd/error-code-invalid-params 500
-              sd/error-code-internal-error 500
-              ;; MCP-specific codes
-              sd/error-code-request-timed-out 408}
+        (get sd/error-code:jsonrpc->http
              error-code
              500))
       (jr/jsonrpc-result? jsonrpc-response)
@@ -218,8 +206,8 @@
          lone-polling-millis 10}}]
   (fn mcp-sse-or-jsonrpc-handler [request]
     (if (contains? #{:get :post} (:request-method request))
-      (let [sse-eligible? (and (header-contains? request "accept"
-                                                 ct-text-sse)
+      (let [sse-eligible? (and (-> (uru/accept-media-types request)
+                                   (contains? ct-text-sse))
                                (rt/has-session? request))
             method (:request-method request)
             request-body (:body request)
@@ -245,7 +233,7 @@
           ;; POST request
           ;;
           (= :post method)
-          (if (header-contains? request "content-type" ct-app-json)
+          (if (= (uru/content-media-type request) ct-app-json)
             (cond
               ;;
               ;; JSON-RPC request
@@ -327,7 +315,7 @@
 (defn wrap-json-request
   [handler]
   (fn json-request-middleware [request]
-    (if (header-contains? request "content-type" ct-app-json)
+    (if (= (uru/content-media-type request) ct-app-json)
       (let [[maybe-text body-ex] (u/catch! (-> (:on-msg request)
                                                (u/invoke identity)))]
         (if (some? body-ex)
@@ -435,6 +423,22 @@
       (ring-handler request))))
 
 
+(defn wrap-session-not-found
+  "If the session exists but the session value is nil, it is because the
+   session-ID is not valid - return 404 as per the MCP spec.
+   See: `ring-session-request`."
+  [ring-handler]
+  (fn session-not-found-handler [request]
+    (if (and (rt/has-session? request)
+             (nil? (rt/?session request)))
+      (let [request-id (get-in request [:body :id])]
+        (-> sd/error-code-method-not-found
+            (jr/jsonrpc-failure "Session-ID is not associated with any session")
+            (jr/add-jsonrpc-id request-id)
+            (->> (json-response 404))))
+      (ring-handler request))))
+
+
 (defn ring-session-request [request]
   (if-let [session-id (get-in request
                               [:headers
@@ -443,8 +447,11 @@
       (do
         (rs/remove-server-session request session-id)
         request)
-      (let [session (rs/get-server-session request session-id)]
-        (rt/?session request session)))
+      (let [session-or-nil (rs/get-server-session request session-id)]
+        ;; we handle nil session in `wrap-session-not-found`
+        (-> request
+            (rt/?session-id session-id)
+            (rt/?session session-or-nil))))
     (if (= sd/method-initialize
            (get-in request [:body :method]))  ; method is 'initialize'
       ;; attach a removable session
@@ -472,7 +479,10 @@
       (let [session-id (get-in request
                                [:headers
                                 sd/mcp-session-id-header-lower])]
-        (if (jr/jsonrpc-result? (get response :body))
+        (if (or (jr/jsonrpc-result? (get response :body))
+                (and (= 200 (:status response))
+                     (= (uru/content-media-type response "Content-Type")
+                        ct-text-sse)))
           ;; response is a success, so add session ID to response header
           (assoc-in response
                     [:headers sd/mcp-session-id-header]
@@ -627,9 +637,7 @@
                    :expected ct-app-json
                    :actual (get-in request [:headers "content-type"])
                    :match? (match? (case (:request-method request)
-                                     :post (= (get-in request
-                                                      [:headers
-                                                       "content-type"])
+                                     :post (= (uru/content-media-type request)
                                               ct-app-json)
                                      :get true
                                      true))}
@@ -638,9 +646,8 @@
                                      ct-app-json
                                      ct-text-sse)
                    :actual (get-in request [:headers "accept"])
-                   :match? (let [a (get-in request [:headers "accept"])]
-                             (match? (or
-                                      (str/includes? a ct-text-sse)
-                                      (str/includes? a ct-app-json))))}]))]
+                   :match? (let [amt (uru/accept-media-types request)]
+                             (match? (or (contains? amt ct-text-sse)
+                                         (contains? amt ct-app-json))))}]))]
     (plain-response 400 (str "Invalid MCP/JSON-RPC request\n"
                              table))))

@@ -68,6 +68,8 @@
              http-version
              http-proxy
              http-redirect
+             ssl-context    ; must be javax.net.ssl.SSLContext or nil
+             ssl-params     ; must be javax.net.ssl.SSLParameters or nil
              traffic-logger
              timeout-millis]
       :or {authenticator (Authenticator/getDefault)
@@ -86,6 +88,7 @@
         ;; ---
         f-builder       (fn [^HttpClient$Builder
                              cb] {:client ^HttpClient (.build cb)
+                                  :!interrupted? (atom false)
                                   :logger traffic-logger})
         f-executor      (fn [^HttpClient$Builder
                              cb] (.executor cb vt-executor))
@@ -95,6 +98,10 @@
                              cb] (.version cb http-version))
         f-http-proxy    (fn [^HttpClient$Builder
                              cb] (.proxy cb http-proxy))
+        f-ssl-context   (fn [^HttpClient$Builder
+                             cb] (.sslContext cb ssl-context))
+        f-ssl-params    (fn [^HttpClient$Builder
+                             cb] (.sslParameters cb ssl-params))
         f-conn-timeout  (fn [^HttpClient$Builder
                              cb] (->> (Duration/ofMillis timeout-millis)
                                       (.connectTimeout cb)))
@@ -107,13 +114,17 @@
       timeout-millis (f-conn-timeout)
       http-redirect  (f-http-redirect)
       http-proxy     (f-http-proxy)
+      ssl-context    (f-ssl-context)
+      ssl-params     (f-ssl-params)
       :and-finally   (f-builder))))
 
 
 (defn stop-client!
-  [^HttpClient client]
+  [{:keys [^HttpClient client
+           !interrupted?]}]
   (let [^java.util.Optional op (.executor client)
         ^Executor e (.get op)]
+    (reset! !interrupted? true)
     (.shutdownNow ^ExecutorService e)  ; is an ExecutorService instance
     (.close ^HttpClient client)
     (System/gc)))
@@ -209,12 +220,20 @@
 
 
 (defn make-call [{:keys [^HttpClient client
+                         !interrupted?
                          logger]} ring-request]
   (p/log-http-request logger ring-request)
-  (let [^HttpRequest  request  (make-request ring-request)
-        ^HttpResponse response (.send client request
-                                      body-handler-input-stream)]
-    (-> (make-ring-response response)
-        (u/dotee #(if (<= 200 (:status %) 299)
-                    (p/log-http-response logger %)
-                    (p/log-http-failure logger %))))))
+  (try
+    (let [^HttpRequest  request  (make-request ring-request)
+          ^HttpResponse response (.send client request
+                                        body-handler-input-stream)]
+      (-> (make-ring-response response)
+          (u/dotee #(if (<= 200 (:status %) 299)
+                      (p/log-http-response logger %)
+                      (p/log-http-failure logger %)))))
+    ;; GET (stream) thread is interrupted when HTTP transport is stopped
+    (catch InterruptedException e
+      (.interrupt (Thread/currentThread))
+      (if (deref !interrupted?)
+        nil
+        (throw e)))))

@@ -9,14 +9,16 @@
 
 (ns plumcp.core.test.test-util
   #?(:cljs (:require
-            [clojure.test :as t :include-macros true]
             ["wait-sync" :as wait-sync]
+            [clojure.test :as t :include-macros true]
+            [plumcp.core.test.test-util-node :as tun]
             [plumcp.core.util :as u]
             [plumcp.core.util.async-bridge :as uab])
      :clj (:require
            [clojure.edn :as edn]
            [clojure.string :as str]
            [clojure.test :as t]
+           [plumcp.core.test.test-util-java :as tuj]
            [plumcp.core.util :as u]
            [plumcp.core.util-java :as uj]
            [plumcp.core.util.async-bridge :as uab]))
@@ -125,3 +127,30 @@
   `(async-each* ~coll (fn [next# ~each]
                         (uab/may-await [_# (do ~@body)]
                           (next#)))))
+
+
+(defmacro async-do
+  "Like `clojure.core/do`, but for async forms. Given zero or more forms
+   evaluate each form with `may-await`, weaving all forms into a `let`
+   chain in CLJ, or js/Promise chain in CLJS. Return a value in CLJ, or
+   js/Promise in CLJS.
+   This is useful for running several `(testing ...)` exprs in one test.
+   WARNING:
+   In CLJS too many forms may cause 'Out of heap space' memory error."
+  [& forms]
+  (let [bindings (interleave (repeat '_)
+                             forms)]
+    `(uab/may-await [~@bindings]
+       ~'_)))
+
+
+#?(:cljs (do
+           (tun/replace-reporter)  ; required for next steps
+           ;; Enable only one of the following
+           (tun/catch-and-stop!)
+           #_(tun/catch-and-continue!))
+   :clj (do
+          (tuj/replace-reporter)  ; required for next steps
+          ;; Enable only one of the following
+          (tuj/catch-and-stop!)
+          #_(tuj/catch-and-continue!)))

@@ -133,4 +133,5 @@
       (catch #?(:cljs js/Error
                 :clj Exception) ex
         (rs/log-mcpcall-failure kwargs ex)
-        (make-call-tool-result [] true)))))
+        (make-call-tool-result [(eg/make-text-content (ex-message ex))]
+                               true)))))

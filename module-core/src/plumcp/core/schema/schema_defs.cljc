@@ -22,9 +22,10 @@
 (def protocol-version-2025-11-25 "2025-11-25")  ; not implemented yet
 (def protocol-version-2025-06-18 "2025-06-18")
 (def protocol-version-2025-03-26 "2025-03-26")
-(def protocol-version-2024-11-05 "2024-11-05")
+(def protocol-version-2024-11-05 "2024-11-05")  ; not to be implemented
 
-(def protocol-versions-supported (-> [protocol-version-2025-06-18
+(def protocol-versions-supported (-> [protocol-version-2025-11-25
+                                      protocol-version-2025-06-18
                                       protocol-version-2025-03-26]
                                      sort
                                      reverse))
@@ -46,6 +47,21 @@
 ;; MCP-specific
 (def ^:const error-code-request-timed-out "Error code -32001" -32001)
 (def ^:const error-code-resource-not-found "Error code -32002" -32002)
+
+
+;; Error-code translation between JSON-RPC and HTTP
+(def error-code:jsonrpc->http {; standard JSON-RPC error codes
+                               error-code-parse-error 500
+                               error-code-invalid-request 400
+                               error-code-method-not-found 404
+                               error-code-invalid-params 500
+                               error-code-internal-error 500
+                               ;; MCP-specific codes
+                               error-code-request-timed-out 408})
+(def error-code:http->jsonrpc {400 error-code-invalid-request
+                               404 error-code-method-not-found
+                               408 error-code-request-timed-out
+                               500 error-code-internal-error})
 
 
 ;; ----- HTTP headers -----
@@ -825,14 +841,14 @@
 ;; ----- Logging -----
 
 
-(def log-level-0-emergency "emergency") ; system is unusable
-(def log-level-1-alert     "alert")     ; action must be taken immediately
-(def log-level-2-critical  "critical")  ; critical conditions
-(def log-level-3-error     "error")     ; error conditions
-(def log-level-4-warning   "warning")   ; warning conditions
-(def log-level-5-notice    "notice")    ; normal but significant condition
-(def log-level-6-info      "info")      ; informational messages
-(def log-level-7-debug     "debug")     ; debug-level messages
+(def log-level-0-emergency "System is unusable"            "emergency")
+(def log-level-1-alert     "Must take immediate action"        "alert")
+(def log-level-2-critical  "Critical conditions"            "critical")
+(def log-level-3-error     "Error conditions"                  "error")
+(def log-level-4-warning   "Warning conditions"              "warning")
+(def log-level-5-notice    "Normal but significant condition" "notice")
+(def log-level-6-info      "Informational messages"           "info")
+(def log-level-7-debug     "Debug-level messages"             "debug")
 
 (def log-level-indices {log-level-0-emergency 0
                         log-level-1-alert     1

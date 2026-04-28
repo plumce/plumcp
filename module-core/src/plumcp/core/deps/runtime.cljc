@@ -11,7 +11,7 @@
   "Runtime is nothing but a dependency bag of key-value pairs."
   (:require
    [plumcp.core.deps.session-mem :as sm]
-   [plumcp.core.impl.capability :as cap]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u]
@@ -176,8 +176,8 @@
 
 
 (defrtkey ?traffic-logger      {:default stl/nop-traffic-logger})
-(defrtkey ?client-capabilities {:default cap/default-client-capabilities})
-(defrtkey ?server-capabilities {:default cap/default-server-capabilities})
+(defrtkey ?client-capabilities {:default ic/default-client-capabilities})
+(defrtkey ?server-capabilities {:default ic/default-server-capabilities})
 (defrtkey ?notification-handlers
   {:default (zipmap
              [;; received by both client and server
@@ -203,7 +203,7 @@
 
 (defrtkey ?session-id {})
 (defrtkey ?session {})
-(defrtkey ?request-context {})
+(defrtkey ?callback-context {})
 (defrtkey ?request-id {})
 (defrtkey ?request-params-meta {})
 (defrtkey ?response-stream {})

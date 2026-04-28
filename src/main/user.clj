@@ -7,6 +7,9 @@
 ;   You must not remove this notice, or any other, from this software.
 
 
+(ns user)
+
+
 ;; Equivalent of the following in Leiningen project.clj:
 ;; ```
 ;; :global-vars {*warn-on-reflection* true
@@ -39,3 +42,7 @@
 (require '[clojure+.hashp])
 (clojure+.hashp/install!)
 
+
+;; Enable humane test output
+(require 'pjstadig.humane-test-output)
+(pjstadig.humane-test-output/activate!)

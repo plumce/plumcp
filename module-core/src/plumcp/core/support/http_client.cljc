@@ -36,7 +36,8 @@
                            client-context)]
     (reify
       p/IHttpClient
-      (client-info [_] {:default-uri default-uri})
+      (client-info [_] {:default-uri default-uri
+                        :client-context client-context})
       (http-call
         [_ request] (uab/let-await
                       [response (-> request
@@ -48,7 +49,7 @@
       p/IStoppable
       (stop!
         [_] #?(:cljs nil
-               :clj (hcp/stop-client! (:client client-context)))))))
+               :clj (hcp/stop-client! client-context))))))
 
 
 (defn stop-http-client
