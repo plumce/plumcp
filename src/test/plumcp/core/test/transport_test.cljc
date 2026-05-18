@@ -302,28 +302,24 @@
      (testing "process-stdin returns when *in* reaches EOF. Without
                this, a client closing the pipe leaves the server JVM
                spinning forever on (read-line) returning nil."
-       (let [calls   (atom [])
-             reader  (clojure.lang.LineNumberingPushbackReader.
-                      (java.io.StringReader. "line1\nline2\n"))
-             done    (promise)
-             _worker (doto (Thread.
-                            #(do
-                               (binding [*in* reader]
-                                 (stdio/process-stdin
-                                  (fn [line]
-                                    (when (some? line)
-                                      (swap! calls conj line)))))
-                               (deliver done :ok)))
-                       (.setDaemon true)
-                       (.setName "stdio-eof-test-worker")
-                       (.start))
-             result  (deref done 2000 :timeout)]
-         (is (= :ok result)
-             (str "process-stdin must return when stdin reaches EOF. "
-                  "Got :timeout, which means the loop kept calling "
-                  "process-line with nil and never terminated."))
-         (is (= ["line1" "line2"] @calls)
-             "all pre-EOF lines must have been delivered to process-line")))))
+       (let [calls  (atom [])
+             reader (clojure.lang.LineNumberingPushbackReader.
+                    (java.io.StringReader. "line1\nline2\n"))
+             done   (promise)]
+         (u/background
+          (binding [*in* reader]
+            (stdio/process-stdin
+             (fn [line]
+               (when (some? line)
+                 (swap! calls conj line)))))
+          (deliver done :ok))
+         (let [result (deref done 2000 :timeout)]
+           (is (= :ok result)
+               (str "process-stdin must return when stdin reaches EOF. "
+                    "Got :timeout, which means the loop kept calling "
+                    "process-line with nil and never terminated."))
+           (is (= ["line1" "line2"] @calls)
+               "all pre-EOF lines must have been delivered to process-line"))))))
 
 
 ;; Commented out because NOT ready to test in CLJS yet
