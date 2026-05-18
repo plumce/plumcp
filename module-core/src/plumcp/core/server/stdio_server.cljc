@@ -72,9 +72,10 @@
                                      :crlfDelay js/Infinity})
                (.on "line" (fn [line]
                              (process-line line))))
-     :clj (while true
-            (let [line (read-line)]
-              (process-line line)))))
+     :clj (loop []
+            (when-let [line (read-line)]
+              (process-line line)
+              (recur)))))
 
 
 (defn make-stdio-handler
