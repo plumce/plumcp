@@ -39,6 +39,8 @@ with AI Agents using MCP and idiomatic Clojure.
    aria-label="Star buttons/github-buttons on GitHub">Star</a>
 _Show your support, star the Github repo!_
 
+<script async defer src="https://buttons.github.io/buttons.js"></script>
+
 ### Fund this project
 
 - Sponsor this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
