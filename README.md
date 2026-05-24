@@ -31,9 +31,26 @@ with AI Agents using MCP and idiomatic Clojure.
 
 ## Funding and Support
 
-_Show your support, star the Github repo!_
+_Show your support, <a class="github-button"
+   href="https://github.com/buttons/github-buttons"
+   data-color-scheme="no-preference: light; light: light; dark: dark;"
+   data-icon="octicon-star"
+   data-size="large"
+   aria-label="Star buttons/github-buttons on GitHub">Star</a> the Github repo!_
 
-You can sponsor this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
+### Fund this project
+
+- Sponsor this project via [Github Sponsors](https://github.com/sponsors/kumarshantanu)
+- Hire [me](https://github.com/kumarshantanu) for consulting, development or training
+
+### Thank you, sponsors!
+
+Many thanks to [Clojurists Together](https://www.clojuriststogether.org/)
+for sponsoring this project for
+[Q2 2026](https://www.clojuriststogether.org/news/q2-2026-funding-announcement/).
+
+The scope of work for this sponsorship is documented
+[here](sponsorship-2026-q2-clojurists-together-plumcp-details.md).
 
 ## Development
 
