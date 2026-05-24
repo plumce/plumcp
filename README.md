@@ -31,12 +31,13 @@ with AI Agents using MCP and idiomatic Clojure.
 
 ## Funding and Support
 
-_Show your support, <a class="github-button"
+<a class="github-button"
    href="https://github.com/buttons/github-buttons"
    data-color-scheme="no-preference: light; light: light; dark: dark;"
    data-icon="octicon-star"
    data-size="large"
-   aria-label="Star buttons/github-buttons on GitHub">Star</a> the Github repo!_
+   aria-label="Star buttons/github-buttons on GitHub">Star</a>
+_Show your support, star the Github repo!_
 
 ### Fund this project
 
