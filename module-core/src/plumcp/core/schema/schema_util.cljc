@@ -14,6 +14,13 @@
    [plumcp.core.util :as u]))
 
 
+(defn ^:redef validate-schema
+  "Function (fn [spec])->spec that validates the Malli schema before it
+   is returned. Modules with Malli dependency should modify it in dev."
+  [spec]
+  spec)
+
+
 (defn map->kv-seq
   "Turn a map into a flat sequence of alternating key/val."
   [m]
@@ -56,7 +63,8 @@
   ([prop-key prop-spec & more]
    (->> (apply ts-attrs prop-key prop-spec more)
         (cons :map)
-        vec))
+        vec
+        validate-schema))
   ([props-map]
    (->> (map->kv-seq props-map)
         (apply ts-object))))
