@@ -73,23 +73,37 @@
 (defn ts-extends
   "Create Malli schema as in `ts-object` extending one or more TypeScript
    objects."
-  [multi-parent-definitions
-   child-prop-key child-prop-spec & more]
-  ;; multi-parent-definition should be a vector of zero or more definitions,
-  ;; multi-parent-definition should not be directly a definition
-  (assert (not= :map (first multi-parent-definitions)))
-  (let [child-attrs (apply ts-attrs child-prop-key child-prop-spec more)
-        multi-parent-attrs (mapcat rest multi-parent-definitions)
-        multi-parent-keys (->> multi-parent-attrs
-                               (map first)
-                               set)
-        common-keys (->> child-attrs
-                         (map first)
-                         (filter multi-parent-keys)
-                         set)
-        new-parent-attrs (->> multi-parent-attrs
-                              (remove (fn [[k & _]]
-                                        (contains? common-keys k))))]
-    (->> (concat new-parent-attrs child-attrs)
-         (cons :map)
-         vec)))
+  ([multi-parent-definitions
+    child-prop-key child-prop-spec & more]
+   ;; multi-parent-definition should be a vector of zero or more definitions,
+   ;; multi-parent-definition should not be directly a definition
+   (assert (not= :map (first multi-parent-definitions)))
+   (let [child-attrs (when (and child-prop-key
+                                child-prop-spec)
+                       (apply ts-attrs child-prop-key child-prop-spec more))
+         multi-parent-attrs (mapcat rest multi-parent-definitions)
+         all-parent-keys (map first multi-parent-attrs)
+         all-child-keys  (map first child-attrs)
+         all-common-keys (->> (concat all-parent-keys all-child-keys)
+                              frequencies
+                              (u/filter-vals #(> ^long % 1)))
+         all-parent-attrs (-> (fn [m [k & _more :as attr-spec]]
+                                (if (contains? m k)
+                                  (do  ; common parent keys must match specs
+                                    (->> (pr-str attr-spec)
+                                         (str "common parent attribute to match ")
+                                         (u/expected! (get m k) #(= attr-spec %)))
+                                    m)
+                                  (assoc m k attr-spec)))
+                              (reduce {} multi-parent-attrs)
+                              vals)
+         new-parent-attrs (->> all-parent-attrs
+                               (remove (fn [[k & _]]
+                                         (contains? all-common-keys k))))]
+     (->> (concat new-parent-attrs child-attrs)
+          (cons :map)
+          vec
+          validate-schema)))
+  ([multi-parent-definitions]
+   (ts-extends multi-parent-definitions
+               nil nil)))
