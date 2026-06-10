@@ -611,7 +611,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/InitializeResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-initialize!
   "Send initialize request to the MCP server and setup a session
@@ -697,7 +697,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListPromptsResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-list-prompts
   "Fetch (from server) and return the list of MCP prompts (value in CLJ,
@@ -723,7 +723,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListResourcesResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-list-resources
   "Fetch (from server) and return the list of MCP resources (value in
@@ -749,7 +749,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListResourceTemplatesResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-list-resource-templates
   "Fetch (from server) and return the list of MCP resource templates
@@ -776,7 +776,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListToolsResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-list-tools
   "Fetch (from server) and return the list of MCP tools (value in CLJ,

@@ -9,9 +9,11 @@
 
 (ns plumcp.core.schema.schema-defs
   "MCP JSON-RPC Schema
-   Ref:
-   1. https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/schema/2025-06-18/schema.ts
-   2. https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/schema/2025-03-26/schema.ts
+   Current:
+   https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts
+   Old:
+   2. https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/schema/2025-06-18/schema.ts
+   3. https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/schema/2025-03-26/schema.ts
 
    Adapted from the TypeScript file referenced above. This schema is in
    raw Malli format. Malli dependency/API is not required/referenced."
@@ -19,7 +21,7 @@
    [plumcp.core.schema.schema-util :as su]))
 
 
-(def protocol-version-2025-11-25 "2025-11-25")  ; not implemented yet
+(def protocol-version-2025-11-25 "2025-11-25")
 (def protocol-version-2025-06-18 "2025-06-18")
 (def protocol-version-2025-03-26 "2025-03-26")
 (def protocol-version-2024-11-05 "2024-11-05")  ; not to be implemented
@@ -47,6 +49,7 @@
 ;; MCP-specific
 (def ^:const error-code-request-timed-out "Error code -32001" -32001)
 (def ^:const error-code-resource-not-found "Error code -32002" -32002)
+(def ^:const error-code-user-elicitation-required "Error code -32042" -32042)
 
 
 ;; Error-code translation between JSON-RPC and HTTP
@@ -96,6 +99,10 @@
 (def method-resources-read "resources/read")
 (def method-prompts-get "prompts/get")
 (def method-completion-complete "completion/complete")
+(def method-tasks-list "tasks/list")
+(def method-tasks-cancel "tasks/cancel")
+(def method-tasks-get "tasks/get")
+(def method-tasks-result "tasks/result")
 
 ;; Server-requests expecting result
 (def method-sampling-createMessage "sampling/createMessage")
@@ -120,6 +127,8 @@
 (def method-notifications-prompts-list_changed "notifications/prompts/list_changed")
 (def method-notifications-tools-list_changed "notifications/tools/list_changed")
 (def method-notifications-roots-list_changed "notifications/roots/list_changed")
+(def method-notifications-tasks-status "notifications/tasks/status")
+(def method-notifications-elicitation-complete "notifications/elicitation/complete")
 
 
 ;; --- Result keys ---
@@ -141,44 +150,52 @@
 ;; --- Structures ---
 
 
+(def attr-map
+  "Map of (open ended) attribute names and corresponding values."
+  [:map-of [:or :keyword :string] :any])
+
 (def ProgressToken
   "A progress token, used to associate progress notifications with the
    original request."
   [:or :string number?])
 
+(def RequestParams
+  "Common params for any request."
+  (su/ts-object
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta?
+   (su/ts-object
+    ;; If specified, the caller is requesting out-of-band progress
+    ;; notifications for this request (as represented by notifications/progress).
+    ;; The value of this parameter is an opaque token that will be attached to
+    ;; any subsequent notifications. The receiver is not obligated to provide
+    ;; these notifications
+    :progressToken? ProgressToken)))
+
 (def Request
   (su/ts-object
    :method :string
-   :params? {;; See [specification/2025-06-18/basic/index#general-fields]
-             ;; for notes on _meta usage.
-             :_meta? {;; If specified, the caller is requesting out-of-band
-                      ;; progress notifications for this request (as
-                      ;; represented by notifications/progress). The
-                      ;; value of this parameter is an opaque token that
-                      ;; will be attached to any subsequent
-                      ;; notifications. The receiver is not obligated to
-                      ;; provide these notifications.
-                      :progressToken? ProgressToken}}))
+   :params? RequestParams))
+
+(def NotificationParams
+  (su/ts-object
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def Notification
   (su/ts-object
    :method :string
-   :params? {;; See [specification/2025-06-18/basic/index#general-fields]
-             ;; for notes on _meta usage.
-             :_meta? [:map-of :string :any]}))
-
-(def InitializedNotification
-  "This notification is sent from the client to the server after 
-   initialization has finished."
-  (su/ts-extends
-   [Notification]
-   :method [:= method-notifications-initialized]))
+   ;; Allow unofficial extensions of `Notification.params` without impacting
+   ;; `NotificationParams`.
+   :params? NotificationParams))
 
 (def JSONRPCNotification
   "A notification which does not expect a response."
   (su/ts-extends
    [Notification]
-   :jsonrpc :string))
+   :jsonrpc [:= jsonrpc-version]))
 
 (def RequestId
   "A uniquely identifying ID for a request in JSON-RPC."
@@ -186,13 +203,28 @@
 
 (def Result
   (su/ts-object
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def EmptyResult
   "A response that indicates success but carries no data."
   Result)
+
+;; Named MCPError instead of Error to avoid conflict with java.lang.Error
+;;
+(def MCPError
+  "The error type that occurred."
+  (su/ts-object
+   ;; The error type that occurred.
+   :code number?
+   ;; A short description of the error. The message SHOULD be
+   ;; limited to a concise single sentence.
+   :message :string
+   ;; Additional information about the error. The value of this
+   ;; member is defined by the sender (e.g. detailed error
+   ;; information, nested errors etc.).
+   :data? :any))
 
 
 ;; ----- JSON-RPC types -----
@@ -202,30 +234,28 @@
   "A request that expects a response."
   (su/ts-extends
    [Request]
-   :jsonrpc :string
+   :jsonrpc [:= jsonrpc-version]
    :id RequestId))
 
-(def JSONRPCResponse
+(def JSONRPCResultResponse
   "A successful (non-error) response to a request."
   (su/ts-object
-   :jsonrpc :string
+   :jsonrpc [:= jsonrpc-version]
    :id RequestId
    :result Result))
 
-(def JSONRPCError
+(def JSONRPCErrorResponse
   "A response to a request that indicates an error occurred."
   (su/ts-object
-   :jsonrpc :string
-   :id RequestId
-   :error {;; The error type that occurred.
-           :code number?
-           ;; A short description of the error. The message SHOULD be
-           ;; limited to a concise single sentence.
-           :message :string
-           ;; Additional information about the error. The value of this
-           ;; member is defined by the sender (e.g. detailed error
-           ;; information, nested errors etc.).
-           :data? :any}))
+   :jsonrpc [:= jsonrpc-version]
+   :id? RequestId
+   :error MCPError))
+
+(def JSONRPCResponse
+  "A response to a request, containing either the result or error."
+  [:or
+   JSONRPCResultResponse
+   JSONRPCErrorResponse])
 
 (def JSONRPCMessage
   "Refers to any valid JSON-RPC object that can be decoded off the wire,
@@ -233,12 +263,27 @@
   [:or
    JSONRPCRequest
    JSONRPCNotification
-   JSONRPCResponse
-   JSONRPCError])
+   JSONRPCResponse])
 
 
 ;; ----- end of JSON-RPC stuff -----
 
+
+(def CancelledNotificationParams
+  "Parameters for a `notifications/cancelled` notification."
+  (su/ts-extends
+   [NotificationParams]
+   ;; The ID of the request to cancel.
+   ;;
+   ;; This MUST correspond to the ID of a request previously issued in
+   ;; the same direction.
+   ;; This MUST be provided for cancelling non-task requests.
+   ;; This MUST NOT be used for cancelling tasks (use the `tasks/cancel`
+   ;; request instead).
+   :requestId? RequestId
+   ;; An optional string describing the reason for the cancellation.
+   ;; This MAY be logged or presented to the user.
+   :reason? :string))
 
 (def CancelledNotification
   "This notification can be sent by either side to indicate that it is
@@ -251,13 +296,7 @@
   (su/ts-extends
    [Notification]
    :method [:= method-notifications-cancelled]
-   :params {;; The ID of the request to cancel.
-            ;; This MUST correspond to the ID of a request previously
-            ;; issued in the same direction.
-            :requestId RequestId
-            ;; An optional string describing the reason for the
-            ;; cancellation. This MAY be logged or presented to the user.
-            :reason? :string}))
+   :params CancelledNotificationParams))
 
 (def ClientCapabilities
   "Capabilities a client may support. Known capabilities are defined 
@@ -271,9 +310,30 @@
             ;; the roots list.
             :listChanged? :boolean}
    ;; Present if the client supports sampling from an LLM.
-   :sampling? :map
+   :sampling? {;; Whether the client supports context inclusion via
+               ;; includeContext parameter. If not declared, servers
+               ;; SHOULD only use `includeContext: "none"` (or omit it).
+               :context? :map
+               ;; Whether the client supports tool use via tools and
+               ;; toolChoice parameters.
+               :tools? :map}
    ;; Present if the client supports elicitation from the server.
-   :elicitation? :map))
+   :elicitation? {:form? :map
+                  :url? :map}
+   ;; Present if the client supports task-augmented requests.
+   :tasks? {;; Whether this client supports tasks/list.
+            :list? :map
+            ;; Whether this client supports tasks/cancel.
+            :cancel? :map
+            ;; Specifies which request types can be augmented with tasks.
+            :requests? {;; Task support for sampling-related requests.
+                        :sampling? {;; Whether client supports task-augmented
+                                    ;; sampling/createMessage requests.
+                                    :createMessage? :map}
+                        ;; Task support for elicitation-related requests.
+                        :elicitation? {;; Whether client supports task-augmented
+                                       ;; elicitation/create requests.
+                                       :create? :map}}}))
 
 (def ServerCapabilities
   "Capabilities that a server may support. Known capabilities are
@@ -281,7 +341,7 @@
    server can define its own, additional capabilities."
   (su/ts-object
    ;; Experimental, non-standard capabilities that the server supports.
-   :experimental? [:map-of :string :any]
+   :experimental? attr-map
    ;; Present if the server supports sending log messages to the client.
    :logging? :map
    ;; Present if the server supports argument autocompletion suggestions.
@@ -300,7 +360,63 @@
    ;; Present if the server offers any tools to call.
    :tools? {;; Whether this server supports notifications for changes to
             ;; the tool list.
-            :listChanged? :boolean}))
+            :listChanged? :boolean}
+   ;; Present if the server supports task-augmented requests.
+   :tasks? {;; Whether this server supports tasks/list.
+            :list? :map
+            ;; Whether this server supports tasks/cancel.
+            :cancel? :map
+            ;; Specifies which request types can be augmented with tasks.
+            :requests? {;; Task support for tool-related requests.
+                        :tools? {;; Whether the server supports task-augmented
+                                 ;; tools/call requests.
+                                 :call? :map}}}))
+
+(def Icon
+  "An optionally-sized icon that can be displayed in a user interface."
+  (su/ts-object
+   ;; A standard URI pointing to an icon resource. May be an HTTP/HTTPS URL or a
+   ;; `data:` URI with Base64-encoded image data.
+   ;;
+   ;; Consumers SHOULD takes steps to ensure URLs serving icons are from the
+   ;; same domain as the client/server or a trusted domain.
+   ;;
+   ;; Consumers SHOULD take appropriate precautions when consuming SVGs as they
+   ;; can contain executable JavaScript.
+   :src :string
+
+   ;; Optional MIME type override if the source MIME type is missing or generic.
+   ;; For example: `"image/png"`, `"image/jpeg"`, or `"image/svg+xml"`.
+   :mimeType? :string
+
+   ;; Optional array of strings that specify sizes at which the icon can be used.
+   ;; Each string should be in WxH format (e.g., `"48x48"`, `"96x96"`) or `"any"`
+   ;; for scalable formats like SVG.
+   ;;
+   ;; If not provided, the client should assume that the icon can be used at any
+   ;; size.
+   :sizes? [:vector :string]
+
+   ;; Optional specifier for the theme this icon is designed for. `light` indicates
+   ;; the icon is designed to be used with a light background, and `dark` indicates
+   ;; the icon is designed to be used with a dark background.
+   ;;
+   ;; If not provided, the client should assume the icon can be used with any theme.
+   :theme? [:enum "light" "dark"]))
+
+(def Icons
+  "Base interface to add `icons` property."
+  (su/ts-object
+   ;; Optional set of sized icons that the client can display in a user interface.
+   ;;
+   ;; Clients that support rendering icons MUST support at least the following MIME types:
+   ;; - `image/png` - PNG images (safe, universal compatibility)
+   ;; - `image/jpeg` (and `image/jpg`) - JPEG images (safe, universal compatibility)
+   ;;
+   ;; Clients that support rendering icons SHOULD also support:
+   ;; - `image/svg+xml` - SVG images (scalable but requires security precautions)
+   ;; - `image/webp` - WebP images (modern, efficient format)
+   :icons? [:vector Icon]))
 
 (def BaseMetadata
   "Base interface for metadata with name (identifier) and title (display
@@ -317,11 +433,33 @@
    :title? :string))
 
 (def Implementation
-  "Describes the name and version of an MCP implementation, with an
+  "Describes the MCP implementation.
+   Describes the name and version of an MCP implementation, with an
    optional title for UI representation."
   (su/ts-extends
-   [BaseMetadata]
-   :version :string))
+   [BaseMetadata Icons]
+   :version :string
+
+   ;; An optional human-readable description of what this implementation does.
+   ;;
+   ;; This can be used by clients or servers to provide context about
+   ;; their purpose and capabilities. For example, a server might
+   ;; describe the types of resources or tools it provides, while a
+   ;; client might describe its intended use case.
+   :description? :string
+
+   ;; An optional URL of the website for this implementation.
+   :websiteUrl? :string))
+
+(def InitializeRequestParams
+  "Parameters for an `initialize` request."
+  (su/ts-extends
+   [RequestParams]
+   ;; The latest version of the Model Context Protocol that the client
+   ;; supports. The client MAY decide to support older versions as well.
+   :protocolVersion :string
+   :capabilities ClientCapabilities
+   :clientInfo Implementation))
 
 (def InitializeRequest
   "This request is sent from the client to the server when it first
@@ -329,12 +467,7 @@
   (su/ts-extends
    [Request]
    :method [:= method-initialize]
-   :params {;; The latest version of the Model Context Protocol that the
-            ;; client supports. The client MAY decide to support older
-            ;; versions as well.
-            :protocolVersion :string
-            :capabilities ClientCapabilities
-            :clientInfo Implementation}))
+   :params InitializeRequestParams))
 
 (def InitializeResult
   "After receiving an initialize request from the client, the server
@@ -354,44 +487,61 @@
    ;; system prompt.
    :instructions? :string))
 
+(def InitializedNotification
+  "This notification is sent from the client to the server after
+   initialization has finished."
+  (su/ts-extends
+   [JSONRPCNotification]
+   :method [:= method-notifications-initialized]
+   :params? NotificationParams))
+
 (def PingRequest
   "A ping, issued by either the server or the client, to check that the
    other party is still alive. The receiver must promptly respond, or 
    else may be disconnected."
   (su/ts-extends
-   [Request]
-   :method [:= method-ping]))
+   [JSONRPCRequest]
+   :method [:= method-ping]
+   :params? RequestParams))
+
+(def ProgressNotificationParams
+  "Parameters for a `notifications/progress` notification."
+  (su/ts-extends
+   [NotificationParams]
+   ;; The progress token which was given in the initial request, used to
+   ;; associate this notification with the request that is proceeding.
+   :progressToken ProgressToken
+   ;; The progress thus far. This should increase every time progress is
+   ;; made, even if the total is unknown.
+   :progress number?
+   ;; Total number of items to process (or total progress required), if
+   ;; known.
+   :total? number?
+   ;; An optional message describing the current progress.
+   :message? :string))
 
 (def ProgressNotification
   "An out-of-band notification used to inform the receiver of a progress 
    update for a long-running request."
   (su/ts-extends
-   [Notification]
+   [JSONRPCNotification]
    :method [:= method-notifications-progress]
-   :params {;; The progress token which was given in the initial request,
-            ;; used to associate this notification with the request that
-            ;; is proceeding.
-            :progressToken ProgressToken
-            ;; The progress thus far. This should increase every time
-            ;; progress is made, even if the total is unknown.
-            :progress number?
-            ;; Total number of items to process (or total progress
-            ;; required), if known.
-            :total? number?
-            ;; An optional message describing the current progress.
-            :message? :string}))
+   :params ProgressNotificationParams))
 
 (def Cursor
   "An opaque token used to represent a cursor for pagination."
   :string)
 
+(def PaginatedRequestParams
+  (su/ts-object
+   ;; An opaque token representing the current pagination position. If
+   ;; provided, the server should return results starting after this cursor.
+   :cursor? Cursor))
+
 (def PaginatedRequest
   (su/ts-extends
-   [Request]
-   :params? {;; An opaque token representing the current pagination
-             ;; position. If provided, the server should return results
-             ;; starting after this cursor.
-             :cursor? Cursor}))
+   [JSONRPCRequest]
+   :params? PaginatedRequestParams))
 
 (def PaginatedResult
   (su/ts-extends
@@ -399,6 +549,167 @@
    ;; An opaque token representing the pagination position after the last
    ;; returned result. If present, there may be more results available.
    :nextCursor? Cursor))
+
+
+;; ----- Task -----
+
+
+(def task-status-working "working")
+(def task-status-input-required "input_required")
+(def task-status-completed "completed")
+(def task-status-failed "failed")
+(def task-status-cancelled "cancelled")
+
+(def TaskStatus
+  "The status of a task."
+  [:enum
+   ;; The request is currently being processed
+   task-status-working
+   ;; The task is waiting for input (e.g., elicitation or sampling)
+   task-status-input-required
+   ;; The request completed successfully and results are available
+   task-status-completed
+   ;; The associated request did not complete successfully.
+   ;; For tool calls specifically, this includes cases where the tool
+   ;; call result has `isError` set to true.
+   task-status-failed
+   ;; The request was cancelled before completion
+   task-status-cancelled])
+
+
+(def TaskMetadata
+  "Metadata for augmenting a request with task execution.
+   Include this in the `task` field of the request parameters."
+  (su/ts-object
+   ;; Requested duration in milliseconds to retain task from creation.
+   :ttl? number?))
+
+(def RelatedTaskMetadata
+  "Metadata for associating messages with a task.
+   Include this in the `_meta` field under the key `io.modelcontextprotocol/related-task`."
+  (su/ts-object
+   ;; The task identifier this message is associated with.
+   :taskId :string))
+
+(def Task
+  "Data associated with a task."
+  (su/ts-object
+   ;; The task identifier.
+   :taskId :string
+
+   ;; Current task state.
+   :status TaskStatus
+
+   ;; Optional human-readable message describing the current task state.
+   ;; This can provide context for any status, including:
+   ;; - Reasons for "cancelled" status
+   ;; - Summaries for "completed" status
+   ;; - Diagnostic information for "failed" status (e.g., error details,
+   ;;   what went wrong)
+   :statusMessage? :string
+
+   ;; ISO 8601 timestamp when the task was created.
+   :createdAt :string
+
+   ;; ISO 8601 timestamp when the task was last updated.
+   :lastUpdatedAt :string
+
+   ;; Actual retention duration from creation in milliseconds,
+   ;; null for unlimited.
+   :ttl [:or number? nil?]
+
+   ;; Suggested polling interval in milliseconds.
+   :pollInterval? number?))
+
+(def CreateTaskResult
+  "A response to a task-augmented request."
+  (su/ts-extends
+   [Result]
+   :task Task))
+
+(def GetTaskRequest
+  "A request to retrieve the state of a task."
+  (su/ts-extends
+   [JSONRPCRequest]
+   :method [:= method-tasks-get]
+   :params {;; The task identifier to query.
+            :taskId :string}))
+
+(def GetTaskResult
+  "The response to a tasks/get request."
+  (su/ts-extends
+   [Result Task]))
+
+(def GetTaskPayloadRequest
+  "A request to retrieve the result of a completed task."
+  (su/ts-extends
+   [JSONRPCRequest]
+   :method [:= method-tasks-result]
+   :params {;; The task identifier to retrieve results for.
+            :taskId :string}))
+
+(def GetTaskPayloadResult
+  "The response to a tasks/result request.
+   The structure matches the result type of the original request.
+   For example, a tools/call task would return the CallToolResult structure."
+  (su/ts-extends
+   [Result]))
+
+(def CancelTaskRequest
+  "A request to cancel a task."
+  (su/ts-extends
+   [JSONRPCRequest]
+   :method [:= method-tasks-cancel]
+   :params {;; The task identifier to cancel.
+            :taskId :string}))
+
+(def CancelTaskResult
+  "The response to a tasks/cancel request."
+  (su/ts-extends
+   [Result Task]))
+
+(def ListTasksRequest
+  "A request to retrieve a list of tasks."
+  (su/ts-extends
+   [PaginatedRequest]
+   :method [:= method-tasks-list]))
+
+(def ListTasksResult
+  "The response to a tasks/list request."
+  (su/ts-extends
+   [PaginatedResult]
+   :tasks [:vector Task]))
+
+(def TaskStatusNotificationParams
+  "Parameters for a `notifications/tasks/status` notification."
+  (su/ts-extends
+   [NotificationParams Task]))
+
+(def TaskStatusNotification
+  "An optional notification from the receiver to the requestor,
+   informing them that a task's status has changed. Receivers are not
+   required to send these notifications."
+  (su/ts-extends
+   [JSONRPCNotification]
+   :method [:= method-notifications-tasks-status]
+   :params TaskStatusNotificationParams))
+
+(def TaskAugmentedRequestParams
+  "Common params for any task-augmented request."
+  (su/ts-extends
+   [RequestParams]
+   ;; If specified, the caller is requesting task-augmented execution for
+   ;; this request. The request will return a CreateTaskResult immediately,
+   ;; and the actual result can be retrieved later via tasks/result.
+
+   ;; Task augmentation is subject to capability negotiation - receivers
+   ;; MUST declare support for task augmentation of specific request types
+   ;; in their capabilities.
+   :task? TaskMetadata))
+
+
+;; ----- Other capability items -----
+
 
 (def ListResourcesRequest
   "Sent from the client to request a list of resources the server has."
@@ -438,7 +749,7 @@
 (def Resource
   "A known resource that the server is capable of reading."
   (su/ts-extends
-   [BaseMetadata]
+   [BaseMetadata Icons]
    ;; The URI of this resource.
    :uri :string
    ;; A description of what this resource represents.
@@ -454,9 +765,9 @@
    ;; This can be used by Hosts to display file sizes and estimate
    ;; context window usage.
    :size? number?
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def ListResourcesResult
   "The server's response to a resources/list request from the client."
@@ -474,7 +785,7 @@
 (def ResourceTemplate
   "A template description for resources available on the server."
   (su/ts-extends
-   [BaseMetadata]
+   [BaseMetadata Icons]
    ;; A URI template (according to RFC 6570) that can be used to
    ;; construct resource URIs.
    :uriTemplate :string
@@ -488,9 +799,9 @@
    :mimeType? :string
    ;; Optional annotations for the client.
    :annotations? Annotations
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def ListResourceTemplatesResult
   "The server's response to a resources/templates/list request from the
@@ -499,14 +810,23 @@
    [PaginatedResult]
    :resourceTemplates [:vector ResourceTemplate]))
 
+(def ResourceRequestParams
+  (su/ts-extends
+   [RequestParams]
+   ;; The URI of the resource. The URI can use any protocol; it is up to
+   ;; the server how to interpret it.
+   :uri :string))
+
+(def ReadResourceRequestParams
+  "Parameters for a `resources/read` request."
+  ResourceRequestParams)
+
 (def ReadResourceRequest
   "Sent from the client to the server, to read a specific resource URI."
   (su/ts-extends
-   [Request]
+   [JSONRPCRequest]
    :method [:= method-resources-read]
-   :params {;; The URI of the resource to read. The URI can use any
-            ;; protocol; it is up to the server how to interpret it.
-            :uri :string}))
+   :params ReadResourceRequestParams))
 
 (def ResourceContents
   "The contents of a specific resource or sub-resource."
@@ -515,9 +835,9 @@
    :uri :string
    ;; The MIME type of this resource, if known.
    :mimeType? :string
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def TextResourceContents
   (su/ts-extends
@@ -543,40 +863,51 @@
    that the list of resources it can read from has changed. This may be
    issued by servers without any previous subscription from the client."
   (su/ts-extends
-   [Notification]
-   :method [:= method-notifications-resources-list_changed]))
+   [JSONRPCNotification]
+   :method [:= method-notifications-resources-list_changed]
+   :params? NotificationParams))
+
+(def SubscribeRequestParams
+  "Parameters for a `resources/subscribe` request."
+  ResourceRequestParams)
 
 (def SubscribeRequest
   "Sent from the client to request resources/updated notifications from 
    the server whenever a particular resource changes."
   (su/ts-extends
-   [Request]
+   [JSONRPCRequest]
    :method [:= method-resources-subscribe]
-   :params {;; The URI of the resource to subscribe to. The URI can use
-            ;; any protocol; it is up to the server how to interpret it.
-            :uri :string}))
+   :params SubscribeRequestParams))
+
+(def UnsubscribeRequestParams
+  "Parameters for a `resources/unsubscribe` request."
+  ResourceRequestParams)
 
 (def UnsubscribeRequest
   "Sent from the client to request cancellation of resources/updated
    notifications from the server. This should follow a previous
    resources/subscribe request."
   (su/ts-extends
-   [Request]
+   [JSONRPCRequest]
    :method [:= method-resources-unsubscribe]
-   :params {;; The URI of the resource to unsubscribe from.
-            :uri :string}))
+   :params UnsubscribeRequestParams))
+
+(def ResourceUpdatedNotificationParams
+  "Parameters for a `notifications/resources/updated` notification."
+  (su/ts-extends
+   [NotificationParams]
+   ;; The URI of the resource that has been updated. This might be a
+   ;; sub-resource of the one that the client actually subscribed to.
+   :uri :string))
 
 (def ResourceUpdatedNotification
   "A notification from the server to the client, informing it that a
    resource has changed and may need to be read again. This should only
    be sent if the client previously sent a resources/subscribe request."
   (su/ts-extends
-   [Notification]
+   [JSONRPCNotification]
    :method [:= method-notifications-resources-updated]
-   :params {;; The URI of the resource that has been updated. This might
-            ;; be a sub-resource of the one that the client actually
-            ;; subscribed to.
-            :uri :string}))
+   :params ResourceUpdatedNotificationParams))
 
 
 ;; --- Prompts ---
@@ -594,14 +925,14 @@
 (def Prompt
   "A prompt or prompt template that the server offers."
   (su/ts-extends
-   [BaseMetadata]
+   [BaseMetadata Icons]
    ;; An optional description of what this prompt provides
    :description? :string
    ;; A list of arguments to use for templating the prompt.
    :arguments? [:vector PromptArgument]
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def ListPromptsRequest
   "Sent from the client to request a list of prompts and prompt
@@ -616,15 +947,21 @@
    [PaginatedResult]
    :prompts [:vector Prompt]))
 
+(def GetPromptRequestParams
+  "Parameters for a `prompts/get` request."
+  (su/ts-extends
+   [RequestParams]
+   ;; The name of the prompt or prompt template.
+   :name :string
+   ;; Arguments to use for templating the prompt.
+   :arguments? [:map-of [:or :keyword :string] :string]))
+
 (def GetPromptRequest
   "Used by the client to get a prompt provided by the server."
   (su/ts-extends
-   [Request]
+   [JSONRPCRequest]
    :method [:= method-prompts-get]
-   :params {;; The name of the prompt or prompt template.
-            :name :string
-            ;; Arguments to use for templating the prompt.
-            :arguments? [:map-of [:or :keyword :string] :string]}))
+   :params GetPromptRequestParams))
 
 (def TextContent
   "Text provided to or from an LLM."
@@ -634,9 +971,9 @@
    :text :string
    ;; Optional annotations for the client.
    :annotations? Annotations
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def ImageContent
   "An image provided to or from an LLM."
@@ -649,9 +986,9 @@
    :mimeType :string
    ;; Optional annotations for the client.
    :annotations? Annotations
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def AudioContent
   "Audio provided to or from an LLM."
@@ -664,9 +1001,9 @@
    :mimeType :string
    ;; Optional annotations for the client.
    :annotations? Annotations
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def EmbeddedResource
   "The contents of a resource, embedded into a prompt or tool call
@@ -677,9 +1014,9 @@
    :resource [:or TextResourceContents BlobResourceContents]
    ;; Optional annotations for the client.
    :annotations? Annotations
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def ResourceLink
   "A resource that the server is capable of reading, included in a
@@ -719,8 +1056,9 @@
    that the list of prompts it offers has changed. This may be issued by
    servers without any previous subscription from the client."
   (su/ts-extends
-   [Notification]
-   :method [:= method-notifications-prompts-list_changed]))
+   [JSONRPCNotification]
+   :method [:= method-notifications-prompts-list_changed]
+   :params? NotificationParams))
 
 
 ;; --- Tools ---
@@ -764,30 +1102,51 @@
    ;; Default: true
    :openWorldHint? :boolean))
 
+(def ToolExecution
+  "Execution-related properties for a tool."
+  (su/ts-object
+   ;; Indicates whether this tool supports task-augmented execution.
+   ;; This allows clients to handle long-running operations through polling
+   ;; the task system.
+   ;;
+   ;; - "forbidden": Tool does not support task-augmented execution (default when absent)
+   ;; - "optional": Tool may support task-augmented execution
+   ;; - "required": Tool requires task-augmented execution
+   ;;
+   ;; Default: "forbidden"
+   :taskSupport? [:enum "forbidden" "optional" "required"]))
+
 (def Tool
   "Definition for a tool the client can call."
   (su/ts-extends
-   [BaseMetadata]
+   [BaseMetadata Icons]
    ;; A human-readable description of the tool.
    ;;
    ;; This can be used by clients to improve the LLM's understanding of
    ;; available tools. It can be thought of like a "hint" to the model.
    :description? :string
    ;; A JSON Schema object defining the expected parameters for the tool.
-   :inputSchema {:type [:= "object"]
-                 :properties? [:map-of [:or :string :keyword] :any]
+   :inputSchema {:$schema? :string
+                 :type [:= "object"]
+                 :properties? attr-map
                  :required? [:vector :string]}
+   ;; Execution-related properties for this tool.
+   :execution? ToolExecution
    ;; An optional JSON Schema object defining the structure of the tool's
    ;; output returned in the structuredContent field of a CallToolResult.
-   :outputSchema? {:type [:= "object"]
-                   :properties? [:map-of [:or :string :keyword] :any]
+   ;;
+   ;; Defaults to JSON Schema 2020-12 when no explicit $schema is provided.
+   ;; Currently restricted to type: "object" at the root level.
+   :outputSchema? {:$schema? :string
+                   :type [:= "object"]
+                   :properties? attr-map
                    :required? [:vector :string]}
    ;; Optional additional tool information.
    ;; Display name precedence order is: title, annotations.title, then name.
    :annotations? ToolAnnotations
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def ListToolsRequest
   "Sent from the client to request a list of tools the server has."
@@ -805,8 +1164,12 @@
   "The server's response to a tool call."
   (su/ts-extends
    [Result]
+   ;; A list of content objects that represent the unstructured result
+   ;; of the tool call.
    :content [:vector ContentBlock]
-
+   ;; An optional JSON object that represents the structured result of
+   ;; the tool call.
+   :structuredContent? attr-map
    ;; Whether the tool call ended in an error.
    ;;
    ;; If not set, this is assumed to be false (the call was successful).
@@ -821,13 +1184,21 @@
    ;; conditions, should be reported as an MCP error response.
    :isError? :boolean))
 
+(def CallToolRequestParams
+  (su/ts-extends
+   [TaskAugmentedRequestParams]
+   ;; The name of the tool
+   :name :string
+   ;; Arguments to use for the tool call.
+   ;; Keys must be keywords here, because tool impl destructures them
+   :arguments? [:map-of :keyword :any]))
+
 (def CallToolRequest
   "Used by the client to invoke a tool provided by the server."
   (su/ts-extends
-   [Request]
+   [JSONRPCRequest]
    :method [:= method-tools-call]
-   :params {:name :string
-            :arguments? [:map-of :keyword :any]}))
+   :params CallToolRequestParams))
 
 (def ToolListChangedNotification
   "An optional notification from the server to the client, informing it
@@ -835,7 +1206,8 @@
    servers without any previous subscription from the client."
   (su/ts-extends
    [Notification]
-   :method [:= method-notifications-tools-list_changed]))
+   :method [:= method-notifications-tools-list_changed]
+   :params? NotificationParams))
 
 
 ;; ----- Logging -----
@@ -874,41 +1246,118 @@
    log-level-1-alert
    log-level-0-emergency])
 
+(def SetLevelRequestParams
+  "Parameters for a `logging/setLevel` request."
+  (su/ts-extends
+   [RequestParams]
+   ;; The level of logging that the client wants to receive from the
+   ;; server. The server should send all logs at this level and higher
+   ;; (i.e., more severe) to the client as notifications/message.
+   :level LoggingLevel))
+
 (def SetLevelRequest
   "A request from the client to the server, to enable or adjust logging."
   (su/ts-extends
-   [Request]
+   [JSONRPCRequest]
    :method [:= method-logging-setLevel]
-   :params {;; The level of logging that the client wants to receive
-            ;; from the server. The server should send all logs at this
-            ;; level and higher (i.e., more severe) to the client as
-            ;; notifications/message.
-            :level LoggingLevel}))
+   :params SetLevelRequestParams))
+
+(def LoggingMessageNotificationParams
+  "Parameters for a `notifications/message` notification."
+  (su/ts-extends
+   [NotificationParams]
+   ;; The severity of this log message.
+   :level LoggingLevel
+   ;; An optional name of the logger issuing this message.
+   :logger? :string
+   ;; The data to be logged, such as a string message or an object. Any
+   ;; JSON serializable type is allowed here.
+   :data :any))
 
 (def LoggingMessageNotification
-  "Notification of a log message passed from server to client. If no
-   logging/setLevel request has been sent from the client, the server
+  "JSONRPCNotification of a log message passed from server to client. If
+   no logging/setLevel request has been sent from the client, the server
    MAY decide which messages to send automatically."
   (su/ts-extends
-   [Notification]
+   [JSONRPCNotification]
    :method [:= method-notifications-message]
-   :params {;; The severity of this log message.
-            :level LoggingLevel
-            ;; An optional name of the logger issuing this message.
-            :logger? :string
-            ;; The data to be logged, such as a string message or an
-            ;; object. Any JSON serializable type is allowed here.
-            :data :any}))
+   :params LoggingMessageNotificationParams))
 
 
 ;; ----- Sampling -----
 
 
+(def ToolUseContent
+  "A request from the assistant to call a tool."
+  (su/ts-object
+   :type [:= "tool_use"]
+   ;; A unique identifier for this tool use.
+   ;;
+   ;; This ID is used to match tool results to their corresponding tool uses.
+   :id :string
+   ;; The name of the tool to call.
+   :name :string
+   ;; The arguments to pass to the tool, conforming to the tool's input schema.
+   :input attr-map
+   ;; Optional metadata about the tool use. Clients SHOULD preserve this
+   ;; field when including tool uses in subsequent sampling requests to
+   ;; enable caching optimizations.
+   ;;
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
+
+(def ToolResultContent
+  "The result of a tool use, provided by the user back to the assistant."
+  (su/ts-object
+   :type [:= "tool_result"]
+   ;; The ID of the tool use this result corresponds to.
+   ;;
+   ;; This MUST match the ID from a previous ToolUseContent.
+   :toolUseId :string
+   ;; The unstructured result content of the tool use.
+   ;;
+   ;; This has the same format as CallToolResult.content and can include
+   ;; text, images, audio, resource links, and embedded resources.
+   :content [:vector ContentBlock]
+   ;; An optional structured result object.
+   ;;
+   ;; If the tool defined an outputSchema, this SHOULD conform to that schema.
+   :structuredContent? attr-map
+   ;; Whether the tool use resulted in an error.
+   ;;
+   ;; If true, the content typically describes the error that occurred.
+   ;; Default: false
+   :isError? :boolean
+   ;; Optional metadata about the tool result. Clients SHOULD preserve
+   ;; this field when including tool results in subsequent sampling
+   ;; requests to enable caching optimizations.
+   ;;
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
+
+(def SamplingMessageContentBlock
+  [:or
+   TextContent
+   ImageContent
+   AudioContent
+   ToolUseContent
+   ToolResultContent])
+
 (def SamplingMessage
   "Describes a message issued to or received from an LLM API."
   (su/ts-object
    :role Role
-   :content [:or TextContent ImageContent AudioContent]))
+   :content [:or
+             TextContent
+             ImageContent
+             AudioContent
+             SamplingMessageContentBlock
+             [:vector SamplingMessageContentBlock]]
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def ModelHint
   "Hints to use for model selection.
@@ -970,6 +1419,54 @@
    ;; value of 1 means intelligence is the most important factor.
    :intelligencePriority? [number? {:min 0 :max 1}]))
 
+(def ToolChoice
+  "Controls tool selection behavior for sampling requests."
+  (su/ts-object
+   ;; Controls the tool use ability of the model:
+   ;; - "auto": Model decides whether to use tools (default)
+   ;; - "required": Model MUST use at least one tool before completing
+   ;; - "none": Model MUST NOT use any tools
+   :mode? [:enum "auto" "required" "none"]))
+
+(def CreateMessageRequestParams
+  "Parameters for a `sampling/createMessage` request."
+  (su/ts-extends
+   [TaskAugmentedRequestParams]
+   :messages [:vector SamplingMessage]
+   ;; The server's preferences for which model to select. The client MAY
+   ;; ignore these preferences.
+   :modelPreferences? ModelPreferences
+   ;; An optional system prompt the server wants to use for sampling.
+   ;; The client MAY modify or omit this prompt.
+   :systemPrompt? :string
+   ;; A request to include context from one or more MCP servers
+   ;; (including the caller), to be attached to the prompt. The client
+   ;; MAY ignore this request.
+   ;;
+   ;; Default is "none". Values "thisServer" and "allServers" are soft-
+   ;; deprecated. Servers SHOULD only use these values if the client
+   ;; declares ClientCapabilities.sampling.context. These values may be
+   ;; removed in future spec releases.
+   :includeContext? [:enum "none" "thisServer" "allServers"]
+   :temperature? number?
+   ;; The requested maximum number of tokens to sample (to prevent
+   ;; runaway completions). The client MAY choose to sample fewer tokens
+   ;; than the requested maximum.
+   :maxTokens number?
+   :stopSequences? [:vector :string]
+   ;; Optional metadata to pass through to the LLM provider. The format
+   ;; of this metadata is provider-specific.
+   :metadata? :map
+   ;; Tools that the model may use during generation.
+   ;; The client MUST return an error if this field is provided but
+   ;; ClientCapabilities.sampling.tools is not declared.
+   :tools? [:vector Tool]
+   ;; Controls how the model uses tools.
+   ;; The client MUST return an error if this field is provided but
+   ;; ClientCapabilities.sampling.tools is not declared.
+   ;; Default is `{ mode: "auto" }`.
+   :toolChoice? ToolChoice))
+
 (def CreateMessageRequest
   "A request from the server to sample an LLM via the client. The client
    has full discretion over which model to select. The client should also
@@ -978,26 +1475,7 @@
   (su/ts-extends
    [Request]
    :method [:= method-sampling-createMessage]
-   :params {:messages [:vector SamplingMessage]
-            ;; The server's preferences for which model to select. The
-            ;; client MAY ignore these preferences.
-            :modelPreferences? ModelPreferences
-            ;; An optional system prompt the server wants to use for
-            ;; sampling. The client MAY modify or omit this prompt.
-            :systemPrompt? :string
-            ;; A request to include context from one or more MCP servers
-            ;; (including the caller), to be attached to the prompt. The
-            ;; client MAY ignore this request.
-            :includeContext? [:enum "none" "thisServer" "allServers"]
-            :temperature? number?
-            ;; The maximum number of tokens to sample, as requested by
-            ;; the server. The client MAY choose to sample fewer tokens
-            ;; than requested.
-            :maxTokens number?
-            :stopSequences? [:vector :string]
-            ;; Optional metadata to pass through to the LLM provider.
-            ;; The format of this metadata is provider-specific.
-            :metadata? :map}))
+   :params CreateMessageRequestParams))
 
 (def CreateMessageResult
   "The client's response to a sampling/create_message request from the
@@ -1009,8 +1487,17 @@
    ;; The name of the model that generated the message.
    :model :string
    ;; The reason why sampling stopped, if known.
+   ;;
+   ;; Standard values:
+   ;; - "endTurn": Natural end of the assistant's turn
+   ;; - "stopSequence": A stop sequence was encountered
+   ;; - "maxTokens": Maximum token limit was reached
+   ;; - "toolUse": The model wants to use one or more tools
+   ;;
+   ;; This field is an open string to allow for provider-specific stop reasons.
    :stopReason? [:or
                  [:= "endTurn"] [:= "stopSequence"] [:= "maxTokens"]
+                 [:= "toolUse"]
                  :string]))
 
 
@@ -1030,23 +1517,27 @@
    ;; The URI or URI template of the resource.
    :uri :string))
 
+(def CompleteRequestParams
+  "Parameters for a `completion/complete` request."
+  (su/ts-extends
+   [RequestParams]
+   :ref [:or PromptReference ResourceTemplateReference]
+   ;; The argument's information
+   :argument {;; The name of the argument
+              :name :string
+              ;; The value of the argument to use for completion matching.
+              :value :string}
+   ;; Additional, optional context for completions
+   :context? {;; Previously-resolved variables in a URI template or prompt.
+              :arguments? [:map-of [:or :keyword :string] :string]}))
+
 (def CompleteRequest
   "A request from the client to the server, to ask for completion
    options."
   (su/ts-extends
-   [Request]
+   [JSONRPCRequest]
    :method [:= method-completion-complete]
-   :params {:ref [:or PromptReference ResourceTemplateReference]
-            ;; The argument's information
-            :argument {;; The name of the argument
-                       :name :string
-                       ;; The value of the argument to use for
-                       ;; completion matching.
-                       :value :string}
-            ;; Additional, optional context for completions
-            :context? {;; Previously-resolved variables in a
-                       ;; URI template or prompt.
-                       :arguments? [:map-of :string :string]}}))
+   :params CompleteRequestParams))
 
 (def CompleteResult
   "The server's response to a completion/complete request"
@@ -1077,8 +1568,9 @@
    the file system structure or access specific locations that the
    client has permission to read from."
   (su/ts-extends
-   [Request]
-   :method [:= method-roots-list]))
+   [JSONRPCRequest]
+   :method [:= method-roots-list]
+   :params? RequestParams))
 
 (def Root
   "Represents a root directory or file that the server can operate on."
@@ -1092,9 +1584,9 @@
    ;; display purposes or for referencing the root in other parts of the
    ;; application.
    :name? :string
-   ;; See [specification/2025-06-18/basic/index#general-fields] for
-   ;; notes on _meta usage.
-   :_meta? [:map-of :string :any]))
+   ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)
+   ;; for notes on `_meta` usage.
+   :_meta? attr-map))
 
 (def ListRootsResult
   "The client's response to a roots/list request from the server. This
@@ -1110,8 +1602,9 @@
    the client adds, removes, or modifies any root. The server should
    then request an updated list of roots using the ListRootsRequest."
   (su/ts-extends
-   [Notification]
-   :method [:= method-notifications-roots-list_changed]))
+   [JSONRPCNotification]
+   :method [:= method-notifications-roots-list_changed]
+   :params? NotificationParams))
 
 
 ;; ----- Elicitation -----
@@ -1124,7 +1617,8 @@
    :description? :string
    :minLength? number?
    :maxLength? number?
-   :format? [:enum "email" "uri" "date" "date-time"]))
+   :format? [:enum "email" "uri" "date" "date-time"]
+   :default? :string))
 
 (def NumberSchema
   (su/ts-object
@@ -1132,7 +1626,8 @@
    :title? :string
    :description? :string
    :minimum? number?
-   :maximum? number?))
+   :maximum? number?
+   :default? number?))
 
 (def BooleanSchema
   (su/ts-object
@@ -1141,14 +1636,109 @@
    :description? :string
    :default? :boolean))
 
-(def EnumSchema
+(def UntitledSingleSelectEnumSchema
+  "Schema for single-selection enumeration without display titles for options."
+  (su/ts-object
+   :type [:= "string"]
+   ;; Optional title for the enum field.
+   :title? :string
+   ;; Optional description for the enum field.
+   :description? :string
+   ;; Array of enum values to choose from.
+   :enum [:vector :string]
+   ;; Optional default value.
+   :default? :string))
+
+(def TitledSingleSelectEnumSchema
+  "Schema for single-selection enumeration with display titles for each option."
+  (su/ts-object
+   :type [:= "string"]
+   ;; Optional title for the enum field.
+   :title? :string
+   ;; Optional description for the enum field.
+   :description? :string
+   ;; Array of enum options with values and display labels.
+   :oneOf [:vector (su/ts-object
+                    ;; The enum value.
+                    :const :string
+                    ;; Display label for this option.
+                    :title :string)]
+   ;; Optional default value.
+   :default? :string))
+
+(def SingleSelectEnumSchema
+  "Combined single selection enumeration"
+  [:or
+   UntitledSingleSelectEnumSchema
+   TitledSingleSelectEnumSchema])
+
+(def UntitledMultiSelectEnumSchema
+  "Schema for multiple-selection enumeration without display titles for options."
+  (su/ts-object
+   :type [:= "array"]
+   ;; Optional title for the enum field.
+   :title? :string
+   ;; Optional description for the enum field.
+   :description? :string
+   ;; Minimum number of items to select.
+   :minItems? number?
+   ;; Maximum number of items to select.
+   :maxItems? number?
+   ;; Schema for the array items.
+   :items (su/ts-object
+           :type [:= "string"]
+           ;; Array of enum values to choose from.
+           :enum [:vector :string])
+   ;; Optional default value.
+   :default? [:vector :string]))
+
+(def TitledMultiSelectEnumSchema
+  "Schema for multiple-selection enumeration with display titles for each option."
+  (su/ts-object
+   :type [:= "array"]
+   ;; Optional title for the enum field.
+   :title? :string
+   ;; Optional description for the enum field.
+   :description? :string
+   ;; Minimum number of items to select.
+   :minItems? number?
+   ;; Maximum number of items to select.
+   :maxItems? number?
+   ;; Schema for array items with enum options and display labels.
+   :items (su/ts-object
+           ;; Array of enum options with values and display labels.
+           :anyOf [:vector (su/ts-object
+                            ;; The constant enum value.
+                            :const :string
+                            ;; Display title for this option.
+                            :title :string)])
+   ;; Optional default value.
+   :default? [:vector :string]))
+
+(def MultiSelectEnumSchema
+  "Combined multiple selection enumeration"
+  [:or
+   UntitledMultiSelectEnumSchema
+   TitledMultiSelectEnumSchema])
+
+(def LegacyTitledEnumSchema
+  "Use TitledSingleSelectEnumSchema instead. This interface will be
+   removed in a future version."
   (su/ts-object
    :type [:= "string"]
    :title? :string
    :description? :string
    :enum [:vector :string]
+   ;; (Legacy) Display names for enum values.
+   ;; Non-standard according to JSON schema 2020-12.
    :enumNames? [:vector :string]  ; // Display names for enum values
-   ))
+   :default? :string))
+
+(def EnumSchema
+  [:or
+   SingleSelectEnumSchema
+   MultiSelectEnumSchema
+   LegacyTitledEnumSchema])
 
 (def PrimitiveSchemaDefinition
   "Restricted schema definitions that only allow primitive types
@@ -1159,20 +1749,68 @@
    BooleanSchema
    EnumSchema])
 
+(def ElicitRequestFormParams
+  "The parameters for a request to elicit non-sensitive information from
+   the user via a form in the client."
+  (su/ts-extends
+   [TaskAugmentedRequestParams]
+   ;; The elicitation mode.
+   :mode? [:= "form"]
+   ;; The message to present to the user describing what information is
+   ;; being requested.
+   :message :string
+   ;; A restricted subset of JSON Schema.
+   ;; Only top-level properties are allowed, without nesting.
+   :requestedSchema {:$schema? :string
+                     :type [:= "object"]
+                     :properties [:map-of [:or :keyword :string]
+                                  PrimitiveSchemaDefinition]
+                     :required? [:vector :string]}))
+
+(def ElicitRequestURLParams
+  "The parameters for a request to elicit information from the user via
+   a URL in the client."
+  (su/ts-extends
+   [TaskAugmentedRequestParams]
+   ;; The elicitation mode.
+   :mode [:= "url"]
+   ;; The message to present to the user explaining why the interaction
+   ;; is needed.
+   :message :string
+   ;; The ID of the elicitation, which must be unique within the context
+   ;; of the server. The client MUST treat this ID as an opaque value.
+   :elicitationId :string
+   ;; The URL that the user should navigate to.
+   :url :string))
+
+(def ElicitRequestParams
+  "The parameters for a request to elicit additional information from
+   the user via the client."
+  [:or
+   ElicitRequestFormParams
+   ElicitRequestURLParams])
+
+(def URLElicitationRequiredErrorOnly
+  "The error definition for URLElicitationRequiredError."
+  (su/ts-extends
+   [MCPError]
+   :code [:= error-code-user-elicitation-required]
+   :data {:elicitations [:vector ElicitRequestURLParams]}))
+
+(def URLElicitationRequiredError
+  "An error response that indicates that the server requires the client
+   to provide additional information via an elicitation request."
+  (su/ts-extends
+   [JSONRPCErrorResponse]
+   :error URLElicitationRequiredErrorOnly))
+
 (def ElicitRequest
   "A request from the server to elicit additional information from the
    user via the client."
   (su/ts-extends
-   [Request]
+   [JSONRPCRequest]
    :method [:= method-elicitation-create]
-   :params {;; The message to present to the user.
-            :message :string
-            ;; A restricted subset of JSON Schema.
-            ;; Only top-level properties are allowed, without nesting.
-            :requestedSchema {:type [:= "object"]
-                              :properties [:map-of [:or :keyword :string]
-                                           PrimitiveSchemaDefinition]
-                              :required? [:vector :string]}}))
+   :params ElicitRequestParams))
 
 (def elicit-action-accept "accept")
 (def elicit-action-decline "decline")
@@ -1193,7 +1831,17 @@
    ;; The submitted form data, only present when action is "accept".
    ;; Contains values matching the requested schema.
    :content? [:map-of [:or :keyword :string]
-              [:or :string number? :boolean]]))
+              [:or :string number? :boolean [:vector :string]]]))
+
+(def ElicitationCompleteNotification
+  "An optional notification from the server to the client, informing it
+   of a completion of a out-of-band elicitation request."
+  (su/ts-extends
+   [JSONRPCNotification]
+   :method [:= method-notifications-elicitation-complete]
+   :params (su/ts-object
+            ;; The ID of the elicitation that completed.
+            :elicitationId :string)))
 
 
 ;; ----- Client messages -----
@@ -1213,21 +1861,30 @@
    SubscribeRequest
    UnsubscribeRequest
    CallToolRequest
-   ListToolsRequest])
+   ListToolsRequest
+   GetTaskRequest
+   GetTaskPayloadRequest
+   ListTasksRequest
+   CancelTaskRequest])
 
 (def ClientNotification
   [:or
    CancelledNotification
    ProgressNotification
    InitializedNotification
-   RootsListChangedNotification])
+   RootsListChangedNotification
+   TaskStatusNotification])
 
 (def ClientResult
   [:or
    EmptyResult
    CreateMessageResult
    ListRootsResult
-   ElicitResult])
+   ElicitResult
+   GetTaskResult
+   GetTaskPayloadResult
+   ListTasksResult
+   CancelTaskResult])
 
 
 ;; ----- Server messages -----
@@ -1238,7 +1895,11 @@
    PingRequest
    CreateMessageRequest
    ListRootsRequest
-   ElicitRequest])
+   ElicitRequest
+   GetTaskRequest
+   GetTaskPayloadRequest
+   ListTasksRequest
+   CancelTaskRequest])
 
 (def ServerNotification
   [:or
@@ -1248,7 +1909,9 @@
    ResourceUpdatedNotification
    ResourceListChangedNotification
    ToolListChangedNotification
-   PromptListChangedNotification])
+   PromptListChangedNotification
+   ElicitationCompleteNotification
+   TaskStatusNotification])
 
 (def ServerResult
   [:or
@@ -1261,7 +1924,11 @@
    ListResourcesResult
    ReadResourceResult
    CallToolResult
-   ListToolsResult])
+   ListToolsResult
+   GetTaskResult
+   GetTaskPayloadResult
+   ListTasksResult
+   CancelTaskResult])
 
 
 ;; --- Method-names and Schema ---
@@ -1297,6 +1964,14 @@
                       ListRootsResult]
    method-elicitation-create [ElicitRequest
                               ElicitResult]
+   method-tasks-list [ListTasksRequest
+                      ListTasksResult]
+   method-tasks-cancel [CancelTaskRequest
+                        CancelTaskResult]
+   method-tasks-get [GetTaskRequest
+                     GetTaskResult]
+   method-tasks-result [GetTaskPayloadRequest
+                        GetTaskPayloadResult]
    ;; without response schema
    method-ping [PingRequest]
    method-resources-subscribe [SubscribeRequest]
@@ -1312,5 +1987,7 @@
    method-notifications-progress [ProgressNotification]
    method-notifications-roots-list_changed [RootsListChangedNotification]
    method-notifications-tools-list_changed [ToolListChangedNotification]
+   method-notifications-tasks-status [TaskStatusNotification]
+   method-notifications-elicitation-complete [ElicitationCompleteNotification]
    ;; without any schema whatsoever
    method-logging-list []})

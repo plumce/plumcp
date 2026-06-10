@@ -21,10 +21,15 @@
       (u/assoc-missing :jsonrpc sd/jsonrpc-version)))
 
 
+(defn make-id
+  []
+  (u/uuid-v4))
+
+
 (defn add-id
   [jsonrpc-map]
   (-> jsonrpc-map
-      (u/assoc-missing :id (u/uuid-v4))))
+      (u/assoc-missing :id (make-id))))
 
 
 ;; --- structures ---
@@ -60,14 +65,14 @@
 
 
 (defn ^{:see sd/JSONRPCNotification} make-jsonrpc-notification
-  [jsonrpc method-name & opts]
+  [method-name & opts]
   (-> (make-notification method-name opts)
-      (assoc :jsonrpc jsonrpc)))
+      (assoc :jsonrpc sd/jsonrpc-version)))
 
 
 (defn ^{:see sd/RequestId} make-request-id
   [request-id]
-  request-id)
+  (or request-id (make-id)))
 
 
 (defn ^{:see sd/Result} make-result
@@ -85,26 +90,35 @@
 
 
 (defn ^{:see sd/JSONRPCRequest} make-jsonrpc-request
-  [method-name jsonrpc request-id & opts]
+  [method-name request-id & opts]
   (-> (make-request method-name opts)
-      (assoc :jsonrpc jsonrpc
+      (assoc :jsonrpc sd/jsonrpc-version
              :id request-id)))
 
 
-(defn ^{:see sd/JSONRPCResponse} make-jsonrpc-response
-  [jsonrpc request-id result]
-  {:jsonrpc jsonrpc
+(defn ^{:see sd/JSONRPCResultResponse} make-jsonrpc-result-response
+  [request-id result]
+  {:jsonrpc sd/jsonrpc-version
    :id request-id
    :result result})
 
 
-(defn ^{:see sd/JSONRPCError} make-jsonrpc-error
-  [jsonrpc request-id error-code error-message & {:keys [error-data]}]
+(defn ^{:see [sd/MCPError]} make-error
+  [error-code error-message & {:keys [error-data]}]
+  (-> {:code error-code
+       :message error-message}
+      (u/assoc-some :data error-data)))
+
+
+(defn ^{:see sd/JSONRPCErrorResponse} make-jsonrpc-error-response
+  [request-id error-code error-message & {:keys [error-data
+                                                 jsonrpc]
+                                          :or {jsonrpc sd/jsonrpc-version}
+                                          :as opts}]
   {:jsonrpc jsonrpc
    :id request-id
-   :error (-> {:code error-code
-               :message error-message}
-              (u/assoc-some :data error-data))})
+   :error (make-error error-code error-message
+                      opts)})
 
 
 (defn ^{:see sd/JSONRPCMessage} make-jsonrpc-message
@@ -209,9 +223,10 @@
 
 
 (defn ^{:see sd/PingRequest} make-ping-request
-  [& {:keys [_meta]
+  [& {:keys [request-id]
+      :or {request-id (make-id)}
       :as opts}]
-  (make-request sd/method-ping opts))
+  (make-jsonrpc-request sd/method-ping request-id opts))
 
 
 (defn ^{:see sd/ProgressNotification} make-progress-notification
@@ -233,8 +248,11 @@
 
 (defn ^{:see sd/PaginatedRequest} make-paginated-request
   [method-name & {:keys [cursor
-                         _meta]}]
-  (-> (make-request method-name)
+                         _meta
+                         request-id]
+                  :or {request-id (make-id)}
+                  :as opts}]
+  (-> (make-jsonrpc-request method-name request-id opts)
       (u/assoc-some :params (-> (and (some some? [cursor _meta]) {})
                                 (u/assoc-some :cursor cursor
                                               :_meta _meta)))))
@@ -336,9 +354,11 @@
 
 
 (defn ^{:see sd/ReadResourceRequest} make-read-resource-request
-  [resource-uri & {:keys [_meta] :as opts}]
-  (-> (make-request sd/method-resources-read
-                    opts)
+  [resource-uri & {:keys [_meta
+                          request-id]
+                   :or {request-id (make-id)}
+                   :as opts}]
+  (-> (make-jsonrpc-request sd/method-resources-read request-id opts)
       (update :params
               assoc :uri resource-uri)))
 
@@ -378,17 +398,21 @@
 
 
 (defn ^{:see sd/SubscribeRequest} make-subscribe-request
-  [uri & {:keys [_meta] :as opts}]
-  (-> (make-request sd/method-resources-subscribe
-                    opts)
+  [uri & {:keys [_meta request-id]
+          :or {request-id (make-id)}
+          :as opts}]
+  (-> (make-jsonrpc-request sd/method-resources-subscribe request-id
+                            opts)
       (update :params
               assoc :uri uri)))
 
 
 (defn ^{:see sd/UnsubscribeRequest} make-unsubscribe-request
-  [uri & {:keys [_meta] :as opts}]
-  (-> (make-request sd/method-resources-unsubscribe
-                    opts)
+  [uri & {:keys [_meta request-id]
+          :or {request-id (make-id)}
+          :as opts}]
+  (-> (make-jsonrpc-request sd/method-resources-unsubscribe request-id
+                            opts)
       (update :params
               assoc :uri uri)))
 
@@ -439,9 +463,11 @@
 
 
 (defn ^{:see sd/GetPromptRequest} make-get-prompt-request
-  [prompt-or-template-name & {:keys [args _meta] :as opts}]
-  (-> (make-request sd/method-prompts-get
-                    opts)
+  [prompt-or-template-name & {:keys [args _meta request-id]
+                              :or {request-id (make-id)}
+                              :as opts}]
+  (-> (make-jsonrpc-request sd/method-prompts-get request-id
+                            opts)
       (update :params #(-> %
                            (assoc :name prompt-or-template-name)
                            (u/assoc-some :arguments args)))))
@@ -615,9 +641,11 @@
 
 
 (defn ^{:see sd/CallToolRequest} make-call-tool-request
-  [tool-name tool-argmap & {:keys [_meta] :as opt}]
-  (-> (make-request sd/method-tools-call
-                    opt)
+  [tool-name tool-argmap & {:keys [_meta request-id]
+                            :or {request-id (make-id)}
+                            :as opt}]
+  (-> (make-jsonrpc-request sd/method-tools-call request-id
+                            opt)
       (update :params
               merge {:name tool-name
                      :arguments tool-argmap})))
@@ -640,9 +668,11 @@
 
 (defn ^{:see sd/SetLevelRequest} make-set-level-request
   [^{:see [make-logging-level]} level-string
-   & {:keys [_meta] :as opt}]
-  (-> (make-request sd/method-logging-setLevel
-                    opt)
+   & {:keys [_meta request-id]
+      :or {request-id (make-id)}
+      :as opt}]
+  (-> (make-jsonrpc-request sd/method-logging-setLevel request-id
+                            opt)
       (update :params
               assoc :level level-string)))
 
@@ -741,11 +771,11 @@
 (defn ^{:see sd/CompleteRequest} make-complete-request
   [^{:see [make-prompt-reference
            make-resource-template-reference]} prompt-or-resource-template-ref
-   arg-name arg-value & {:keys [context
-                                _meta]
+   arg-name arg-value & {:keys [context _meta request-id]
+                         :or {request-id (make-id)}
                          :as opts}]
-  (-> (make-request sd/method-completion-complete
-                    opts)
+  (-> (make-jsonrpc-request sd/method-completion-complete request-id
+                            opts)
       (update :params #(-> %
                            (merge {:ref prompt-or-resource-template-ref
                                    :argument {:name arg-name
@@ -778,9 +808,11 @@
 
 
 (defn ^{:see sd/ListRootsRequest} make-list-roots-request
-  [& {:keys [_meta] :as opts}]
-  (make-request sd/method-roots-list
-                opts))
+  [& {:keys [_meta request-id]
+      :or {request-id (make-id)}
+      :as opts}]
+  (make-jsonrpc-request sd/method-roots-list request-id
+                        opts))
 
 
 (defn ^{:see sd/Root} make-root
@@ -863,13 +895,13 @@
               sd/Request]} make-elicit-request
   [^String message
    schema-properties  ; a map
-   & {:keys [schema-required
-             _meta]
+   & {:keys [_meta request-id schema-required]
+      :or {request-id (make-id)}
       :as opts}]
   (let [sr (when schema-required
              (vec schema-required))]
-    (-> (make-request sd/method-elicitation-create
-                      opts)
+    (-> (make-jsonrpc-request sd/method-elicitation-create request-id
+                              opts)
         (update :params
                 merge {:message message
                        :requestedSchema (-> {:type "object"
@@ -886,3 +918,75 @@
   (-> (make-result opts)
       (merge {:action action})
       (u/assoc-some :content content)))
+
+
+(defn ^{:see [sd/ElicitationCompleteNotification]}
+  make-elicitation-complete-notification
+  [elicitation-id & {:keys [_meta] :as opts}]
+  (-> (make-notification sd/method-notifications-elicitation-complete
+                         opts)
+      (update :params merge {:elicitationId elicitation-id})))
+
+
+;; ----- Tasks -----
+
+
+(defn ^{:see [sd/ListTasksRequest]} make-list-tasks-request
+  [& {:keys [cursor]
+      :as opts}]
+  (-> (make-request sd/method-tasks-list
+                    opts)
+      (update :params u/assoc-some :cursor cursor)))
+
+
+(defn ^{:see [sd/ListTasksResult]} make-list-tasks-result
+  [tasks & {:as opts}]
+  (-> (make-paginated-result opts)
+      (merge {:tasks tasks})))
+
+
+(defn ^{:see [sd/CancelTaskRequest]} make-cancel-task-request
+  [task-id & {:keys [request-id]
+              :or {request-id (make-id)}
+              :as opts}]
+  (-> (make-jsonrpc-request sd/method-tasks-cancel request-id opts)
+      (assoc-in [:params :taskId] task-id)))
+
+
+(defn ^{:see [sd/CancelTaskResult]} make-cancel-task-result
+  [task & {:as opts}]
+  (-> (make-result opts)
+      (merge task)))
+
+
+(defn ^{:see [sd/GetTaskRequest]} make-get-task-request
+  [task-id & {:keys [request-id]
+              :or {request-id (make-id)}
+              :as opts}]
+  (-> (make-jsonrpc-request sd/method-tasks-get request-id opts)
+      (assoc-in [:params :taskId] task-id)))
+
+
+(defn ^{:see [sd/GetTaskResult]} make-get-task-result
+  [task & {:as opts}]
+  (-> (make-result opts)
+      (merge task)))
+
+
+(defn ^{:see [sd/GetTaskPayloadRequest]} make-get-task-payload-request
+  [task-id & {:keys [request-id]
+              :or {request-id (make-id)}
+              :as opts}]
+  (-> (make-jsonrpc-request sd/method-tasks-result request-id opts)
+      (assoc-in [:params :taskId] task-id)))
+
+
+(defn ^{:see [sd/GetTaskPayloadResult]} make-get-task-payload-result
+  [result]
+  result)
+
+
+(defn ^{:see [sd/TaskStatusNotification]} make-task-status-notification
+  [task & {:as opts}]
+  (-> (make-jsonrpc-notification sd/method-notifications-tasks-status opts)
+      (assoc :params task)))
