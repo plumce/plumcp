@@ -372,6 +372,9 @@
                                  ;; tools/call requests.
                                  :call? :map}}}))
 
+(def theme-light "light")
+(def theme-dark "dark")
+
 (def Icon
   "An optionally-sized icon that can be displayed in a user interface."
   (su/ts-object
@@ -402,7 +405,7 @@
    ;; the icon is designed to be used with a dark background.
    ;;
    ;; If not provided, the client should assume the icon can be used with any theme.
-   :theme? [:enum "light" "dark"]))
+   :theme? [:enum theme-light theme-dark]))
 
 (def Icons
   "Base interface to add `icons` property."

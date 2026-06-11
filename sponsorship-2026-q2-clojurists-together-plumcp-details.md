@@ -28,7 +28,7 @@ A summary of changes as TODO items are below:
 
 1. [ ] Add support for OpenID Connect Discovery 1.0 to authorization server
        discovery
-2. [ ] Allow servers to expose icons as additional metadata for tools,
+2. [x] Allow servers to expose icons as additional metadata for tools,
        resources, resource templates, and prompts
 3. [ ] Enhance authorization flows with incremental scope consent via
        `WWW-Authenticate`

@@ -154,6 +154,19 @@
        :elicitation elicitation)))
 
 
+(defn ^{:see [sd/Icon]} make-icon
+  [src-url & {:keys [mime-type ; the MIME type for the icon
+                     sizes  ; vector of icon sizes, where each size in
+                            ; WxH format, e.g. "32x32" or "any" for SVG
+                     theme  ; "light" or "dark"
+                     ]}]
+  (-> {:src src-url}
+      (u/assoc-some :mimeType mime-type
+                    :sizes (when sizes
+                             (u/as-vec sizes))
+                    :theme theme)))
+
+
 (defn ^{:see sd/BaseMetadata} make-base-metadata
   [name & {:keys [title]}]
   (-> {:name name}
@@ -161,11 +174,15 @@
 
 
 (defn ^{:see [sd/Implementation
-              sd/BaseMetadata]} make-implementation
-  [mcp-impl-name mcp-impl-version & {:keys [title]}]
+              sd/BaseMetadata
+              make-icon]} make-implementation
+  [mcp-impl-name mcp-impl-version & {:keys [title
+                                            icons]}]
   (-> {:name mcp-impl-name
        :version mcp-impl-version}
-      (u/assoc-some :title title)))
+      (u/assoc-some :title title
+                    :icons (when icons
+                             (u/as-vec icons)))))
 
 
 (defn ^{:see sd/InitializeRequest} make-initialize-request
@@ -291,8 +308,10 @@
 
 
 (defn ^{:see [sd/Resource
-              sd/BaseMetadata]} make-resource
+              sd/BaseMetadata
+              make-icon]} make-resource
   [resource-uri resource-name & {:keys [description
+                                        icons
                                         title
                                         mime-type
                                         annotations
@@ -301,6 +320,8 @@
   (-> {:uri resource-uri
        :name resource-name}
       (u/assoc-some :description description
+                    :icons (when icons
+                             (u/as-vec icons))
                     :title title
                     :mimeType mime-type
                     :annotations annotations
@@ -329,8 +350,10 @@
 
 
 (defn ^{:see [sd/ResourceTemplate
-              sd/BaseMetadata]} make-resource-template
+              sd/BaseMetadata
+              make-icon]} make-resource-template
   [uri-template name & {:keys [description
+                               icons
                                title
                                mime-type
                                annotations
@@ -338,6 +361,8 @@
   (-> {:uriTemplate uri-template
        :name name}
       (u/assoc-some :description description
+                    :icons (when icons
+                             (u/as-vec icons))
                     :title title
                     :mimeType mime-type
                     :annotations annotations
@@ -438,10 +463,13 @@
 
 
 (defn ^{:see [sd/Prompt
-              sd/BaseMetadata]} make-prompt
-  [prompt-name & {:keys [description title args _meta]}]
+              sd/BaseMetadata
+              make-icon]} make-prompt
+  [prompt-name & {:keys [description icons title args _meta]}]
   (-> {:name prompt-name}
       (u/assoc-some :description description
+                    :icons (when icons
+                             (u/as-vec icons))
                     :title title
                     :arguments args
                     :_meta _meta)))
@@ -603,10 +631,12 @@
 
 
 (defn ^{:see [sd/Tool
-              sd/BaseMetadata]} make-tool
+              sd/BaseMetadata
+              make-icon]} make-tool
   [tool-name
    ^{:see make-tool-input-output-schema} input-schema
    & {:keys [description
+             icons
              title
              ^{:see make-tool-input-output-schema} output-schema
              annotations
@@ -614,6 +644,8 @@
   (-> {:name (validate-tool-name tool-name)
        :inputSchema input-schema}
       (u/assoc-some :description description
+                    :icons (when icons
+                             (u/as-vec icons))
                     :title title
                     :outputSchema output-schema
                     :annotations annotations

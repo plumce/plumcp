@@ -70,9 +70,21 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
+- Icons reference option for the following
+  - Server-info & Client-info
+    - `p.c.a.entity-gen/make-implementation`
+    - `p.c.a.entity-support/make-info`
+  - Primitives exposed by server
+    - Prompts - `p.c.a.entity-gen/make-prompt`
+    - Resources - `p.c.a.entity-gen/make-resource`
+    - Resource templates - `p.c.a.entity-gen/make-resource-template`
+    - Tools - `p.c.a.entity-gen/make-tool`
+
 ### Changed
 
 - [BREAKING CHANGE] Require CLJS 1.12.145 (with `await`) or higher
+- [WIP] Implement MCP protocol 2025-Nov-25 spec
+- Validate tool names as per spec
 
 ### Fixed
 

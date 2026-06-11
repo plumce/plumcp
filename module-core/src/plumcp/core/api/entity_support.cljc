@@ -21,8 +21,10 @@
   "Make (server or client) implementation info."
   ([name version]
    (eg/make-implementation name version))
-  ([name version title]
-   (eg/make-implementation name version {:title title})))
+  ([name version title-or-options]
+   (if (string? title-or-options)
+     (eg/make-implementation name version {:title title-or-options})
+     (eg/make-implementation name version title-or-options))))
 
 
 ;; --- Prompts ---
