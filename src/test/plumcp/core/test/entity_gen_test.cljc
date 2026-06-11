@@ -173,7 +173,38 @@
                                     {"a" {:type "number" :description "first number"}
                                      "b" {:type "number" :description "second number"}}
                                     ["a" "b"])))
-        "Simple tool definition")))
+        "Simple tool definition"))
+  (testing "valid tool names"
+    (let [tio-schema (eg/make-tool-input-output-schema {} [])]
+      (is (mc/validate sd/Tool (eg/make-tool "FOO" tio-schema))
+          "Uppercase tool name")
+      (is (mc/validate sd/Tool (eg/make-tool "foo" tio-schema))
+          "Lowercase tool name")
+      (is (mc/validate sd/Tool (eg/make-tool "Foo" tio-schema))
+          "Mixed-case tool name")
+      (is (mc/validate sd/Tool (eg/make-tool "Foo12" tio-schema))
+          "Digits in tool name")
+      (is (mc/validate sd/Tool (eg/make-tool "Foo12" tio-schema))
+          "Digits in tool name")
+      (is (mc/validate sd/Tool (eg/make-tool "Foo_bar" tio-schema))
+          "Underscore in tool name")
+      (is (mc/validate sd/Tool (eg/make-tool "Foo-bar" tio-schema))
+          "Hyphen in tool name")
+      (is (mc/validate sd/Tool (eg/make-tool "Foo.bar" tio-schema))
+          "Dot in tool name")))
+  (testing "invalid tool names"
+    (is (thrown-with-msg?
+         ExceptionInfo #"Expected tool-name to have uppercase and lowercase*"
+         (eg/make-tool "foo bar" {}))
+        "tool name with space")
+    (is (thrown-with-msg?
+         ExceptionInfo #"Expected tool-name to have uppercase and lowercase*"
+         (eg/make-tool "foo,bar" {}))
+        "tool name with comma")
+    (is (thrown-with-msg?
+         ExceptionInfo #"Expected tool-name to have uppercase and lowercase*"
+         (eg/make-tool "foo#bar" {}))
+        "tool name with hash")))
 
 
 (deftest test-logging-definition

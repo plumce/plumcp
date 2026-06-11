@@ -26,46 +26,46 @@ A summary of changes as TODO items are below:
 
 ### Major changes
 
-1. Add support for OpenID Connect Discovery 1.0 to authorization server
-   discovery
-2. Allow servers to expose icons as additional metadata for tools,
-   resources, resource templates, and prompts
-3. Enhance authorization flows with incremental scope consent via
-   `WWW-Authenticate`
-4. Validate tool names as per the new spec
-5. Update `ElicitResult` and `EnumSchema` to use a more standards-based
-   approach and support titled, untitled, single-select, and multi-select
-   enums
-6. Add support for URL mode elicitation
-7. Add tool calling support to sampling via `tools` and `toolChoice`
-   parameters
-8. Add support for OAuth Client ID Metadata Documents as a recommended
-   client registration mechanism
-9. Add support for (potentially long running) tasks to enable tracking
-   durable requests with polling and deferred result retrieval
+1. [ ] Add support for OpenID Connect Discovery 1.0 to authorization server
+       discovery
+2. [ ] Allow servers to expose icons as additional metadata for tools,
+       resources, resource templates, and prompts
+3. [ ] Enhance authorization flows with incremental scope consent via
+       `WWW-Authenticate`
+4. [x] Validate tool names as per the new spec
+5. [ ] Update `ElicitResult` and `EnumSchema` to use a more standards-based
+       approach and support titled, untitled, single-select, and multi-select
+       enums
+6. [ ] Add support for URL mode elicitation
+7. [ ] Add tool calling support to sampling via `tools` and `toolChoice`
+       parameters
+8. [ ] Add support for OAuth Client ID Metadata Documents as a recommended
+       client registration mechanism
+9. [ ] Add support for (potentially long running) tasks to enable tracking
+       durable requests with polling and deferred result retrieval
 
 ### Minor changes
 
-1. Add utility function(s) to let servers using STDIO transport use
-   STDERR for all types of logging, not just error messages
-2. Add optional description field to `Implementation` (schema) interface
-   to align with MCP registry `server.json` format and provide
-   human-readable context during initialization
-3. Have the servers respond with HTTP 403 Forbidden for invalid Origin
-   headers in Streamable HTTP transport
-4. Review _Security Best Practices Guidance_ - add required utility fns
-5. Return Input validation errors as Tool Execution Errors rather than
-   Protocol Errors to enable model self-correction
-6. Support polling SSE streams by allowing servers to disconnect at will
-7. Support polling in GET streams, resumption always via GET regardless
-   of stream origin
-8. Align OAuth 2.0 Protected Resource Metadata discovery with RFC 9728,
-   making `WWW-Authenticate` header optional with fallback to
-   `.well-known` endpoint
-9. Add support for default values in all primitive types (string, number,
-   enum) for elicitation schemas
-10. Establish JSON Schema 2020-12 as the default dialect for MCP schema
-    definitions (2020-12 is the ONLY supported dialect for now)
+1. [ ] Add utility function(s) to let servers using STDIO transport use
+       STDERR for all types of logging, not just error messages
+2. [ ] Add optional description field to `Implementation` (schema) interface
+       to align with MCP registry `server.json` format and provide
+       human-readable context during initialization
+3. [ ] Have the servers respond with HTTP 403 Forbidden for invalid Origin
+       headers in Streamable HTTP transport
+4. [ ] Review _Security Best Practices Guidance_ - add required utility fns
+5. [ ] Return Input validation errors as Tool Execution Errors rather than
+       Protocol Errors to enable model self-correction
+6. [ ] Support polling SSE streams by allowing servers to disconnect at will
+7. [ ] Support polling in GET streams, resumption always via GET regardless
+       of stream origin
+8. [ ] Align OAuth 2.0 Protected Resource Metadata discovery with RFC 9728,
+       making `WWW-Authenticate` header optional with fallback to
+       `.well-known` endpoint
+9. [ ] Add support for default values in all primitive types (string, number,
+       enum) for elicitation schemas
+10. [ ] Establish JSON Schema 2020-12 as the default dialect for MCP schema
+        definitions (2020-12 is the ONLY supported dialect for now)
 
 ## PluMCP Usage documentation
 

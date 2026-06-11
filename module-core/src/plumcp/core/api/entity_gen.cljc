@@ -587,6 +587,21 @@
    :required required-names})
 
 
+(defn validate-tool-name
+  "Validate tool name as per 2025-Nov-25 spec:
+   https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names
+   returning tool-name on success, else throw exception."
+  [tool-name]
+  (let [chars-msg (str "uppercase and lowercase ASCII letters (A-Z, a-z), "
+                       "digits (0-9), underscore (_), hyphen (-), and dot (.)")]
+    (-> tool-name
+        (u/expected! string? "tool-name to be a string")
+        (u/expected! #(<= 1 (count %) 128)
+                     "tool-name to between 1 and 128 characters in length")
+        (u/expected! #(re-matches #"[A-Za-z0-9_\-.]+" %)
+                     (str "tool-name to have " chars-msg)))))
+
+
 (defn ^{:see [sd/Tool
               sd/BaseMetadata]} make-tool
   [tool-name
@@ -596,7 +611,7 @@
              ^{:see make-tool-input-output-schema} output-schema
              annotations
              _meta]}]
-  (-> {:name tool-name
+  (-> {:name (validate-tool-name tool-name)
        :inputSchema input-schema}
       (u/assoc-some :description description
                     :title title
