@@ -890,34 +890,37 @@
              description
              min-length
              max-length
-             format]}]
+             format
+             default]}]
   (when (some? format)
-    (u/expected-enum! format #{"email" "uri" "date" "date-time"}))
+    (u/expected-enum! format sd/string-schema-format-set))
   (-> {:type "string"}
       (u/assoc-some :title title
                     :description description
                     :minLength min-length
                     :maxLength max-length
-                    :format (#{"email" "uri" "date" "date-time"}
-                             format))))
+                    :format (sd/string-schema-format-set format)
+                    :default default)))
 
 
-(defn make-number-schema
+(defn ^{:see [sd/NumberSchema]} make-number-schema
   [& {:keys [type
              title
              description
              minimum
-             maximum]}]
+             maximum
+             default]}]
   (when (some? type)
     (u/expected-enum! type #{"number" "integer"}))
   (-> {:type (or type "number")}
       (u/assoc-some :title title
                     :description description
                     :minimum minimum
-                    :maximum maximum)))
+                    :maximum maximum
+                    :default default)))
 
 
-(defn make-boolean-schema
+(defn ^{:see [sd/BooleanSchema]} make-boolean-schema
   [& {:keys [title
              description
              default]}]
@@ -927,7 +930,83 @@
                     :default default)))
 
 
-(defn make-enum-schema
+(defn ^{:see [sd/UntitledSingleSelectEnumSchema]}
+  make-untitled-single-select-enum-schema
+  [enum-vals & {:keys [title
+                       description
+                       default]}]
+  (-> {:type "string"}
+      (u/assoc-some :title title
+                    :description description
+                    :enum (vec enum-vals)
+                    :default default)))
+
+
+(declare make-titled-single-select-enum-schema)
+(declare make-titled-multi-select-enum-schema)
+
+
+(defn ^{:see [make-titled-single-select-enum-schema
+              make-titled-multi-select-enum-schema]} make-enum-val-option
+  "To be used with the following:
+   - `make-titled-single-select-enum-schema`
+   - `make-titled-multi-select-enum-schema`"
+  [const title]
+  {:const const
+   :title title})
+
+
+(defn ^{:see [sd/TitledSingleSelectEnumSchema
+              make-enum-val-option]}
+  make-titled-single-select-enum-schema
+  [enum-options & {:keys [title
+                          description
+                          default]}]
+  (-> {:type "string"
+       :oneOf (vec enum-options)}
+      (u/assoc-some :title title
+                    :description description
+                    :default default)))
+
+
+(defn ^{:see [sd/UntitledMultiSelectEnumSchema]}
+  make-untitled-multi-select-enum-schema
+  [item-vals & {:keys [title
+                       description
+                       min-items
+                       max-items
+                       default-items]}]
+  (-> {:type "array"
+       :items {:type "string"
+               :enum (vec item-vals)}}
+      (u/assoc-some :title title
+                    :description description
+                    :minItems min-items
+                    :maxItems max-items
+                    :default (vec default-items))))
+
+
+(defn ^{:see [sd/TitledMultiSelectEnumSchema
+              make-enum-val-option]}
+  make-titled-multi-select-enum-schema
+  [item-options & {:keys [title
+                          description
+                          min-items
+                          max-items
+                          default-items]}]
+  (-> {:type "array"
+       :items {:anyOf (vec item-options)}}
+      (u/assoc-some :title title
+                    :description description
+                    :minItems min-items
+                    :maxItems max-items
+                    :default default-items)))
+
+
+(defn ^{:see [sd/LegacyTitledEnumSchema]} make-enum-schema
+  {:deprecated {:in "0.3.0"
+                :use-instead make-titled-single-select-enum-schema
+                :print-warning :always}}
   [enum-vals-coll & {:keys [title
                             description
                             enum-names]}]
@@ -938,8 +1017,46 @@
                     :enumNames enum-names)))
 
 
+(defn ^{:see [sd/ElicitRequestFormParams
+              sd/ElicitRequestParams
+              sd/ElicitRequest]} make-elicit-form-request
+  [message
+   schema-properties  ; a map
+   & {:keys [_meta request-id schema-required]
+      :or {request-id (make-id)}
+      :as opts}]
+  (let [sr (when schema-required
+             (vec schema-required))]
+    (-> (make-jsonrpc-request sd/method-elicitation-create request-id
+                              opts)
+        (update :params
+                merge {:mode "form"
+                       :message message
+                       :requestedSchema (-> {:type "object"
+                                             :properties schema-properties}
+                                            (u/assoc-some :required sr))}))))
+
+
+(defn ^{:see [sd/ElicitRequestURLParams
+              sd/ElicitRequestParams
+              sd/ElicitRequest]} make-elicit-url-request
+  [message elicitation-id url & {:keys [_meta request-id]
+                                 :or {request-id (make-id)}
+                                 :as opts}]
+  (-> (make-jsonrpc-request sd/method-elicitation-create request-id
+                            opts)
+      (update :params
+              merge {:mode "url"
+                     :message message
+                     :elicitationId elicitation-id
+                     :url url})))
+
+
 (defn ^{:see [sd/ElicitRequest
               sd/Request]} make-elicit-request
+  {:deprecated {:in "0.3.0"
+                :use-instead make-elicit-form-request
+                :print-warning :always}}
   [^String message
    schema-properties  ; a map
    & {:keys [_meta request-id schema-required]

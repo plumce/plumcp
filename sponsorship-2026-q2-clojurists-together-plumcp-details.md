@@ -33,7 +33,7 @@ A summary of changes as TODO items are below:
 3. [ ] Enhance authorization flows with incremental scope consent via
        `WWW-Authenticate`
 4. [x] Validate tool names as per the new spec
-5. [ ] Update `ElicitResult` and `EnumSchema` to use a more standards-based
+5. [x] Update `ElicitResult` and `EnumSchema` to use a more standards-based
        approach and support titled, untitled, single-select, and multi-select
        enums
 6. [ ] Add support for URL mode elicitation

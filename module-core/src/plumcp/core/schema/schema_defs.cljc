@@ -1613,6 +1613,8 @@
 ;; ----- Elicitation -----
 
 
+(def string-schema-format-set #{"email" "uri" "date" "date-time"})
+
 (def StringSchema
   (su/ts-object
    :type [:= "string"]

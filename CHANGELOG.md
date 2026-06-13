@@ -79,12 +79,27 @@ All notable changes to this project will be documented in this file. This change
     - Resources - `p.c.a.entity-gen/make-resource`
     - Resource templates - `p.c.a.entity-gen/make-resource-template`
     - Tools - `p.c.a.entity-gen/make-tool`
+- Standards based approach for `ElicitResult` and `EnumSchema`
+  Schema and Entity generator functions
+  - Untitled/Titled, Single-select/Multi-select enum schema
 
 ### Changed
 
 - [BREAKING CHANGE] Require CLJS 1.12.145 (with `await`) or higher
 - [WIP] Implement MCP protocol 2025-Nov-25 spec
 - Validate tool names as per spec
+- Deprecate entity generation functions in `p.c.a.entity-gen` ns:
+  - `p.c.a.entity-gen/make-enum-schema`
+  - `p.c.a.entity-gen/make-elicit-request`
+- Update `ElicitResult` and `EnumSchema` to adopt standards based approach
+  - `ElicitResult` `:content` may also be a string-vector now
+  - `ElicitRequest` may be created using
+    - `p.c.a.entity-gen/make-elicit-form-request` with new schema fns below
+      - `make-untitled-single-select-enum-schema`
+      - `make-titled-single-select-enum-schema`
+      - `make-untitled-multi-select-enum-schema`
+      - `make-titled-multi-select-enum-schema`
+    - `p.c.a.entity-gen/make-elicit-url-request`
 
 ### Fixed
 
