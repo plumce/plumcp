@@ -337,7 +337,7 @@
   "Given a var instance of an elicitation function, extract metadata and
    construct MCP elicitation details. Example below:
    ```
-   (defn ^{:mcp-type :sampling} user-elicitation
+   (defn ^{:mcp-type :elicitation} user-elicitation
      \"Accept (elicitation) ElicitRequest, return ElicitResult.\"
      [{message :message
        requested-schema :requestedSchema}]

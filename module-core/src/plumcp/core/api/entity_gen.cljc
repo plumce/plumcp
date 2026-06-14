@@ -959,9 +959,10 @@
 (defn ^{:see [sd/TitledSingleSelectEnumSchema
               make-enum-val-option]}
   make-titled-single-select-enum-schema
-  [enum-options & {:keys [title
-                          description
-                          default]}]
+  [^{:see [make-enum-val-option]} enum-options
+   & {:keys [title
+             description
+             default]}]
   (-> {:type "string"
        :oneOf (vec enum-options)}
       (u/assoc-some :title title
