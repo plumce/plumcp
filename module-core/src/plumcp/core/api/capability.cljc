@@ -15,7 +15,8 @@
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.method-handler :as mh]
    [plumcp.core.schema.json-rpc :as jr]
-   [plumcp.core.schema.schema-defs :as sd]))
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 
 
 ;; --- Client ---
@@ -111,7 +112,34 @@
                             (ex-message ex) (ex-data ex))))))
 
 
-(defn make-elicitation-handler
+(defn ^{:see [sd/ElicitRequest
+              sd/ElicitRequestParams
+              sd/ElicitRequestFormParams
+              sd/ElicitRequestURLParams
+              sd/ElicitResult]} make-elicitation-routing-handler
+  "Make elicitation handler function (fn [kwargs])->elicitation-result
+   from given :elicitation-form and :elicitation-url handler functions
+   that return a 'unimplemented' error response by default.
+   Options:
+   :form-handler - receives sd/ElicitRequestFormParams kwargs as a map
+   :url-handler  - receives sd/ElicitRequestURLParams kwargs as a map"
+  [{:keys [form-handler url-handler]}]
+  (let [fallback (fn [token]
+                   (let [msg (-> "Elicitation %s-handling is unimplemented"
+                                 (format token))]
+                     (fn [kwargs]
+                       (jr/jsonrpc-failure sd/error-code-internal-error
+                                           msg kwargs))))
+        form-handler (or form-handler (fallback "Form"))
+        url-handler (or url-handler (fallback "URL"))]
+    (fn [kwargs]
+      (case (:mode kwargs)
+        "form" ^{:see sd/ElicitRequestFormParams} (form-handler kwargs)
+        "url" ^{:see sd/ElicitRequestURLParams} (url-handler kwargs)
+        (form-handler kwargs)))))
+
+
+(defn ^{:see [make-elicitation-routing-handler]} make-elicitation-handler
   "Make elicitation handler fn from the given
    `(fn [kwargs]) -> elicitation-result`."
   [f]
@@ -200,7 +228,7 @@
                             ic/make-prompts-capability)
         cap-resources (when (or resources resource-templates)
                         (ic/make-resources-capability resources
-                                                       resource-templates))
+                                                      resource-templates))
         cap-tools (some-> tools
                           ic/make-tools-capability)
         cap-completion (when (or completion-prompt-refs

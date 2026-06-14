@@ -82,6 +82,8 @@ All notable changes to this project will be documented in this file. This change
 - Standards based approach for `ElicitResult` and `EnumSchema`
   Schema and Entity generator functions
   - Untitled/Titled, Single-select/Multi-select enum schema
+- Elicitation Form/URL routing support
+  - `p.c.a.capability/make-elicitation-routing-handler`
 
 ### Changed
 

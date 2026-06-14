@@ -362,7 +362,45 @@
       (is (mc/validate sd/PaginatedRequest target)
           "Should be a valid PaginatedRequest")))
   ;;
-  (testing "ElicitRequest"
+  (testing "EnumSchema"
+    (is (mc/validate sd/StringSchema
+                     (eg/make-string-schema)))
+    (is (mc/validate sd/NumberSchema
+                     (eg/make-number-schema)))
+    (is (mc/validate sd/BooleanSchema
+                     (eg/make-boolean-schema)))
+    (is (mc/validate sd/UntitledSingleSelectEnumSchema
+                     (eg/make-untitled-single-select-enum-schema ["foo"
+                                                                  "bar"])))
+    (is (mc/validate sd/TitledSingleSelectEnumSchema
+                     (eg/make-titled-single-select-enum-schema
+                      [(eg/make-enum-val-option "foo" "bar")
+                       (eg/make-enum-val-option "baz" "quux")])))
+    (is (mc/validate sd/UntitledMultiSelectEnumSchema
+                     (eg/make-untitled-multi-select-enum-schema ["foo"
+                                                                 "bar"])))
+    (is (mc/validate sd/TitledMultiSelectEnumSchema
+                     (eg/make-titled-multi-select-enum-schema
+                      [(eg/make-enum-val-option "foo" "bar")
+                       (eg/make-enum-val-option "baz" "quux")])))
+    (is (mc/validate sd/LegacyTitledEnumSchema
+                     (eg/make-enum-schema ["foo"
+                                           "bar"]))))
+  ;;
+  (testing "ElicitFormRequest"
+    (let [target (eg/make-elicit-form-request "elicit-form-message" {})]
+      (is (mc/validate sd/ElicitRequest target)
+          "Should be a ElicitRequest")
+      (is (= "form" (get-in target [:params :mode])))))
+  ;;
+  (testing "ElicitURLRequest"
+    (let [target (eg/make-elicit-url-request "elicit-url-message"
+                                             "url-1" "test://elicitation")]
+      (is (mc/validate sd/ElicitRequest target)
+          "Should be a ElicitRequest")
+      (is (= "url" (get-in target [:params :mode])))))
+  ;;
+  (testing "ElicitRequest"  ; legacy
     (let [target (eg/make-elicit-request "elicit-message" {})]
       (is (mc/validate sd/ElicitRequest target)
           "Should be a ElicitRequest")
