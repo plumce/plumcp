@@ -37,7 +37,7 @@ A summary of changes as TODO items are below:
        approach and support titled, untitled, single-select, and multi-select
        enums
 6. [x] Add support for URL mode elicitation
-7. [ ] Add tool calling support to sampling via `tools` and `toolChoice`
+7. [x] Add tool calling support to sampling via `tools` and `toolChoice`
        parameters
 8. [ ] Add support for OAuth Client ID Metadata Documents as a recommended
        client registration mechanism

@@ -308,17 +308,20 @@
 
 
 (defn ^{:see [sd/CreateMessageRequest
-              sd/CreateMessageResult]} make-sampling-handler-from-var
+              sd/CreateMessageResult]} make-sampling-config-from-var
   "Given a var instance of a sampling function, extract metadata and
    construct MCP sampling details. Example below:
    ```
-   (defn ^{:mcp-type :sampling} sample-llm
+   (defn ^{:mcp-type :sampling
+           :mcp-sampling-tools {}} sample-llm
      \"Accept (sampling) CreateMessageRequest, return CreateMessageResult.\"
      [{messages :messages
        max-tokens :maxTokens}]
      ;; return an instance of CreateMessageResult
      ,,,)
-   ```"
+   ```
+   Return {:handler handler-fn
+           :tools metadata-value-of-:mcp-sampling-tools}"
   [var-instance & {:keys [var-handler]
                    :or {var-handler identity}}]
   (when-not (var? var-instance)
@@ -326,7 +329,7 @@
   (validate-var-arglists var-instance no-arg-keys-opts)
   (-> var-instance
       var-handler
-      cap/make-sampling-handler))
+      (cap/make-sampling-config (meta var-instance))))
 
 
 ;; ----- Elicitation -----
@@ -374,7 +377,7 @@
                (let [mcp-type (-> (meta each-var)
                                   (get :mcp-type))]
                  (case mcp-type
-                   :sampling {:sampling (make-sampling-handler-from-var
+                   :sampling {:sampling (make-sampling-config-from-var
                                          each-var opts)}
                    :elicitation {:elicitation (make-elicitation-handler-from-var
                                                each-var opts)}

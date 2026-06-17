@@ -247,14 +247,23 @@
 
 (defn make-sampling-capability
   "Given function `(fn [create-message-request])->create-message-result`
+   or sampling-config map {:handler f :tools optional-tools-declaration}
    make sampling capability."
   [^{:see [eg/make-create-message-request
-           eg/make-create-message-result]} f]
-  (reify
-    p/IMcpCapability
-    (get-capability-declaration [_] {})
-    p/IMcpSampling
-    (get-sampling-response [_ request] (f request))))
+           eg/make-create-message-result]} sampling-config]
+  (let [{:keys [handler
+                ; :context is soft-deprecated, so unsupported
+                tools]} (if (fn? sampling-config) ; backward compatible
+                          {:handler sampling-config}
+                          sampling-config)
+        decl (-> {}
+                 (u/assoc-some :tools (when tools
+                                        {})))]
+    (reify
+      p/IMcpCapability
+      (get-capability-declaration [_] decl)
+      p/IMcpSampling
+      (get-sampling-response [_ request] (handler request)))))
 
 
 (defn make-elicitation-capability

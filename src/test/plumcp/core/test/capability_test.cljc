@@ -64,11 +64,19 @@
 
 
 (deftest sampling-capability-test
-  (let [sampling-cap (ic/make-sampling-capability identity)]
-    (is (= {}
-           (p/get-capability-declaration sampling-cap)))
-    (is (= :foo
-           (p/get-sampling-response sampling-cap :foo)))))
+  (testing "sampling capability without tools"
+    (let [sampling-cap (ic/make-sampling-capability identity)]
+      (is (= {}
+             (p/get-capability-declaration sampling-cap)))
+      (is (= :foo
+             (p/get-sampling-response sampling-cap :foo)))))
+  (testing "sampling capability with tools"
+    (let [sampling-cap (ic/make-sampling-capability {:handler identity
+                                                     :tools {}})]
+      (is (= {:tools {}}
+             (p/get-capability-declaration sampling-cap)))
+      (is (= :foo
+             (p/get-sampling-response sampling-cap :foo))))))
 
 
 (deftest elicitation-capability-test
@@ -143,7 +151,7 @@
                                 (es/prompt-message->get-prompt-result)))
           prompt2 (cap/make-prompt-item prompt2-name prompt2-handler)
           prompts-cap (ic/make-prompts-capability [prompt1
-                                                    prompt2])
+                                                   prompt2])
           handler-map (p/find-handler prompts-cap prompt2-name)
           handler (:handler handler-map)]
       (is (fn? handler) "prompt2 handler is a function")
@@ -323,7 +331,7 @@
     (let [all-caps (merge ic/default-server-capabilities
                           {:prompts (ic/make-prompts-capability [])
                            :resources (ic/make-resources-capability []
-                                                                     [])
+                                                                    [])
                            :tools (-> [tool-add]
                                       (ic/make-tools-capability))})]
       (is (= {:logging {}
@@ -342,7 +350,7 @@
         cap (deref-cap-maker mlist)
         received (atom [])
         notifier (ic/run-list-changed-notifier {list-method cap}
-                                                #(swap! received conj %))]
+                                               #(swap! received conj %))]
     (tu/until-done [done! 10]
       (tu/sleep-millis 100)
       (swap! mlist conj item2)

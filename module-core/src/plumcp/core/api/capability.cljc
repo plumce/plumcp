@@ -98,18 +98,21 @@
 ;; Clients
 
 
-(defn make-sampling-handler
+(defn make-sampling-config
   "Make sampling handler fn from the given
-   `(fn [kwargs]) -> sampling-result`."
-  [f]
-  (fn sampling-handler [kwargs]
-    (try
-      (f kwargs)
-      (catch #?(:cljs js/Error
-                :clj Exception) ex
-        (rs/log-mcpcall-failure kwargs ex)
-        (jr/jsonrpc-failure sd/error-code-internal-error
-                            (ex-message ex) (ex-data ex))))))
+   `(fn [kwargs]) -> sampling-result` and return the following:
+   {:handler sampling-handler-fn
+    :tools   sampling-tools-declaration}."
+  [f & {:keys [mcp-sampling-tools]}]
+  {:handler (fn sampling-handler [kwargs]
+              (try
+                (f kwargs)
+                (catch #?(:cljs js/Error
+                          :clj Exception) ex
+                  (rs/log-mcpcall-failure kwargs ex)
+                  (jr/jsonrpc-failure sd/error-code-internal-error
+                                      (ex-message ex) (ex-data ex)))))
+   :tools mcp-sampling-tools})
 
 
 (defn ^{:see [sd/ElicitRequest
@@ -161,11 +164,13 @@
                    - deref'able vector of root items (e.g. atom)
                    - arity-0 function returning a vector of root items
     :sampling    - sampling-handler
+                 - OR {:handler sampling-handler} with optional keys
+                   - optional key `:tools` (sampling tools declaration)
     :elicitation - elicitation-handler}
    See:
    `vars->client-primitives`"
   [{:keys [^{:see [make-root-item]} roots
-           ^{:see [make-sampling-handler]} sampling
+           ^{:see [make-sampling-config]} sampling
            ^{:see [make-elicitation-handler]} elicitation]}]
   (let [cap-roots (some-> roots
                           ic/make-roots-capability)

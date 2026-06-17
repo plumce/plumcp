@@ -84,10 +84,17 @@ All notable changes to this project will be documented in this file. This change
   - Untitled/Titled, Single-select/Multi-select enum schema
 - Elicitation Form/URL routing support
   - `p.c.a.capability/make-elicitation-routing-handler`
+- Sampling
+  - Support for `tools` declaration in sampling handler var metadata
+    - `:mcp-sampling-tools`
 
 ### Changed
 
 - [BREAKING CHANGE] Require CLJS 1.12.145 (with `await`) or higher
+- [BREAKING CHANGE] Rename function
+  - `p.c.a.capability/`: `make-sampling-handler` to `make-sampling-config`
+  - `p.c.i.var-support/`: `make-sampling-handler-from-var` to `make-sampling-config-from-var`
+    - The signature is also changed to return a map
 - [WIP] Implement MCP protocol 2025-Nov-25 spec
 - Validate tool names as per spec
 - Deprecate entity generation functions in `p.c.a.entity-gen` ns:
