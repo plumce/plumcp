@@ -764,16 +764,24 @@
                     :intelligencePriority intelligence-priority)))
 
 
+(defn ^{:see [sd/ToolChoice]} make-tool-choice
+  ([mode] {:mode mode})
+  ([] {:mode sd/tool-choice-auto}))
+
+
 (defn ^{:see sd/CreateMessageRequest} make-create-message-request
   "Make sampling create-message request from given arguments."
-  [sampling-message-coll max-token-count & {:keys [model-preferences
-                                                   system-prompt
-                                                   include-context
-                                                   temperature
-                                                   stop-sequences
-                                                   metadata
-                                                   _meta]
-                                            :as opts}]
+  [sampling-message-coll max-token-count
+   & {:keys [model-preferences
+             system-prompt
+             include-context
+             temperature
+             stop-sequences
+             metadata
+             ^{:see [sd/Tool]} tools
+             ^{:see [sd/ToolChoice]} tool-choice
+             _meta]
+      :as opts}]
   (-> (make-request sd/method-sampling-createMessage
                     opts)
       (update :params #(-> %
@@ -784,7 +792,9 @@
                                          :includeContext include-context
                                          :temperature temperature
                                          :stopSequences stop-sequences
-                                         :metadata metadata)))))
+                                         :metadata metadata
+                                         :tools tools
+                                         :toolChoice tool-choice)))))
 
 
 (defn ^{:see sd/CreateMessageResult} make-create-message-result

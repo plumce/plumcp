@@ -1422,6 +1422,10 @@
    ;; value of 1 means intelligence is the most important factor.
    :intelligencePriority? [number? {:min 0 :max 1}]))
 
+(def tool-choice-auto "auto")
+(def tool-choice-required "required")
+(def tool-choice-none "none")
+
 (def ToolChoice
   "Controls tool selection behavior for sampling requests."
   (su/ts-object
@@ -1429,7 +1433,10 @@
    ;; - "auto": Model decides whether to use tools (default)
    ;; - "required": Model MUST use at least one tool before completing
    ;; - "none": Model MUST NOT use any tools
-   :mode? [:enum "auto" "required" "none"]))
+   :mode? [:enum
+           tool-choice-auto
+           tool-choice-required
+           tool-choice-none]))
 
 (def CreateMessageRequestParams
   "Parameters for a `sampling/createMessage` request."
