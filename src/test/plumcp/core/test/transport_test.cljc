@@ -213,7 +213,7 @@
                       :message
                       "Session is missing. Did you call method `initialize`?",
                       :data {},
-                      :plumcp.core/http-status 400}
+                      const/http-status-key 400}
                      {:code -32600,
                       :message "Initialization notification not received yet",
                       :data {}})
@@ -243,7 +243,7 @@
                      {:code -32601,
                       :message "Session-ID is not associated with any session",
                       :data {},
-                      :plumcp.core/http-status 404}
+                      const/http-status-key 404}
                      [{:name "delete-session",
                        :inputSchema
                        {:type "object", :properties {}, :required []},
@@ -323,7 +323,7 @@
                       {:code -32601,
                        :message "Session-ID is not associated with any session",
                        :data {},
-                       :plumcp.core/http-status 404}
+                       const/http-status-key 404}
                       {:code -32600,
                        :message "Initialization notification not received yet",
                        :data {}})
