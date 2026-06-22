@@ -14,14 +14,17 @@
    [plumcp.core.api.mcp-client :as mc]
    [plumcp.core.api.mcp-server :as ms]
    [plumcp.core.client.client-support :as cs]
+   [plumcp.core.client.http-client-transport :as hct]
    [plumcp.core.client.stdio-client-transport :as sct]
    [plumcp.core.client.zero-client-transport :as zct]
+   [plumcp.core.constant :as const]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.dev.api :as dev]
    [plumcp.core.dev.bling-logger :as blogger]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.var-support :as vs]
+   [plumcp.core.protocol :as p]
    [plumcp.core.main.client :as client]
    [plumcp.core.main.main-http-server :as mhs]
    [plumcp.core.server.server-support :as ss]
@@ -210,7 +213,7 @@
                       :message
                       "Session is missing. Did you call method `initialize`?",
                       :data {},
-                      :plumcp.core/http-status 400}
+                      const/http-status-key 400}
                      {:code -32600,
                       :message "Initialization notification not received yet",
                       :data {}})
@@ -240,13 +243,46 @@
                      {:code -32601,
                       :message "Session-ID is not associated with any session",
                       :data {},
-                      :plumcp.core/http-status 404}
+                      const/http-status-key 404}
                      [{:name "delete-session",
                        :inputSchema
                        {:type "object", :properties {}, :required []},
                        :description "Delete session"}])
                    tools)
                 "tools should fail for HTTP")))))))
+
+
+(deftest test-unhappy:non-jsonrpc-http-error-correlates-to-request
+  (testing "A non-JSON-RPC HTTP error body yields a synthesized error
+            that carries the originating request id, so the in-flight
+            request completes promptly instead of hanging until timeout"
+    (tu/async-test [done]
+      (let [request {:jsonrpc "2.0"
+                     :id 4242
+                     :method "tools/call"
+                     :params {:name "some-tool"}}
+            http-client (reify p/IHttpClient
+                          (client-info [_] {})
+                          (http-call [_ _ring-request]
+                            ;; Server (or auth proxy) replies 403 with a
+                            ;; plain-text body that is not a JSON-RPC msg
+                            (uab/async-val
+                             {:status 403
+                              :headers {"Content-Type" "text/plain"}
+                              :on-msg (fn [cb] (cb "Forbidden"))
+                              :on-sse (fn [cb] (cb "Forbidden"))})))
+            transport (hct/make-streamable-http-transport http-client)]
+        (p/start-client-transport
+         transport
+         (fn [delivered]
+           (is (= 4242 (:id delivered))
+               "synthesized error must carry the originating request id")
+           (is (= 403 (get-in delivered [:error const/http-status-key]))
+               "synthesized error must carry the HTTP status")
+           (is (true? (get-in delivered [:error :data :synthetic?]))
+               "error must be flagged as synthetic")
+           (done)))
+        (p/send-message-to-server transport request)))))
 
 
 (deftest test-unhappy:server-terminates-session
@@ -287,7 +323,7 @@
                       {:code -32601,
                        :message "Session-ID is not associated with any session",
                        :data {},
-                       :plumcp.core/http-status 404}
+                       const/http-status-key 404}
                       {:code -32600,
                        :message "Initialization notification not received yet",
                        :data {}})
