@@ -1105,6 +1105,10 @@
    ;; Default: true
    :openWorldHint? :boolean))
 
+(def task-support-forbidden "forbidden")
+(def task-support-optional  "optional")
+(def task-support-required  "required")
+
 (def ToolExecution
   "Execution-related properties for a tool."
   (su/ts-object
@@ -1117,7 +1121,10 @@
    ;; - "required": Tool requires task-augmented execution
    ;;
    ;; Default: "forbidden"
-   :taskSupport? [:enum "forbidden" "optional" "required"]))
+   :taskSupport? [:enum
+                  task-support-forbidden
+                  task-support-optional
+                  task-support-required]))
 
 (def Tool
   "Definition for a tool the client can call."

@@ -173,7 +173,15 @@
                                     {"a" {:type "number" :description "first number"}
                                      "b" {:type "number" :description "second number"}}
                                     ["a" "b"])))
-        "Simple tool definition"))
+        "Simple tool definition")
+    (is (mc/validate sd/Tool
+                     (eg/make-tool "add"
+                                   (eg/make-tool-input-output-schema
+                                    {"a" {:type "number" :description "first number"}
+                                     "b" {:type "number" :description "second number"}}
+                                    ["a" "b"])
+                                   {:execution {:task-support sd/task-support-optional}}))
+        "Tool definition with optional task support"))
   (testing "valid tool names"
     (let [tio-schema (eg/make-tool-input-output-schema {} [])]
       (is (mc/validate sd/Tool (eg/make-tool "FOO" tio-schema))

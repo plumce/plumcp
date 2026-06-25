@@ -630,6 +630,13 @@
                      (str "tool-name to have " chars-msg)))))
 
 
+(defn make-tool-execution
+  [& {:keys [task-support]
+      :or {task-support sd/task-support-forbidden}}]
+  (-> {}
+      (u/assoc-some :taskSupport task-support)))
+
+
 (defn ^{:see [sd/Tool
               sd/BaseMetadata
               make-icon]} make-tool
@@ -638,6 +645,7 @@
    & {:keys [description
              icons
              title
+             execution
              ^{:see make-tool-input-output-schema} output-schema
              annotations
              _meta]}]
@@ -647,6 +655,8 @@
                     :icons (when icons
                              (u/as-vec icons))
                     :title title
+                    :execution (when execution
+                                 (make-tool-execution execution))
                     :outputSchema output-schema
                     :annotations annotations
                     :_meta _meta)))
