@@ -645,7 +645,7 @@
    & {:keys [description
              icons
              title
-             execution
+             ^{:see make-tool-execution} execution
              ^{:see make-tool-input-output-schema} output-schema
              annotations
              _meta]}]
@@ -698,14 +698,19 @@
 
 
 (defn ^{:see sd/CallToolRequest} make-call-tool-request
-  [tool-name tool-argmap & {:keys [_meta request-id]
-                            :or {request-id (make-id)}
-                            :as opt}]
+  [tool-name tool-argmap
+   & {:keys [_meta
+             request-id
+             ^{:see [sd/TaskAugmentedRequestParams]} task]
+      :or {request-id (make-id)}
+      :as opt}]
   (-> (make-jsonrpc-request sd/method-tools-call request-id
                             opt)
       (update :params
               merge {:name tool-name
-                     :arguments tool-argmap})))
+                     :arguments tool-argmap})
+      (update :params
+              u/assoc-some :task task)))
 
 
 (defn ^{:see sd/ToolListChangedNotification} make-tool-list-changed-notification
@@ -788,6 +793,7 @@
              temperature
              stop-sequences
              metadata
+             ^{:see [sd/TaskAugmentedRequestParams]} task
              ^{:see [sd/Tool]} tools
              ^{:see [sd/ToolChoice]} tool-choice
              _meta]
@@ -803,6 +809,7 @@
                                          :temperature temperature
                                          :stopSequences stop-sequences
                                          :metadata metadata
+                                         :task task
                                          :tools tools
                                          :toolChoice tool-choice)))))
 
@@ -1043,7 +1050,10 @@
               sd/ElicitRequest]} make-elicit-form-request
   [message
    schema-properties  ; a map
-   & {:keys [_meta request-id schema-required]
+   & {:keys [_meta
+             request-id
+             schema-required
+             ^{:see [sd/TaskAugmentedRequestParams]} task]
       :or {request-id (make-id)}
       :as opts}]
   (let [sr (when schema-required
@@ -1055,22 +1065,29 @@
                        :message message
                        :requestedSchema (-> {:type "object"
                                              :properties schema-properties}
-                                            (u/assoc-some :required sr))}))))
+                                            (u/assoc-some :required sr))})
+        (update :params
+                u/assoc-some :task task))))
 
 
 (defn ^{:see [sd/ElicitRequestURLParams
               sd/ElicitRequestParams
               sd/ElicitRequest]} make-elicit-url-request
-  [message elicitation-id url & {:keys [_meta request-id]
-                                 :or {request-id (make-id)}
-                                 :as opts}]
+  [message elicitation-id url
+   & {:keys [_meta
+             request-id
+             ^{:see [sd/TaskAugmentedRequestParams]} task]
+      :or {request-id (make-id)}
+      :as opts}]
   (-> (make-jsonrpc-request sd/method-elicitation-create request-id
                             opts)
       (update :params
               merge {:mode "url"
                      :message message
                      :elicitationId elicitation-id
-                     :url url})))
+                     :url url})
+      (update :params
+              u/assoc-some :task task)))
 
 
 (defn ^{:see [sd/ElicitRequest
