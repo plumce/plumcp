@@ -173,6 +173,12 @@
       (u/assoc-some :title title)))
 
 
+(defn ^{:see [sd/TaskMetadata]} make-task-metadata
+  [{:keys [ttl]}]
+  (-> {}
+      (u/assoc-some :ttl ttl)))
+
+
 (defn ^{:see [sd/Implementation
               sd/BaseMetadata
               make-icon]} make-implementation
@@ -701,7 +707,8 @@
   [tool-name tool-argmap
    & {:keys [_meta
              request-id
-             ^{:see [sd/TaskAugmentedRequestParams]} task]
+             ^{:see [make-task-metadata
+                     sd/TaskAugmentedRequestParams]} task]
       :or {request-id (make-id)}
       :as opt}]
   (-> (make-jsonrpc-request sd/method-tools-call request-id
@@ -793,7 +800,8 @@
              temperature
              stop-sequences
              metadata
-             ^{:see [sd/TaskAugmentedRequestParams]} task
+             ^{:see [make-task-metadata
+                     sd/TaskAugmentedRequestParams]} task
              ^{:see [sd/Tool]} tools
              ^{:see [sd/ToolChoice]} tool-choice
              _meta]
@@ -1053,7 +1061,8 @@
    & {:keys [_meta
              request-id
              schema-required
-             ^{:see [sd/TaskAugmentedRequestParams]} task]
+             ^{:see [make-task-metadata
+                     sd/TaskAugmentedRequestParams]} task]
       :or {request-id (make-id)}
       :as opts}]
   (let [sr (when schema-required
@@ -1076,7 +1085,8 @@
   [message elicitation-id url
    & {:keys [_meta
              request-id
-             ^{:see [sd/TaskAugmentedRequestParams]} task]
+             ^{:see [make-task-metadata
+                     sd/TaskAugmentedRequestParams]} task]
       :or {request-id (make-id)}
       :as opts}]
   (-> (make-jsonrpc-request sd/method-elicitation-create request-id
