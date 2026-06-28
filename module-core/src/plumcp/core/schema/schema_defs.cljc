@@ -579,13 +579,14 @@
    ;; The request was cancelled before completion
    task-status-cancelled])
 
-
 (def TaskMetadata
   "Metadata for augmenting a request with task execution.
    Include this in the `task` field of the request parameters."
   (su/ts-object
    ;; Requested duration in milliseconds to retain task from creation.
    :ttl? number?))
+
+(def related-task-meta-key "io.modelcontextprotocol/related-task")
 
 (def RelatedTaskMetadata
   "Metadata for associating messages with a task.

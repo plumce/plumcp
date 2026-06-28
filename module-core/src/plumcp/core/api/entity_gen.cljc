@@ -179,6 +179,11 @@
       (u/assoc-some :ttl ttl)))
 
 
+(defn ^{:see [sd/RelatedTaskMetadata]} make-related-task-metadata
+  [task-id]
+  {:taskId task-id})
+
+
 (defn ^{:see [sd/Implementation
               sd/BaseMetadata
               make-icon]} make-implementation
@@ -1219,8 +1224,10 @@
 
 
 (defn ^{:see [sd/GetTaskPayloadResult]} make-get-task-payload-result
-  [result]
-  result)
+  [result ^{:see [make-related-task-metadata]} related-task-metadata]
+  (-> result
+      (assoc-in [:_meta sd/related-task-meta-key]
+                related-task-metadata)))
 
 
 (defn ^{:see [sd/TaskStatusNotification]} make-task-status-notification
