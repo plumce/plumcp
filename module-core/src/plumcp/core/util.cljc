@@ -222,6 +222,20 @@
                 (assoc-some m k v)))))
 
 
+(defn assoc-some-in
+  "Like clojure.core/assoc-in, except it assoc's only when value is not
+   nil."
+  ([m ks v]
+   (if (some? v)
+     (assoc-in m ks v)
+     m))
+  ([m ks v & more]
+   (->> (partition 2 more)
+        (reduce (fn [m [k v]]
+                  (assoc-some-in m k v))
+                (assoc-some-in m ks v)))))
+
+
 (defn copy-keys
   "Copy specified keys from source (map) to destination (map)."
   [map-dest map-src keyseq]
