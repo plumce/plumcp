@@ -169,3 +169,14 @@
   (eg/make-create-message-result model-name role
                                  (eg/make-text-content text options)
                                  options))
+
+
+;; --- Tasks ---
+
+
+(defn ^{:see [eg/make-task]} update-task
+  "Update task using `(apply f task args)` along with last-updated
+   timestamp."
+  [task f & args]
+  (-> (apply f task args)
+      (assoc :lastUpdatedAt (u/now-iso8601-utc))))

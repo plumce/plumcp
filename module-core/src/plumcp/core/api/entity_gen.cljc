@@ -1143,6 +1143,31 @@
 ;; ----- Tasks -----
 
 
+(defn ^{:see [sd/Task]} make-task
+  [task-id ^{:see [sd/TaskStatus]} status
+   & {:keys [status-message
+             created-at
+             last-updated-at
+             ttl        ; unspecified is nil, which is a valid value
+             poll-interval]}]
+  (let [now-iso8601 (u/now-iso8601-utc)]
+    (-> {:taskId task-id
+         :status status
+         :createdAt (or created-at now-iso8601)
+         :lastUpdatedAt (or last-updated-at now-iso8601)
+         :ttl ttl}
+        (u/assoc-some :statusMessage status-message
+                      :pollInterval poll-interval))))
+
+
+(defn ^{:see [sd/CreateTaskResult]} make-create-task-result
+  [^{:see [sd/Task
+           make-task]} task
+   & {:keys [_meta] :as opts}]
+  (-> (make-result opts)
+      (merge {:task task})))
+
+
 (defn ^{:see [sd/ListTasksRequest]} make-list-tasks-request
   [& {:keys [cursor]
       :as opts}]
