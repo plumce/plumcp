@@ -1168,9 +1168,13 @@
 (defn ^{:see [sd/CreateTaskResult]} make-create-task-result
   [^{:see [sd/Task
            make-task]} task
-   & {:keys [_meta] :as opts}]
+   & {:keys [_meta
+             ^{:see [sd/meta-model-immediate-response-key]} model-immediate-response]
+      :as opts}]
   (-> (make-result opts)
-      (merge {:task task})))
+      (merge {:task task})
+      (u/assoc-some-in [:_meta sd/meta-model-immediate-response-key]
+                       model-immediate-response)))
 
 
 (defn ^{:see [sd/ListTasksRequest]} make-list-tasks-request
@@ -1226,7 +1230,7 @@
 (defn ^{:see [sd/GetTaskPayloadResult]} make-get-task-payload-result
   [result ^{:see [make-related-task-metadata]} related-task-metadata]
   (-> result
-      (assoc-in [:_meta sd/related-task-meta-key]
+      (assoc-in [:_meta sd/meta-related-task-key]
                 related-task-metadata)))
 
 

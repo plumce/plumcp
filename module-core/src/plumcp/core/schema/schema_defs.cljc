@@ -557,6 +557,10 @@
 ;; ----- Task -----
 
 
+(def meta-related-task-key "io.modelcontextprotocol/related-task")
+(def meta-model-immediate-response-key "io.modelcontextprotocol/model-immediate-response")
+
+
 (def task-status-working "working")
 (def task-status-input-required "input_required")
 (def task-status-completed "completed")
@@ -585,8 +589,6 @@
   (su/ts-object
    ;; Requested duration in milliseconds to retain task from creation.
    :ttl? number?))
-
-(def related-task-meta-key "io.modelcontextprotocol/related-task")
 
 (def RelatedTaskMetadata
   "Metadata for associating messages with a task.
