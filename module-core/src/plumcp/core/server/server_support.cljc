@@ -220,7 +220,8 @@
                                                              server-notification-handlers
                                                              notification-handlers)
                                   (rt/get-runtime)))
-                          (merge override)))
+                          (merge override)
+                          (rt/?whoami rs/default-whoami-server)))
         get-jsonrpc-handler (fn []
                               (or jsonrpc-handler
                                   (-> server-options

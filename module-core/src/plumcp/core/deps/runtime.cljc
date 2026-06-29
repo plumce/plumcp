@@ -201,6 +201,8 @@
 ;; Keys without default values
 
 
+(defrtkey ?whoami {})  ; {:role :server #_or #_:client}
+
 (defrtkey ?session-id {})
 (defrtkey ?session {})
 (defrtkey ?callback-context {})
