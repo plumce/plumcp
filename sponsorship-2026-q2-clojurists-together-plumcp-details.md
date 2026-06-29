@@ -41,7 +41,7 @@ A summary of changes as TODO items are below:
        parameters
 8. [ ] Add support for OAuth Client ID Metadata Documents as a recommended
        client registration mechanism
-9. [ ] Add support for (potentially long running) tasks to enable tracking
+9. [ ] (WIP) Add support for (potentially long running) tasks to enable tracking
        durable requests with polling and deferred result retrieval
 
 ### Minor changes

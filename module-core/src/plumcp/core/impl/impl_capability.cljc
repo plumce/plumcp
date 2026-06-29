@@ -287,6 +287,36 @@
     (get-capability-declaration [_] {})))
 
 
+(defn make-tasks-capability
+  [& {:keys [list
+             cancel
+             requests]
+      :or {list {}
+           cancel {}
+           requests {}}}]
+  (reify
+    p/IMcpCapability
+    (get-capability-declaration [_] (-> {}
+                                        (u/assoc-some :list list
+                                                      :cancel cancel
+                                                      :requests requests)))))
+
+
+(def default-client-tasks-capability
+  "Default client capability for tasks, which enables everything."
+  (make-tasks-capability {:list {}
+                          :cancel {}
+                          :requests {:sampling {:createMessage {}}
+                                     :elicitation {:create {}}}}))
+
+
+(def default-server-tasks-capability
+  "Default server capability for tasks, which enables everything."
+  (make-tasks-capability {:list {}
+                          :cancel {}
+                          :requests {:tools {:call {}}}}))
+
+
 (declare make-prompts-capability)
 
 
@@ -489,12 +519,14 @@
 
 
 (def default-client-capabilities {:experimental nil
+                                  :tasks        default-client-tasks-capability
                                   :roots        nil
                                   :sampling     nil
                                   :elicitation  nil})
 
 
 (def default-server-capabilities {:experimental nil
+                                  :tasks        default-server-tasks-capability
                                   :logging      logging-capability
                                   :completions  nil
                                   :prompts      nil
@@ -523,6 +555,7 @@
 
 (defn get-capability-experimental [capabilities] (get capabilities
                                                       :experimental))
+(defn get-capability-tasks [capabilities] (get capabilities :tasks))
 
 ;; ~~ Updates ~~
 
@@ -606,11 +639,13 @@
    ```"
   [client-capabilities]
   (let [{:keys [experimental
+                tasks
                 roots
                 sampling
                 elicitation]} client-capabilities]
     (u/assoc-some {}
                   :experimental (capability->declaration experimental)
+                  :tasks        (capability->declaration tasks)
                   :roots        (capability->declaration roots)
                   :sampling     (capability->declaration sampling)
                   :elicitation  (capability->declaration elicitation))))
@@ -630,6 +665,7 @@
   [server-capabilities]
   (let [{:keys [experimental
                 logging
+                tasks
                 completions
                 prompts
                 resources
@@ -637,6 +673,7 @@
     (u/assoc-some {}
                   :experimental (capability->declaration experimental)
                   :logging      (capability->declaration logging)
+                  :tasks        (capability->declaration tasks)
                   :completions  (capability->declaration completions)
                   :prompts      (capability->declaration prompts)
                   :resources    (capability->declaration resources)

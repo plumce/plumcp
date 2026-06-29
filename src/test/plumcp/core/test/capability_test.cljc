@@ -87,10 +87,22 @@
            (p/get-elicitation-response elicitation-cap :foo)))))
 
 
+(deftest client-tasks-capability-test
+  (let [tasks-cap ic/default-client-tasks-capability]
+    (is (= {:list {}
+            :cancel {}
+            :requests {:sampling {:createMessage {}}
+                       :elicitation {:create {}}}}
+           (p/get-capability-declaration tasks-cap)))))
+
+
 (deftest client-capabilities-test
   (testing "default capabilities"
     (let [default-caps ic/default-client-capabilities]
-      (is (= {}
+      (is (= {:tasks {:list {}
+                      :cancel {}
+                      :requests {:sampling {:createMessage {}}
+                                 :elicitation {:create {}}}}}
              (ic/get-client-capability-declaration default-caps)))))
   (testing "all capabilities"
     (let [all-caps {:roots (-> [root-one]
@@ -322,10 +334,21 @@
            (p/completion-complete cap resource-ref-item :foo)))))
 
 
+(deftest server-tasks-capability-test
+  (let [tasks-cap ic/default-server-tasks-capability]
+    (is (= {:list {}
+            :cancel {}
+            :requests {:tools {:call {}}}}
+           (p/get-capability-declaration tasks-cap)))))
+
+
 (deftest server-capabilities-test
   (testing "default capabilities"
     (let [default-caps ic/default-server-capabilities]
-      (is (= {:logging {}}
+      (is (= {:logging {}
+              :tasks {:list {}
+                      :cancel {}
+                      :requests {:tools {:call {}}}}}
              (ic/get-server-capability-declaration default-caps)))))
   (testing "all capabilities"
     (let [all-caps (merge ic/default-server-capabilities
@@ -335,6 +358,9 @@
                            :tools (-> [tool-add]
                                       (ic/make-tools-capability))})]
       (is (= {:logging {}
+              :tasks {:list {}
+                      :cancel {}
+                      :requests {:tools {:call {}}}}
               :prompts {:listChanged true}
               :resources {:listChanged true :subscribe true}
               :tools {:listChanged true}}

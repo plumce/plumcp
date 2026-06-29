@@ -95,10 +95,10 @@ All notable changes to this project will be documented in this file. This change
   - Allow tool definition attributes
     - `:annotations`
     - `:execution`
-- Task orchestration
+- [WIP] Task orchestration
   - [ ] Protocol ICommonSession (client and server) for tasks backend
-  - [ ] Entity generators/support
-  - [ ] Capability
+  - [x] Entity generators/support
+  - [x] Capability declaration
   - [ ] Augmentated invocation
   - [ ] Operations
     - [ ] List

@@ -221,6 +221,7 @@
                  - vector of tool items
                  - deref'able vector of tool items (e.g. atom)
                  - arity-0 function returning a vector of tool items
+    :tasks     - tasks capability
     :completion-prompt-refs - vector of prompt ref items
     :completion-resource-refs - vector of resource ref items}"
   [{:keys [^{:see [make-prompt-item]} prompts
