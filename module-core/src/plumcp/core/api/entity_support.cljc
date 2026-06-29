@@ -11,6 +11,7 @@
   "Convenience fns for making schema entities."
   (:require
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u]))
 
 
@@ -174,9 +175,32 @@
 ;; --- Tasks ---
 
 
+(defn ^{:see [eg/make-task]} make-working-task
+  "Make a new task in 'working' status with worker and other metadata."
+  [stoppable-worker & opts]
+  (-> (eg/make-task sd/task-status-working opts)
+      (assoc :plumcp.core/meta {:worker stoppable-worker})))
+
+
+(defn clean-task
+  "Clean a task, removing any metadata."
+  [task]
+  (-> task
+      (dissoc :plumcp.core/meta)))
+
+
 (defn ^{:see [eg/make-task]} update-task
   "Update task using `(apply f task args)` along with last-updated
    timestamp."
-  [task f & args]
+  [^{:see [sd/Task]} task f & args]
   (-> (apply f task args)
       (assoc :lastUpdatedAt (u/now-iso8601-utc))))
+
+
+(defn task-state-terminal?
+  "Return true if the given task has a terminal status, false otherwise."
+  [^{:see [sd/Task]} task]
+  (-> (:status task)
+      #{sd/task-status-cancelled
+        sd/task-status-completed
+        sd/task-status-failed}))

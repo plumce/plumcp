@@ -1149,12 +1149,14 @@
 
 
 (defn ^{:see [sd/Task]} make-task
-  [task-id ^{:see [sd/TaskStatus]} status
-   & {:keys [status-message
+  [^{:see [sd/TaskStatus]} status
+   & {:keys [task-id
+             status-message
              created-at
              last-updated-at
              ttl        ; unspecified is nil, which is a valid value
-             poll-interval]}]
+             poll-interval]
+      :or {task-id (u/uuid-v7)}}]
   (let [now-iso8601 (u/now-iso8601-utc)]
     (-> {:taskId task-id
          :status status
