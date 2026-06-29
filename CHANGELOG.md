@@ -127,6 +127,8 @@ All notable changes to this project will be documented in this file. This change
       - `make-untitled-multi-select-enum-schema`
       - `make-titled-multi-select-enum-schema`
     - `p.c.a.entity-gen/make-elicit-url-request`
+- Server: Streaming HTTP Transport
+  - Apply DNS-rebind check to verify Origin/Host headers (403 on error)
 
 ### Fixed
 

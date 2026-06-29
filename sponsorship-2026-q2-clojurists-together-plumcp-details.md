@@ -51,7 +51,7 @@ A summary of changes as TODO items are below:
 2. [x] Add optional description field to `Implementation` (schema) interface
        to align with MCP registry `server.json` format and provide
        human-readable context during initialization
-3. [ ] Have the servers respond with HTTP 403 Forbidden for invalid Origin
+3. [x] Have the servers respond with HTTP 403 Forbidden for invalid Origin
        headers in Streamable HTTP transport
 4. [ ] Review _Security Best Practices Guidance_ - add required utility fns
 5. [ ] Return Input validation errors as Tool Execution Errors rather than
