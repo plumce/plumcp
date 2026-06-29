@@ -62,7 +62,7 @@ A summary of changes as TODO items are below:
 8. [ ] Align OAuth 2.0 Protected Resource Metadata discovery with RFC 9728,
        making `WWW-Authenticate` header optional with fallback to
        `.well-known` endpoint
-9. [ ] Add support for default values in all primitive types (string, number,
+9. [x] Add support for default values in all primitive types (string, number,
        enum) for elicitation schemas
 10. [x] Establish JSON Schema 2020-12 as the default dialect for MCP schema
         definitions (2020-12 is the ONLY supported dialect for now)
