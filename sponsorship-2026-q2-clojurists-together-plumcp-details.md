@@ -48,7 +48,7 @@ A summary of changes as TODO items are below:
 
 1. [ ] Add utility function(s) to let servers using STDIO transport use
        STDERR for all types of logging, not just error messages
-2. [ ] Add optional description field to `Implementation` (schema) interface
+2. [x] Add optional description field to `Implementation` (schema) interface
        to align with MCP registry `server.json` format and provide
        human-readable context during initialization
 3. [ ] Have the servers respond with HTTP 403 Forbidden for invalid Origin

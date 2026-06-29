@@ -188,12 +188,16 @@
               sd/BaseMetadata
               make-icon]} make-implementation
   [mcp-impl-name mcp-impl-version & {:keys [title
-                                            icons]}]
+                                            icons
+                                            description
+                                            website-url]}]
   (-> {:name mcp-impl-name
        :version mcp-impl-version}
       (u/assoc-some :title title
                     :icons (when icons
-                             (u/as-vec icons)))))
+                             (u/as-vec icons))
+                    :description description
+                    :websiteUrl website-url)))
 
 
 (defn ^{:see sd/InitializeRequest} make-initialize-request
