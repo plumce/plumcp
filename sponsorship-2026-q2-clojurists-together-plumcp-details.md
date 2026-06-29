@@ -46,7 +46,7 @@ A summary of changes as TODO items are below:
 
 ### Minor changes
 
-1. [ ] Add utility function(s) to let servers using STDIO transport use
+1. [x] Add utility function(s) to let servers using STDIO transport use
        STDERR for all types of logging, not just error messages
 2. [x] Add optional description field to `Implementation` (schema) interface
        to align with MCP registry `server.json` format and provide
@@ -64,7 +64,7 @@ A summary of changes as TODO items are below:
        `.well-known` endpoint
 9. [ ] Add support for default values in all primitive types (string, number,
        enum) for elicitation schemas
-10. [ ] Establish JSON Schema 2020-12 as the default dialect for MCP schema
+10. [x] Establish JSON Schema 2020-12 as the default dialect for MCP schema
         definitions (2020-12 is the ONLY supported dialect for now)
 
 ## PluMCP Usage documentation
