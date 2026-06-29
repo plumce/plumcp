@@ -265,7 +265,10 @@
    - Attributes `:tool-name` and (arg) `:name` are optional - when not
      specified, names are inferred from the symbols.
    - Attribute `:required?` is optional for args, assumed true when not
-     specified. When specified, must be a boolean value."
+     specified. When specified, must be a boolean value.
+   - Following optional tool attributes may be specified as follows:
+     - :annotations as :mcp-annotations
+     - :execution   as :mcp-execution"
   [var-instance & {:keys [var-handler]
                    :or {var-handler identity}}]
   (when-not (var? var-instance)
@@ -299,9 +302,12 @@
         handler  (-> var-instance
                      var-handler
                      mh/make-call-tool-handler)]
-    (-> (eg/make-tool mcp-name inschema
-                      {:description tool-doc})
-        (ic/make-tools-capability-item handler))))
+    (as-> {:description tool-doc} $
+      (u/assoc-some $
+                    :annotations (:mcp-annotations vm)
+                    :execution (:mcp-execution vm))
+      (eg/make-tool mcp-name inschema $)
+      (ic/make-tools-capability-item $ handler))))
 
 
 ;; ----- Sampling -----

@@ -87,6 +87,24 @@ All notable changes to this project will be documented in this file. This change
 - Sampling
   - Support for `tools` declaration in sampling handler var metadata
     - `:mcp-sampling-tools`
+- Implementation/Info
+  - Added attrs to `make-implementation` (by extension to `make-info`)
+    - `:description`
+    - `:website-url`
+- Var support
+  - Allow tool definition attributes
+    - `:annotations`
+    - `:execution`
+- Task orchestration
+  - [ ] Protocol ICommonSession (client and server) for tasks backend
+  - [ ] Entity generators/support
+  - [ ] Capability
+  - [ ] Augmentated invocation
+  - [ ] Operations
+    - [ ] List
+    - [ ] Get
+    - [ ] Cancel
+    - [ ] Get result
 
 ### Changed
 
