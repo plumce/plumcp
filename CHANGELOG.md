@@ -97,9 +97,24 @@ All notable changes to this project will be documented in this file. This change
     - `:execution`
 - [WIP] Task orchestration
   - [ ] Protocol ICommonSession (client and server) for tasks backend
-  - [x] Entity generators/support
+  - [x] Entity generators/support in `p.c.a.entity-support` ns
+    - `make-working-task`
+    - `clean-task`
+    - `task-state-terminal?`
+    - `update-task`
+    - `update-task-status`
+    - `update-task-status-to-input-required`
+    - `update-task-status-to-completed`
+    - `update-task-status-to-failed`
+    - `update-task-status-to-cancelled`
+    - `get-task-status`
+    - `get-task-result`
+    - `get-task-error`
   - [x] Capability declaration
   - [ ] Augmentated invocation
+    - [ ] Tool
+    - [ ] Sampling
+    - [ ] Elicitation
   - [ ] Operations
     - [ ] List
     - [ ] Get

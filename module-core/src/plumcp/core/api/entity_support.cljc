@@ -11,6 +11,7 @@
   "Convenience fns for making schema entities."
   (:require
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.constant :as const]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u]))
 
@@ -179,14 +180,23 @@
   "Make a new task in 'working' status with worker and other metadata."
   [stoppable-worker & opts]
   (-> (eg/make-task sd/task-status-working opts)
-      (assoc :plumcp.core/meta {:worker stoppable-worker})))
+      (assoc const/meta-key {:worker stoppable-worker})))
 
 
 (defn clean-task
   "Clean a task, removing any metadata."
   [task]
   (-> task
-      (dissoc :plumcp.core/meta)))
+      (dissoc const/meta-key)))
+
+
+(defn task-state-terminal?
+  "Return true if the given task has a terminal status, false otherwise."
+  [^{:see [sd/Task]} task]
+  (-> (:status task)
+      #{sd/task-status-cancelled
+        sd/task-status-completed
+        sd/task-status-failed}))
 
 
 (defn ^{:see [eg/make-task]} update-task
@@ -197,10 +207,63 @@
       (assoc :lastUpdatedAt (u/now-iso8601-utc))))
 
 
-(defn task-state-terminal?
-  "Return true if the given task has a terminal status, false otherwise."
+(defn update-task-status
+  "Update task status unless task is already in terminal state."
+  [^{:see [sd/Task]} task new-status]
+  (if (task-state-terminal? task)  ; is task already in terminal state
+    task        ; do not update task that is already in terminal state
+    (update-task task
+                 assoc :status new-status)))
+
+
+(defn update-task-status-to-input-required
+  "Update task status from 'working' to 'input-required'."
   [^{:see [sd/Task]} task]
-  (-> (:status task)
-      #{sd/task-status-cancelled
-        sd/task-status-completed
-        sd/task-status-failed}))
+  (if (= sd/task-status-working (:status task))
+    (update-task-status task sd/task-status-input-required)
+    task))
+
+
+(defn update-task-status-to-completed
+  "Update task status to 'completed' unless task is already in a
+   terminal state."
+  [^{:see [sd/Task]} task result]
+  (let [updated-task (update-task-status task sd/task-status-completed)]
+    (if (= updated-task task)  ; update did not happen?
+      task
+      (assoc-in updated-task [const/meta-key :result] result))))
+
+
+(defn update-task-status-to-failed
+  "Update task status to 'failed' unless task is already in a
+   terminal state."
+  [^{:see [sd/Task]} task error]
+  (let [updated-task (update-task-status task sd/task-status-failed)]
+    (if (= updated-task task)  ; update did not happen?
+      task
+      (assoc-in updated-task [const/meta-key :error] error))))
+
+
+(defn update-task-status-to-cancelled
+  "Update task status to 'cancelled' unless task is already in a
+   terminal state."
+  [^{:see [sd/Task]} task]
+  (update-task-status task sd/task-status-cancelled))
+
+
+(defn get-task-status
+  "Return current status of the task."
+  [^{:see [sd/Task]} task]
+  (:status task))
+
+
+(defn get-task-result
+  "Return task result, assuming the task is already in 'completed' state."
+  [^{:see [sd/Task]} task]
+  (get-in task [const/meta-key :result]))
+
+
+(defn get-task-error
+  "Return task error, assuming the task is already in 'failed' state."
+  [^{:see [sd/Task]} task]
+  (get-in task [const/meta-key :error]))
