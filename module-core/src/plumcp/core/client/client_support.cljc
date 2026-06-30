@@ -1044,7 +1044,7 @@
                                                              notification-handlers)
                                   (rt/get-runtime)))
                           (merge override)
-                          (rt/?whoami rs/default-whoami-client)))
+                          (assoc (kl/->key rt/?whoami) rs/default-whoami-client)))
         get-jsonrpc-handler (fn []
                               (or jsonrpc-handler
                                   (make-client-jsonrpc-message-handler

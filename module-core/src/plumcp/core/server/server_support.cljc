@@ -20,7 +20,8 @@
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
-   [plumcp.core.util :as u]))
+   [plumcp.core.util :as u]
+   [plumcp.core.util.key-lookup :as kl]))
 
 
 ;; --- Notification handling ---
@@ -221,7 +222,7 @@
                                                              notification-handlers)
                                   (rt/get-runtime)))
                           (merge override)
-                          (rt/?whoami rs/default-whoami-server)))
+                          (assoc (kl/->key rt/?whoami) rs/default-whoami-server)))
         get-jsonrpc-handler (fn []
                               (or jsonrpc-handler
                                   (-> server-options
