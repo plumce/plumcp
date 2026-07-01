@@ -16,6 +16,11 @@
    [plumcp.core.util.stream :as us]))
 
 
+;; common session
+(def ^:const k-invoked-tasks     :invoked-tasks)
+
+
+;; server session
 (def ^:const k-cancellation-reqs :cancellation-reqs)
 (def ^:const k-initialize-params :initialize-params)
 (def ^:const k-initialize-ts     :initialize-ts)
@@ -36,7 +41,10 @@
 
 (def default-session-init
   "Default initial value of the session state."
-  {k-cancellation-reqs #{}
+  {;; common session
+   k-invoked-tasks     {#_task-id #_stoppable} ; running or complete
+   ;; server session
+   k-cancellation-reqs #{}
    k-initialize-ts     nil
    k-log-level         sd/log-level-6-info
    k-log-level-index   (level-index sd/log-level-6-info)
@@ -89,6 +97,15 @@
                                               (get k-log-level-index)
                                               long)))]
     (reify
+      p/ICommonSession
+      (add-task    [_ task] (s-update-at! k-invoked-tasks
+                                          u/assoc-missing (:taskId task) task))
+      (update-task [_ task-id f] (s-update-at! k-invoked-tasks
+                                               update task-id f))
+      (list-tasks  [_] (-> (s-get k-invoked-tasks) vals vec))
+      (get-task    [_ task-id] (-> (s-get k-invoked-tasks) (get task-id)))
+      (remove-task [_ task-id] (s-update-at! k-invoked-tasks
+                                             dissoc task-id))
       p/IServerSession
       ;;
       ;; cancellation

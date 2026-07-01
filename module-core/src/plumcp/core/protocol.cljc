@@ -155,6 +155,28 @@
   (stop! [this] "Stop the stoppable"))
 
 
+(defprotocol ICommonSession
+  ;;
+  ;; Tasks
+  ;;
+  (add-task    [this working-task] "Add a task in working state")
+  (update-task [this task-id f] "Update task if found, nil otherwise")
+  (list-tasks  [this] "List all tasks")
+  (get-task    [this task-id] "Get specified task, or nil if not found")
+  (remove-task [this task-id] "Remove specified task by its ID")
+  ;;
+  )
+
+
+(def nop-common-session
+  (reify ICommonSession
+    (add-task    [_ working-task])
+    (update-task [_ task-id f])
+    (list-tasks  [_] [])
+    (get-task    [_ task-id])
+    (remove-task [_ task-id])))
+
+
 ;; --- MCP Client ---
 
 
