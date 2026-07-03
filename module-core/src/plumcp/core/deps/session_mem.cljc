@@ -16,8 +16,9 @@
    [plumcp.core.util.stream :as us]))
 
 
-;; common session
+;; common (client and server) session
 (def ^:const k-invoked-tasks     :invoked-tasks)
+(def ^:const k-tasks-to-cancel   :tasks-to-cancel)
 
 
 ;; server session
@@ -42,7 +43,8 @@
 (def default-session-init
   "Default initial value of the session state."
   {;; common session
-   k-invoked-tasks     {#_task-id #_stoppable} ; running or complete
+   k-invoked-tasks     {#_task-id #_task}
+   k-tasks-to-cancel   #{#_task-id}
    ;; server session
    k-cancellation-reqs #{}
    k-initialize-ts     nil
@@ -98,14 +100,28 @@
                                               long)))]
     (reify
       p/ICommonSession
-      (add-task    [_ task] (s-update-at! k-invoked-tasks
-                                          u/assoc-missing (:taskId task) task))
-      (update-task [_ task-id f] (s-update-at! k-invoked-tasks
-                                               update task-id f))
+      ;;
+      ;; Tasks
+      ;;
+      (add-task    [_ task] (when-let [task-id (:taskId task)]
+                              (s-update-at! k-invoked-tasks
+                                            u/assoc-missing task-id task)))
+      (update-task [_ task-id f] (when task-id
+                                   (s-update-at! k-invoked-tasks
+                                                 update task-id f)))
       (list-tasks  [_] (-> (s-get k-invoked-tasks) vals vec))
       (get-task    [_ task-id] (-> (s-get k-invoked-tasks) (get task-id)))
-      (remove-task [_ task-id] (s-update-at! k-invoked-tasks
-                                             dissoc task-id))
+      (remove-task [_ task-id] (when task-id
+                                 (s-update-at! k-invoked-tasks
+                                               dissoc task-id)))
+      ;;
+      ;; Task cancellation
+      ;;
+      (request-cancel-task [_ task-id] (when task-id
+                                         (s-conj! k-tasks-to-cancel
+                                                  task-id)))
+      (requested-cancel-task? [_ task-id] (s-get-in [k-tasks-to-cancel
+                                                     task-id]))
       p/IServerSession
       ;;
       ;; cancellation

@@ -177,10 +177,9 @@
 
 
 (defn ^{:see [eg/make-task]} make-working-task
-  "Make a new task in 'working' status with worker and other metadata."
-  [stoppable-worker & opts]
-  (-> (eg/make-task sd/task-status-working opts)
-      (assoc const/meta-key {:worker stoppable-worker})))
+  "Make a new task with 'working' status."
+  [& {:as opts}]
+  (eg/make-task sd/task-status-working opts))
 
 
 (defn clean-task

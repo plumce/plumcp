@@ -335,14 +335,24 @@
       (= :server)))
 
 
-;; --- Capabilities ---
+;; --- Host-agnostic helpers ---
 
 
 (defn my-capabilities
-  "Return capabilities as per WhoAmI role."
+  "Return client or server capabilities as per WhoAmI role."
   [context]
   (let [role (whoami-role context)]
     (case role
       :client (rt/?client-capabilities context)
       :server (rt/?server-capabilities context)
+      (u/expected-enum! role #{:client :server}))))
+
+
+(defn my-session
+  "Return client or server session as per WhoAmI role."
+  [context]
+  (let [role (whoami-role context)]
+    (case role
+      :client (u/throw! "Client-session NOT implemented yet")
+      :server (rt/?session context)
       (u/expected-enum! role #{:client :server}))))
