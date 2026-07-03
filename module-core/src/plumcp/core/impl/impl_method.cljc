@@ -11,6 +11,7 @@
   "Implementation of the client and server MCP methods."
   (:require
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.impl-capability :as ic]
@@ -42,12 +43,67 @@
    (make-result result #(do {:result %}))))
 
 
+(defn ^{:see [sd/TaskAugmentedRequestParams]} task-augmented-request?
+  "Return true if given JSON-RPC request is a task-augmented request,
+   false otherwise."
+  [jsonrpc-request]
+  (-> jsonrpc-request
+      (get-in [:params :task])
+      map?))
+
+
+(defn wrap-task-augmented
+  "Given a no-arg function that produces a JSON-RPC result or response,
+   wrap it such that it detects and intercepts task-augmented request and
+   responds appropriately."
+  [f jsonrpc-request specific-tasks-capability]
+  (if-let [task-metadata (get-in jsonrpc-request [:params :task])]
+    ;; task augmented, so process like one
+    (let [tasks-capability (-> (rs/my-capabilities jsonrpc-request)
+                               (ic/get-capability-tasks))]
+      (if (->> (vec specific-tasks-capability)
+               (get-in tasks-capability))
+        ;; specific tasks capability exists
+        (fn [& args]
+          (let [common-session (rs/my-session jsonrpc-request)
+                task-id (u/uuid-v7)
+                new-task (->> (assoc task-metadata :task-id task-id)
+                              (es/make-working-task))]
+            ;; register task
+            (p/add-task common-session new-task)
+            ;; run task-worker
+            (u/background
+              (let [[result ex] (u/catch! (apply f args))]
+                (->> (fn [task]
+                       (if ex
+                         ;; set task status to failed
+                         (->> (jr/jsonrpc-failure sd/error-code-internal-error
+                                                  (ex-message ex)
+                                                  (ex-data ex))
+                              (es/update-task-status-to-failed task))
+                         ;; set task status to completed
+                         (->> result
+                              (es/update-task-status-to-completed task))))
+                     (p/update-task common-session task-id))))
+            ;; return task
+            (-> (es/clean-task new-task)
+                make-result)))
+        ;; specific tasks capability absent
+        (fn [& _]
+          (jr/jsonrpc-failure sd/error-code-method-not-found
+                              (format "Tasks capability '%s' not supported"
+                                      specific-tasks-capability)))))
+    ;; ordinary request without task augmentation, so wrap not required
+    f))
+
+
 (defn with-capability
   [context capability-name capability f]
   (if (some? capability)
     ;; until initialized, only logging and ping is allowed
     (if (or (contains? #{"roots" "sampling" "elicitation"}
                        capability-name)  ; client capability?
+            (= "tasks" capability-name)
             (and (= "logging" capability-name)
                  (rt/has-session? context))  ; before initialized notification
             (and (contains? #{"completions" "prompts" "resources" "tools"}
@@ -126,6 +182,22 @@
   (let [tools-capability (-> (rt/?server-capabilities request)
                              (ic/get-capability-tools))]
     (with-capability request "tools" tools-capability f)))
+
+
+;; --- Client/Server capabilities ---
+
+
+(defn with-tasks-capability [specific-tasks-capability request f]
+  (if-let [tasks-capability (-> (rs/my-capabilities request)
+                                (ic/get-capability-tasks))]
+    (if (->> (vec specific-tasks-capability)
+             (get-in tasks-capability))
+      (with-capability request "tasks" tasks-capability f)
+      (jr/jsonrpc-failure sd/error-code-invalid-request
+                          (format "Tasks capability %s is not supported"
+                                  (pr-str specific-tasks-capability))))
+    (jr/jsonrpc-failure sd/error-code-method-not-found
+                        "Tasks capability is not supported")))
 
 
 ;; --- Handshake ---
@@ -211,10 +283,14 @@
   (with-sampling-capability
     jsonrpc-request
     (fn [sampling-capability]
-      (as-> params $
-        (copy-deps $ jsonrpc-request)
-        (p/get-sampling-response sampling-capability $)
-        (make-result $)))))
+      (let [handler (-> #(p/get-sampling-response sampling-capability %)
+                        (wrap-task-augmented jsonrpc-request
+                                             ^{:see [ic/default-client-tasks-capability]}
+                                             [:requests :sampling :createMessage]))]
+        (-> params
+            (copy-deps jsonrpc-request)
+            handler
+            make-result)))))
 
 
 (defn ^{:see [sd/ElicitRequest
@@ -227,10 +303,14 @@
   (with-elicitation-capability
     jsonrpc-request
     (fn [elicitation-capability]
-      (as-> params $
-        (copy-deps $ jsonrpc-request)
-        (p/get-elicitation-response elicitation-capability $)
-        (make-result $)))))
+      (let [handler (-> #(p/get-elicitation-response elicitation-capability %)
+                        (wrap-task-augmented jsonrpc-request
+                                             ^{:see [ic/default-client-tasks-capability]}
+                                             [:requests :elicitation :create]))]
+        (-> params
+            (copy-deps jsonrpc-request)
+            handler
+            make-result)))))
 
 
 ;; --- Server capabilities ---
@@ -380,10 +460,13 @@
     jsonrpc-request
     (fn [tools-capability]
       (if-let [{:keys [handler]} (p/find-handler tools-capability tool-name)]
-        (-> tool-args
-            (copy-deps jsonrpc-request)
-            handler
-            make-result)
+        (let [handler (wrap-task-augmented handler jsonrpc-request
+                                           ^{:see [ic/default-server-tasks-capability]}
+                                           [:requests :tools :call])]
+          (-> tool-args
+              (copy-deps jsonrpc-request)
+              handler
+              make-result))
         (jr/jsonrpc-failure sd/error-code-invalid-params
                             (str "Unrecognized tool: " tool-name)
                             params)))))
@@ -401,6 +484,93 @@
       (let [level (:level params)]
         (rs/set-log-level jsonrpc-request level)
         {:result {}}))))
+
+
+;; --- Client/Server capabilities ---
+
+
+(defn ^{:see [sd/ListTasksRequest
+              sd/ListTasksResult
+              eg/make-list-tasks-request
+              eg/make-list-tasks-result]} tasks-list
+  [{{cursor :cursor} :params
+    :as jsonrpc-request}]
+  (with-tasks-capability
+    [:list]
+    jsonrpc-request
+    (fn [tasks-capability]
+      (if-let [tasks (cond
+                       ;; server tasks
+                       (rs/whoami-server? jsonrpc-request)
+                       (p/list-tasks (rt/?session jsonrpc-request))
+                       ;; client tasks
+                       (rs/whoami-client? jsonrpc-request)
+                       [#_FIXME])]
+        (-> (eg/make-list-tasks-result tasks)
+            make-result)
+        (jr/jsonrpc-failure sd/error-code-internal-error
+                            "Unable to fetch tasks")))))
+
+
+(defn ^{:see [sd/CancelTaskRequest
+              sd/CancelTaskResult
+              eg/make-cancel-task-request
+              eg/make-cancel-task-result]} tasks-cancel
+  [{{task-id :taskId} :params
+    :as jsonrpc-request}]
+  (with-tasks-capability
+    [:cancel]
+    jsonrpc-request
+    (fn [tasks-capability]
+      (let [common-session (rs/my-session jsonrpc-request)]
+        (if-let [task (p/get-task common-session task-id)]
+          (do
+            (p/request-cancel-task common-session task-id)
+            (-> (eg/make-cancel-task-result task)
+                make-result))
+          ;;
+          (jr/jsonrpc-failure sd/error-code-invalid-params
+                              "Unable to locate task"
+                              {:task-id task-id}))))))
+
+
+(defn ^{:see [sd/GetTaskRequest
+              sd/GetTaskResult
+              eg/make-get-task-request
+              eg/make-get-task-result]} tasks-get
+  [{{task-id :taskId} :params
+    :as jsonrpc-request}]
+  (with-tasks-capability
+    []  ; not restricted by specific tasks capability
+    jsonrpc-request
+    (fn [tasks-capability]
+      (let [common-session (rs/my-session jsonrpc-request)]
+        (if-let [task (p/get-task common-session task-id)]
+          (-> (eg/make-get-task-result task)
+              make-result)
+          (jr/jsonrpc-failure sd/error-code-invalid-params
+                              "Unable to locate task"
+                              {:task-id task-id}))))))
+
+
+(defn ^{:see [sd/GetTaskPayloadRequest
+              sd/GetTaskPayloadResult
+              eg/make-get-task-payload-request
+              eg/make-get-task-payload-result]} tasks-result
+  [{{task-id :taskId} :params
+    :as jsonrpc-request}]
+  (with-tasks-capability
+    []  ; not restricted by specific tasks capability
+    jsonrpc-request
+    (fn [tasks-capability]
+      (let [common-session (rs/my-session jsonrpc-request)]
+        (if-let [task (p/get-task common-session task-id)]
+          (->> (eg/make-related-task-metadata task-id)
+               (eg/make-get-task-payload-result (es/get-task-result task))
+               make-result)
+          (jr/jsonrpc-failure sd/error-code-invalid-params
+                              "Unable to locate task"
+                              {:task-id task-id}))))))
 
 
 ;; --- Notifications ---
