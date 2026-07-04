@@ -948,9 +948,11 @@
   {;; -- received by both client and server --
    sd/method-notifications-cancelled cancel-server-request
    sd/method-notifications-progress update-client-request-progress
+   sd/method-notifications-tasks-status u/nop  ; ignore
    ;; -- received by client --
    sd/method-notifications-message log-message
    sd/method-notifications-resources-updated u/nop  ; ignore
+   sd/method-notifications-elicitation-complete u/nop  ; ignore
    ;; list-changed
    sd/method-notifications-prompts-list_changed (-> fetch-prompts
                                                     wrap-initialized-check)

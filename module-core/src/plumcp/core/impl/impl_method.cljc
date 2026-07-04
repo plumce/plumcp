@@ -664,3 +664,19 @@
   (call-notification-handler jsonrpc-notification
                              sd/method-notifications-roots-list_changed)
   {:result {}})
+
+
+(defn notifications-tasks-status
+  [{:as jsonrpc-notification}]
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-tasks-status)
+  {:result {}})
+
+
+(defn ^{:see [sd/ElicitationCompleteNotification
+              eg/make-elicitation-complete-notification]}
+  notifications-elicitation-complete
+  [{:as jsonrpc-notification}]
+  (call-notification-handler jsonrpc-notification
+                             sd/method-notifications-elicitation-complete)
+  {:result {}})

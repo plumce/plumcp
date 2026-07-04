@@ -79,6 +79,7 @@
   {;; -- received by both client and server --
    sd/method-notifications-cancelled cancel-client-request
    sd/method-notifications-progress update-server-request-progress
+   sd/method-notifications-tasks-status u/nop  ; ignore
    ;; -- received by server --
    sd/method-notifications-initialized set-init-timestamp
    sd/method-notifications-roots-list_changed refetch-roots})

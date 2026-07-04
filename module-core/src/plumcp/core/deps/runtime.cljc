@@ -183,12 +183,14 @@
              [;; received by both client and server
               sd/method-notifications-cancelled
               sd/method-notifications-progress
+              sd/method-notifications-tasks-status
               ;; received by client
               sd/method-notifications-message
               sd/method-notifications-prompts-list_changed
               sd/method-notifications-resources-list_changed
               sd/method-notifications-resources-updated
               sd/method-notifications-tools-list_changed
+              sd/method-notifications-elicitation-complete
               ;; received by server
               sd/method-notifications-initialized
               sd/method-notifications-roots-list_changed]
