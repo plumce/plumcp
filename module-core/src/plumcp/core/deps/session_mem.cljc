@@ -81,6 +81,43 @@
          f args))
 
 
+(defn make-in-memory-common-session
+  ([]
+   (make-in-memory-common-session (atom default-session-init)))
+  ([state]
+   (let [s-get        (fn [path-key]   (get @state path-key))
+         s-get-in     (fn [path-vec]   (get-in @state path-vec))
+         s-extract!   (fn [k f]        (extract! state k f))
+         s-update-at! (fn [k f & args] (apply update! state k f args))
+         s-update!    (fn [f & args]   (apply swap! state f args))
+         s-conj!      (fn [k v]        (update! state k conj v))
+         s-disj!      (fn [k sub-k]    (update! state k disj sub-k))]
+     (reify
+       p/ICommonSession
+       ;;
+       ;; Tasks
+       ;;
+       (add-task    [_ task] (when-let [task-id (:taskId task)]
+                               (s-update-at! k-invoked-tasks
+                                             u/assoc-missing task-id task)))
+       (update-task [_ task-id f] (when task-id
+                                    (s-update-at! k-invoked-tasks
+                                                  update task-id f)))
+       (list-tasks  [_] (-> (s-get k-invoked-tasks) vals vec))
+       (get-task    [_ task-id] (-> (s-get k-invoked-tasks) (get task-id)))
+       (remove-task [_ task-id] (when task-id
+                                  (s-update-at! k-invoked-tasks
+                                                dissoc task-id)))
+       ;;
+       ;; Task cancellation
+       ;;
+       (request-cancel-task [_ task-id] (when task-id
+                                          (s-conj! k-tasks-to-cancel
+                                                   task-id)))
+       (requested-cancel-task? [_ task-id] (s-get-in [k-tasks-to-cancel
+                                                      task-id]))))))
+
+
 (defn make-in-memory-server-session
   "Make an in-memory server session.
    Arguments:
@@ -97,31 +134,24 @@
         s-canlog?    (fn [^long indx] (<= indx
                                           (-> @state
                                               (get k-log-level-index)
-                                              long)))]
+                                              long)))
+        common-session (make-in-memory-common-session state)]
     (reify
       p/ICommonSession
       ;;
       ;; Tasks
       ;;
-      (add-task    [_ task] (when-let [task-id (:taskId task)]
-                              (s-update-at! k-invoked-tasks
-                                            u/assoc-missing task-id task)))
-      (update-task [_ task-id f] (when task-id
-                                   (s-update-at! k-invoked-tasks
-                                                 update task-id f)))
-      (list-tasks  [_] (-> (s-get k-invoked-tasks) vals vec))
-      (get-task    [_ task-id] (-> (s-get k-invoked-tasks) (get task-id)))
-      (remove-task [_ task-id] (when task-id
-                                 (s-update-at! k-invoked-tasks
-                                               dissoc task-id)))
+      (add-task    [_ task] (p/add-task common-session task))
+      (update-task [_ task-id f] (p/update-task common-session task-id f))
+      (list-tasks  [_] (p/list-tasks common-session))
+      (get-task    [_ task-id] (p/get-task common-session task-id))
+      (remove-task [_ task-id] (p/remove-task common-session task-id))
       ;;
       ;; Task cancellation
       ;;
-      (request-cancel-task [_ task-id] (when task-id
-                                         (s-conj! k-tasks-to-cancel
-                                                  task-id)))
-      (requested-cancel-task? [_ task-id] (s-get-in [k-tasks-to-cancel
-                                                     task-id]))
+      (request-cancel-task [_ task-id] (p/request-cancel-task common-session task-id))
+      (requested-cancel-task? [_ task-id] (p/requested-cancel-task? common-session task-id))
+      ;;
       p/IServerSession
       ;;
       ;; cancellation

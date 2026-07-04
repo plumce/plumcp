@@ -214,6 +214,7 @@
 (defrtkey ?server-info {})
 
 (defrtkey ?client-context {})
+(defrtkey ?client-session {})
 (defrtkey ?client-info {})
 
 

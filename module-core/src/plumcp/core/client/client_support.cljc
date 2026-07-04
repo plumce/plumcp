@@ -14,6 +14,7 @@
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.deps.session-mem :as sm]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.impl.var-support :as vs]
@@ -1046,7 +1047,8 @@
                                                              notification-handlers)
                                   (rt/get-runtime)))
                           (merge override)
-                          (assoc (kl/->key rt/?whoami) rs/default-whoami-client)))
+                          (assoc (kl/->key rt/?whoami) rs/default-whoami-client
+                                 (kl/->key rt/?client-session) (sm/make-in-memory-common-session))))
         get-jsonrpc-handler (fn []
                               (or jsonrpc-handler
                                   (make-client-jsonrpc-message-handler
