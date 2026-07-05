@@ -127,8 +127,8 @@
 (def method-notifications-prompts-list_changed "notifications/prompts/list_changed")
 (def method-notifications-tools-list_changed "notifications/tools/list_changed")
 (def method-notifications-roots-list_changed "notifications/roots/list_changed")
-(def method-notifications-tasks-status "notifications/tasks/status")
 (def method-notifications-elicitation-complete "notifications/elicitation/complete")
+(def method-notifications-tasks-status "notifications/tasks/status")
 
 
 ;; --- Result keys ---

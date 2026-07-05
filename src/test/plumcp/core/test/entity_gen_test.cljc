@@ -435,6 +435,26 @@
                      (eg/make-set-level-request sd/log-level-6-info))
         "Should be a valid SetLevelRequest"))
   ;;
+  (testing "ListTasksRequest"
+    (is (mc/validate sd/ListTasksRequest
+                     (eg/make-list-tasks-request))
+        "Should be a valid ListTasksRequest"))
+  ;;
+  (testing "CancelTaskRequest"
+    (is (mc/validate sd/CancelTaskRequest
+                     (eg/make-cancel-task-request "task-id-1"))
+        "Should be a valid CancelTaskRequest"))
+  ;;
+  (testing "GetTaskRequest"
+    (is (mc/validate sd/GetTaskRequest
+                     (eg/make-get-task-request "task-id-1"))
+        "Should be a valid GetTaskRequest"))
+  ;;
+  (testing "GetTaskPayloadRequest"
+    (is (mc/validate sd/GetTaskPayloadRequest
+                     (eg/make-get-task-payload-request "task-id-1"))
+        "Should be a valid GetTaskPayloadRequest"))
+  ;;
   )
 
 
@@ -537,6 +557,34 @@
       (is (mc/validate sd/PaginatedResult target)
           "Should be a valid PaginatedResult")))
   ;;
+  (testing "ListTasksResult"
+    (let [task1 (eg/make-task sd/task-status-working)
+          task2 (eg/make-task sd/task-status-completed)
+          target (eg/make-list-tasks-result [task1 task2])]
+      (is (mc/validate sd/ListTasksResult target)
+          "Should be a ListTasksResult")
+      (is (mc/validate sd/PaginatedResult target)
+          "Should be a valid PaginatedResult")))
+  ;;
+  (testing "CancelTaskResult"
+    (let [task1 (eg/make-task sd/task-status-cancelled)
+          target (eg/make-cancel-task-result task1)]
+      (is (mc/validate sd/CancelTaskResult target)
+          "Should be a CancelTaskResult")))
+  ;;
+  (testing "GetTaskResult"
+    (let [task1 (eg/make-task sd/task-status-cancelled)
+          target (eg/make-get-task-result task1)]
+      (is (mc/validate sd/GetTaskResult target)
+          "Should be a GetTaskResult")))
+  ;;
+  (testing "GetTaskPayloadResult"
+    (let [result (eg/make-call-tool-result [])
+          trmeta (eg/make-related-task-metadata "task-id-1")
+          target (eg/make-get-task-payload-result result trmeta)]
+      (is (mc/validate sd/GetTaskPayloadResult target)
+          "Should be a GetTaskPayloadResult")))
+  ;;
   )
 
 
@@ -594,5 +642,16 @@
     (is (mc/validate sd/ToolListChangedNotification
                      (eg/make-tool-list-changed-notification))
         "Should be ToolListChangedNotification"))
+  ;;
+  (testing "ElicitationCompleteNotification"
+    (is (mc/validate sd/ElicitationCompleteNotification
+                     (eg/make-elicitation-complete-notification "elicit-id-1"))
+        "Should be ElicitationCompleteNotification"))
+  ;;
+  (testing "TaskStatusNotification"
+    (is (mc/validate sd/TaskStatusNotification
+                     (-> (eg/make-task sd/task-status-completed)
+                         eg/make-task-status-notification))
+        "Should be TaskStatusNotification"))
   ;;
   )
