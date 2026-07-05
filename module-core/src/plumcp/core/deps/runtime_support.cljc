@@ -353,6 +353,6 @@
   [context]
   (let [role (whoami-role context)]
     (case role
-      :client (u/throw! "Client-session NOT implemented yet")
+      :client (rt/?client-session context)
       :server (rt/?session context)
       (u/expected-enum! role #{:client :server}))))

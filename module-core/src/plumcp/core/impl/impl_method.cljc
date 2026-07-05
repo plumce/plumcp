@@ -53,7 +53,7 @@
 
 
 (defn wrap-task-augmented
-  "Given a no-arg function that produces a JSON-RPC result or response,
+  "Given (fn f [& args]) that produces a JSON-RPC result or response,
    wrap it such that it detects and intercepts task-augmented request and
    responds appropriately."
   [f jsonrpc-request specific-tasks-capability]
@@ -61,8 +61,8 @@
     ;; task augmented, so process like one
     (let [tasks-capability (-> (rs/my-capabilities jsonrpc-request)
                                (ic/get-capability-tasks))]
-      (if (->> (vec specific-tasks-capability)
-               (get-in tasks-capability))
+      (if (-> (p/get-capability-declaration tasks-capability)
+              (get-in (vec specific-tasks-capability)))
         ;; specific tasks capability exists
         (fn [& args]
           (let [common-session (rs/my-session jsonrpc-request)
@@ -86,8 +86,7 @@
                               (es/update-task-status-to-completed task))))
                      (p/update-task common-session task-id))))
             ;; return task
-            (-> (es/clean-task new-task)
-                make-result)))
+            (es/clean-task new-task)))
         ;; specific tasks capability absent
         (fn [& _]
           (jr/jsonrpc-failure sd/error-code-method-not-found
@@ -190,12 +189,14 @@
 (defn with-tasks-capability [specific-tasks-capability request f]
   (if-let [tasks-capability (-> (rs/my-capabilities request)
                                 (ic/get-capability-tasks))]
-    (if (->> (vec specific-tasks-capability)
-             (get-in tasks-capability))
-      (with-capability request "tasks" tasks-capability f)
-      (jr/jsonrpc-failure sd/error-code-invalid-request
-                          (format "Tasks capability %s is not supported"
-                                  (pr-str specific-tasks-capability))))
+    (let [tasks-capability-declaration (-> tasks-capability
+                                           p/get-capability-declaration)]
+      (if (->> (vec specific-tasks-capability)
+               (get-in tasks-capability-declaration))
+        (with-capability request "tasks" tasks-capability f)
+        (jr/jsonrpc-failure sd/error-code-method-not-found
+                            (format "Tasks capability %s is not supported"
+                                    (pr-str specific-tasks-capability)))))
     (jr/jsonrpc-failure sd/error-code-method-not-found
                         "Tasks capability is not supported")))
 
@@ -499,13 +500,9 @@
     [:list]
     jsonrpc-request
     (fn [tasks-capability]
-      (if-let [tasks (cond
-                       ;; server tasks
-                       (rs/whoami-server? jsonrpc-request)
-                       (p/list-tasks (rt/?session jsonrpc-request))
-                       ;; client tasks
-                       (rs/whoami-client? jsonrpc-request)
-                       [#_FIXME])]
+      (if-let [tasks (->> (rs/my-session jsonrpc-request)
+                          p/list-tasks
+                          (mapv es/clean-task))]
         (-> (eg/make-list-tasks-result tasks)
             make-result)
         (jr/jsonrpc-failure sd/error-code-internal-error
@@ -545,7 +542,8 @@
     jsonrpc-request
     (fn [tasks-capability]
       (let [common-session (rs/my-session jsonrpc-request)]
-        (if-let [task (p/get-task common-session task-id)]
+        (if-let [task (-> (p/get-task common-session task-id)
+                          es/clean-task)]
           (-> (eg/make-get-task-result task)
               make-result)
           (jr/jsonrpc-failure sd/error-code-invalid-params

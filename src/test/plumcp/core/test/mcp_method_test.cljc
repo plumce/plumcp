@@ -10,6 +10,7 @@
 (ns plumcp.core.test.mcp-method-test
   (:require
    [clojure.test :refer [deftest is testing]]
+   [malli.core :as mc]
    [plumcp.core.api.capability :as cap]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime :as rt]
@@ -17,7 +18,8 @@
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-method :as im]
    [plumcp.core.schema.schema-defs :as sd]
-   [plumcp.core.test.test-support :as ts])
+   [plumcp.core.test.test-support :as ts]
+   [plumcp.core.test.test-util :as tu])
   #?(:clj (:import
            [clojure.lang ExceptionInfo])))
 
@@ -446,3 +448,87 @@
                  eg/make-notification
                  (rt/upsert-runtime runtime-server-session)
                  im/notifications-progress)) "server-received"))))
+
+
+;; --- Bi-directional tests ---
+
+
+(def composite-server-runtime (ts/make-runtime-server-session))
+(def composite-client-runtime
+  (let [client-runtime (-> composite-server-runtime
+                           ts/make-runtime-client-session)]
+    (merge composite-server-runtime
+           client-runtime)))
+
+
+(deftest task-tools-operation-test
+  (let [runtime-server-session (-> runtime-server-caps
+                                   ts/make-runtime-server-session)
+        tool-name "tool1"
+        tool-args {:a 10 :b 20}]
+    (testing "Tasks list empty due to no activity"
+      (is (= {:result {:tasks []}}
+             (-> (eg/make-list-tasks-request)
+                 (rt/upsert-runtime composite-client-runtime)
+                 im/tasks-list)) "no-caps, session-less, tasks enabled by default")
+      (is (= {:result {:tasks []}}
+             (-> (eg/make-list-tasks-request)
+                 (rt/upsert-runtime runtime-server-session)
+                 im/tasks-list)) "with-session"))
+    ;; add a task
+    (let [task-opts {:task (eg/make-task-metadata {})}
+          task-result (-> tool-name
+                          (eg/make-call-tool-request tool-args
+                                                     task-opts)
+                          (rt/upsert-runtime runtime-server-session)
+                          im/tools-call)
+          task-id (get-in task-result [:result :taskId])
+          tool-out {:out 30
+                    :_meta {sd/meta-related-task-key {:taskId task-id}}}]
+      (testing "Result of adding a task"
+        (is (and (map? task-result)
+                 (contains? task-result :result)))
+        (is (mc/validate sd/Task
+                         (:result task-result))))
+      ;; add a delay, to let background task complete
+      (tu/sleep-millis 100)
+      ;; now check task list again, should be 1 because we added a task
+      (testing "Task list after adding a task"
+        (is (= 1
+               (-> (eg/make-list-tasks-request)
+                   (rt/upsert-runtime runtime-server-session)
+                   im/tasks-list
+                   (get-in [:result :tasks])
+                   count))
+            "task-list after 1 task invocation"))
+      ;; after we verified count to be 1, we can invoke 'tasks/get'
+      (let [get-task-result (-> (eg/make-get-task-request task-id)
+                                (rt/upsert-runtime runtime-server-session)
+                                im/tasks-get)]
+        (testing "Result of get-task"
+          (is (mc/validate sd/Task
+                           (:result get-task-result)))
+          (is (= sd/task-status-completed
+                 (get-in get-task-result [:result :status])))))
+      ;; now that task status is successful, we can check the task result
+      (let [task-result (-> (eg/make-get-task-payload-request task-id)
+                            (rt/upsert-runtime runtime-server-session)
+                            im/tasks-result)]
+        (testing "Result of get-task-result"
+          (is (= tool-out
+                 (get task-result :result))))))))
+
+
+(deftest other-task-tests
+  :FIXME
+  ;; Task-cancel
+  ;; Task-augmented sampling
+  ;; Task augmented elicitation
+  ;; Task transition should send notification
+  )
+
+
+(deftest elicitation-complete-test
+  :FIXME
+  ;; Elicitation complete should send a notification
+  )
