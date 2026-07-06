@@ -294,12 +294,13 @@
       :or {list {}
            cancel {}
            requests {}}}]
-  (reify
-    p/IMcpCapability
-    (get-capability-declaration [_] (-> {}
-                                        (u/assoc-some :list list
-                                                      :cancel cancel
-                                                      :requests requests)))))
+  (let [declaration (-> {}
+                        (u/assoc-some :list list
+                                      :cancel cancel
+                                      :requests requests))]
+    (reify
+      p/IMcpCapability
+      (get-capability-declaration [_] declaration))))
 
 
 (def default-client-tasks-capability
