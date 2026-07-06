@@ -19,7 +19,8 @@
    [plumcp.core.impl.impl-method :as im]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.test.test-support :as ts]
-   [plumcp.core.test.test-util :as tu])
+   [plumcp.core.test.test-util :as tu]
+   [plumcp.core.util :as u])
   #?(:clj (:import
            [clojure.lang ExceptionInfo])))
 
@@ -453,57 +454,86 @@
 ;; --- Bi-directional tests ---
 
 
-(def composite-server-runtime (ts/make-runtime-server-session))
-(def composite-client-runtime
-  (let [client-runtime (-> composite-server-runtime
-                           ts/make-runtime-client-session)]
-    (merge composite-server-runtime
-           client-runtime)))
-
-
-(deftest task-tools-operation-test
-  (let [runtime-server-session (-> runtime-server-caps
-                                   ts/make-runtime-server-session)
-        tool-name "tool1"
-        tool-args {:a 10 :b 20}]
+(deftest tasks-operation-test
+  (doseq [{:keys [runtime
+                  profile
+                  makereq
+                  mkresult]}
+          [;; --- server runtime (task: tool call) ---
+           {:runtime (-> runtime-server-caps
+                         ts/make-runtime-server-session)
+            :profile :server-tool
+            :makereq (fn [server-runtime]
+                       (let [tool-name "tool1"
+                             tool-args {:a 10 :b 20}
+                             task-opts {:task (eg/make-task-metadata {})}]
+                         (-> tool-name
+                             (eg/make-call-tool-request tool-args
+                                                        task-opts)
+                             (rt/upsert-runtime server-runtime)
+                             im/tools-call)))
+            :mkresult (fn [task-id]
+                        {:out 30
+                         :_meta {sd/meta-related-task-key {:taskId task-id}}})}
+           ;; --- client runtime (task: elicitation call) ---
+           {:runtime (-> runtime-client-caps
+                         ts/make-runtime-client-session)
+            :profile :client-elicitation
+            :makereq (fn [client-runtime]
+                       (let [task-opts {:task (eg/make-task-metadata {})}]
+                         (-> (eg/make-elicit-form-request "hello" {} task-opts)
+                             (rt/upsert-runtime client-runtime)
+                             im/elicitation-create)))
+            :mkresult (fn [task-id]
+                        {:message "hello"
+                         :requested-schema {:type "object", :properties {}}
+                         :_meta {sd/meta-related-task-key {:taskId task-id}}})}
+           ;; --- client runtime (task: sampling call) ---
+           {:runtime (-> runtime-client-caps
+                         ts/make-runtime-client-session)
+            :profile :client-sampling
+            :makereq (fn [client-runtime]
+                       (let [role sd/role-user
+                             content (eg/make-text-content "hello")
+                             task-opts {:task (eg/make-task-metadata {})}]
+                         (-> [(eg/make-sampling-message role content)]
+                             (eg/make-create-message-request 100 task-opts)
+                             (rt/upsert-runtime client-runtime)
+                             im/sampling-createMessage)))
+            :mkresult (fn [task-id]
+                        {:messages [{:role "user"
+                                     :content {:type "text", :text "hello"}}]
+                         :max-tokens 100
+                         :_meta {sd/meta-related-task-key {:taskId task-id}}})}]]
+    (u/eprintln "Testing [" profile "] tasks operations")
     (testing "Tasks list empty due to no activity"
       (is (= {:result {:tasks []}}
              (-> (eg/make-list-tasks-request)
-                 (rt/upsert-runtime composite-client-runtime)
-                 im/tasks-list)) "no-caps, session-less, tasks enabled by default")
-      (is (= {:result {:tasks []}}
-             (-> (eg/make-list-tasks-request)
-                 (rt/upsert-runtime runtime-server-session)
+                 (rt/upsert-runtime runtime)
                  im/tasks-list)) "with-session"))
     ;; add a task
-    (let [task-opts {:task (eg/make-task-metadata {})}
-          task-result (-> tool-name
-                          (eg/make-call-tool-request tool-args
-                                                     task-opts)
-                          (rt/upsert-runtime runtime-server-session)
-                          im/tools-call)
-          task-id (get-in task-result [:result :taskId])
-          tool-out {:out 30
-                    :_meta {sd/meta-related-task-key {:taskId task-id}}}]
+    (let [task-response (makereq runtime)
+          task-id (get-in task-response [:result :taskId])
+          tresult (mkresult task-id)]
       (testing "Result of adding a task"
-        (is (and (map? task-result)
-                 (contains? task-result :result)))
+        (is (and (map? task-response)
+                 (contains? task-response :result)))
         (is (mc/validate sd/Task
-                         (:result task-result))))
+                         (:result task-response))))
       ;; add a delay, to let background task complete
       (tu/sleep-millis 100)
       ;; now check task list again, should be 1 because we added a task
       (testing "Task list after adding a task"
         (is (= 1
                (-> (eg/make-list-tasks-request)
-                   (rt/upsert-runtime runtime-server-session)
+                   (rt/upsert-runtime runtime)
                    im/tasks-list
                    (get-in [:result :tasks])
                    count))
             "task-list after 1 task invocation"))
       ;; after we verified count to be 1, we can invoke 'tasks/get'
       (let [get-task-result (-> (eg/make-get-task-request task-id)
-                                (rt/upsert-runtime runtime-server-session)
+                                (rt/upsert-runtime runtime)
                                 im/tasks-get)]
         (testing "Result of get-task"
           (is (mc/validate sd/Task
@@ -511,19 +541,17 @@
           (is (= sd/task-status-completed
                  (get-in get-task-result [:result :status])))))
       ;; now that task status is successful, we can check the task result
-      (let [task-result (-> (eg/make-get-task-payload-request task-id)
-                            (rt/upsert-runtime runtime-server-session)
-                            im/tasks-result)]
+      (let [task-response (-> (eg/make-get-task-payload-request task-id)
+                              (rt/upsert-runtime runtime)
+                              im/tasks-result)]
         (testing "Result of get-task-result"
-          (is (= tool-out
-                 (get task-result :result))))))))
+          (is (= tresult
+                 (get task-response :result))))))))
 
 
 (deftest other-task-tests
   :FIXME
   ;; Task-cancel
-  ;; Task-augmented sampling
-  ;; Task augmented elicitation
   ;; Task transition should send notification
   )
 

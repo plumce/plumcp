@@ -23,7 +23,6 @@
                      (rt/upsert-runtime seed-runtime)
                      (rt/?whoami rs/default-whoami-client)
                      (rt/?client-session client-session))]
-     (rs/set-initialized-timestamp context)
      (rt/get-runtime context)))
   ([]
    (make-runtime-client-session {})))
