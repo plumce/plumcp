@@ -165,11 +165,6 @@
   (get-task    [this task-id] "Get specified task, or nil if not found")
   (remove-task [this task-id] "Remove specified task by its ID")
   ;;
-  ;; Task cancellation (Task-cancellation requested)
-  ;;
-  (request-cancel-task [this task-id] "Submit request to cancel-task")
-  (requested-cancel-task? [this task-id] "Return true if cancel-task requested")
-  ;;
   )
 
 
@@ -180,10 +175,7 @@
     (update-task [_ task-id f])
     (list-tasks  [_] [])
     (get-task    [_ task-id])
-    (remove-task [_ task-id])
-    ;; Task cancellation
-    (request-cancel-task [_ task-id])
-    (requested-cancel-task? [_ task-id] false)))
+    (remove-task [_ task-id])))
 
 
 ;; --- MCP Client ---

@@ -521,10 +521,10 @@
     (fn [tasks-capability]
       (let [common-session (rs/my-session jsonrpc-request)]
         (if-let [task (p/get-task common-session task-id)]
-          (do
-            (p/request-cancel-task common-session task-id)
-            (-> (eg/make-cancel-task-result task)
-                make-result))
+          ;; Just transition the task status to 'cancelled' because
+          ;; we do not have a mechanism to cancel a task yet
+          (-> (eg/make-cancel-task-result task)
+              make-result)
           ;;
           (jr/jsonrpc-failure sd/error-code-invalid-params
                               "Unable to locate task"

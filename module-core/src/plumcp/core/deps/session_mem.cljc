@@ -107,15 +107,7 @@
        (get-task    [_ task-id] (-> (s-get k-invoked-tasks) (get task-id)))
        (remove-task [_ task-id] (when task-id
                                   (s-update-at! k-invoked-tasks
-                                                dissoc task-id)))
-       ;;
-       ;; Task cancellation
-       ;;
-       (request-cancel-task [_ task-id] (when task-id
-                                          (s-conj! k-tasks-to-cancel
-                                                   task-id)))
-       (requested-cancel-task? [_ task-id] (s-get-in [k-tasks-to-cancel
-                                                      task-id]))))))
+                                                dissoc task-id)))))))
 
 
 (defn make-in-memory-server-session
@@ -146,11 +138,6 @@
       (list-tasks  [_] (p/list-tasks common-session))
       (get-task    [_ task-id] (p/get-task common-session task-id))
       (remove-task [_ task-id] (p/remove-task common-session task-id))
-      ;;
-      ;; Task cancellation
-      ;;
-      (request-cancel-task [_ task-id] (p/request-cancel-task common-session task-id))
-      (requested-cancel-task? [_ task-id] (p/requested-cancel-task? common-session task-id))
       ;;
       p/IServerSession
       ;;

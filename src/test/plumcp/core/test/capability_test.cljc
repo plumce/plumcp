@@ -90,7 +90,7 @@
 (deftest client-tasks-capability-test
   (let [tasks-cap ic/default-client-tasks-capability]
     (is (= {:list {}
-            :cancel {}
+            ;:cancel {}  ; disabled by default
             :requests {:sampling {:createMessage {}}
                        :elicitation {:create {}}}}
            (p/get-capability-declaration tasks-cap)))))
@@ -100,7 +100,7 @@
   (testing "default capabilities"
     (let [default-caps ic/default-client-capabilities]
       (is (= {:tasks {:list {}
-                      :cancel {}
+                      ;:cancel {}  ; disabled by default
                       :requests {:sampling {:createMessage {}}
                                  :elicitation {:create {}}}}}
              (ic/get-client-capability-declaration default-caps)))))
@@ -337,7 +337,7 @@
 (deftest server-tasks-capability-test
   (let [tasks-cap ic/default-server-tasks-capability]
     (is (= {:list {}
-            :cancel {}
+            ;:cancel {}  ; disabled by default
             :requests {:tools {:call {}}}}
            (p/get-capability-declaration tasks-cap)))))
 
@@ -347,7 +347,7 @@
     (let [default-caps ic/default-server-capabilities]
       (is (= {:logging {}
               :tasks {:list {}
-                      :cancel {}
+                      ;:cancel {}  ; disabled by default
                       :requests {:tools {:call {}}}}}
              (ic/get-server-capability-declaration default-caps)))))
   (testing "all capabilities"
@@ -359,7 +359,7 @@
                                       (ic/make-tools-capability))})]
       (is (= {:logging {}
               :tasks {:list {}
-                      :cancel {}
+                      ;:cancel {}  ; disabled by default
                       :requests {:tools {:call {}}}}
               :prompts {:listChanged true}
               :resources {:listChanged true :subscribe true}

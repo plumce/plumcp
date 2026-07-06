@@ -4,10 +4,11 @@ All notable changes to this project will be documented in this file. This change
 
 ## [TODO/IDEA]
 
-### Added
+### To Add
 
 - Protocol
-  - Spec: 2025-11-25
+  - Spec: 2026-07-28
+    - https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
   - https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/
 - MCP Client
   - Check that _initialized_ ops have session-context before sending request
@@ -54,7 +55,7 @@ All notable changes to this project will be documented in this file. This change
 - Unhappy transport test
   - Connect to a non-existent HTTP endpoint
 
-### Changed
+### To Change
 
 - MCP Client
   - Re-implement client as a protocol instance - easy self-reference
@@ -95,8 +96,8 @@ All notable changes to this project will be documented in this file. This change
   - Allow tool definition attributes
     - `:annotations`
     - `:execution`
-- [WIP] Task orchestration
-  - [ ] Protocol ICommonSession (client and server) for tasks backend
+- Tasks orchestration
+  - [x] Protocol ICommonSession (client and server) for tasks backend
   - [x] Entity generators/support in `p.c.a.entity-support` ns
     - `make-working-task`
     - `clean-task`
@@ -111,15 +112,15 @@ All notable changes to this project will be documented in this file. This change
     - `get-task-result`
     - `get-task-error`
   - [x] Capability declaration
-  - [ ] Augmentated invocation
-    - [ ] Tool
-    - [ ] Sampling
-    - [ ] Elicitation
-  - [?] Operations
-    - [ ] List
-    - [ ] Get
-    - [ ] Cancel
-    - [ ] Get result
+  - [x] Augmentated invocation
+    - [x] Tool
+    - [x] Sampling
+    - [x] Elicitation
+  - [x] Operations
+    - [x] List
+    - [x] Get
+    - [ ] Cancel (not supported yet, disabled by default)
+    - [x] Get result
 
 ### Changed
 

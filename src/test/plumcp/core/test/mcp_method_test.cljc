@@ -553,6 +553,7 @@
   :FIXME
   ;; Task-cancel
   ;; Task transition should send notification
+  ;; Task augmentation should honour `:ttl` param
   )
 
 

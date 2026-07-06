@@ -292,7 +292,7 @@
              cancel
              requests]
       :or {list {}
-           cancel {}
+           cancel nil  ; disable by default
            requests {}}}]
   (let [declaration (-> {}
                         (u/assoc-some :list list
@@ -306,7 +306,7 @@
 (def default-client-tasks-capability
   "Default client capability for tasks, which enables everything."
   (make-tasks-capability {:list {}
-                          :cancel {}
+                          :cancel nil  ; disable by default
                           :requests {:sampling {:createMessage {}}
                                      :elicitation {:create {}}}}))
 
@@ -314,7 +314,7 @@
 (def default-server-tasks-capability
   "Default server capability for tasks, which enables everything."
   (make-tasks-capability {:list {}
-                          :cancel {}
+                          :cancel nil  ; disable by default
                           :requests {:tools {:call {}}}}))
 
 
