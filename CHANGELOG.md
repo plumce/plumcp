@@ -121,6 +121,9 @@ All notable changes to this project will be documented in this file. This change
     - [x] Get
     - [ ] Cancel (not supported yet, disabled by default)
     - [x] Get result
+  - [ ] Notifications (not implemented yet)
+    - [ ] Task notifications (not implemented yet)
+    - [ ] Elicitation notifications (not implemented yet)
 
 ### Changed
 
