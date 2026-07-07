@@ -151,6 +151,12 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+## [0.2.2] - 2026-Jun-22
+
+### Fixed
+
+- Correlate synthesized HTTP errors with originating request - @rschmukler
+
 ## [0.2.1] - 2026-May-18
 
 ### Fixed

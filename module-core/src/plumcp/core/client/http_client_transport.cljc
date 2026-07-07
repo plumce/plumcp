@@ -95,7 +95,7 @@
                             (get status sd/error-code-internal-error)
                             (jr/jsonrpc-failure (http-errmsg status)
                                                 err-data))))
-        receive-err (fn [status message-str headers-lower]
+        receive-err (fn [req-id-or-nil status message-str headers-lower]
                       ;; We assume we are receiving JSON-RPC response
                       ;; (otherwise coerced as one) even though it might
                       ;; as well be a JSON-RPC request or notification
@@ -115,9 +115,13 @@
                         (as-> je $
                           (assoc-in $ [:error
                                        const/http-status-key] status)
+                          ;; correlate id-less error to originating request
+                          (if (and (some? req-id-or-nil) (nil? (:id $)))
+                            (jr/add-jsonrpc-id $ req-id-or-nil)
+                            $)
                           (wrap-message $ headers-lower)
                           (u/invoke (deref msg-receiver) $))))
-        on-response (fn [retry-401 status-handlers response-or-promise]
+        on-response (fn [retry-401 status-handlers req-id-or-nil response-or-promise]
                       (uab/let-await [response response-or-promise]
                         (let [status (:status response)
                               headers (:headers response)
@@ -125,7 +129,8 @@
                                                          str/lower-case)
                               media-type (->media-type headers-lower)
                               rx-err (fn [err-text]
-                                       (receive-err status
+                                       (receive-err req-id-or-nil
+                                                    status
                                                     err-text
                                                     headers-lower))
                               on-err (fn []
@@ -191,7 +196,9 @@
                             (wrap-reqbody message)
                             (p/http-call http-client)
                             (on-response (partial thisfn message)
-                                         {})))
+                                         {}
+                                         (when (jr/jsonrpc-request? message)
+                                           (:id message)))))
         stream-unsup {405 (fn [_]
                             (u/eprintln
                              "Server does not support GET-stream"))}
@@ -202,7 +209,8 @@
                                      (p/http-call http-client)
                                      (on-response (partial thisfn
                                                            success)
-                                                  stream-unsup))]
+                                                  stream-unsup
+                                                  nil))]
                          #?(:cljs
                             (f)
                             :clj
