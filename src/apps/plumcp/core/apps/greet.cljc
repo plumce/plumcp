@@ -83,7 +83,7 @@
   "Generate a customized greeting message"
   [{:keys [^{:doc "Name of the person to greet"}
            name
-           ^{:doc "The style of greeting, such a formal, excited, or
+           ^{:doc "The style of greeting, such as formal, excited, or
                    casual. If not specified casual will be used."
              :required? false}
            style]
