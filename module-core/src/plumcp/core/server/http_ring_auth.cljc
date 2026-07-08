@@ -101,7 +101,7 @@
                         validate and unpack JWT as claims, auto-detected
                         if the 'auth' module is in classpath
    --Optional--
-   :jwks-uri            URI to fetch fetch JWKS as a JSON-string from
+   :jwks-uri            URI to fetch JWKS as a JSON-string from
    :fetch-from-uri      (fn [uri])->body-text to fetch from JWKS URI
    :jwks-cache-millis   (default 1h) JWKS cache duration
    :protected-resource? (fn [request])->bool to find protected resources,

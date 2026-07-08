@@ -229,7 +229,7 @@
                    (eg/make-string-schema))
       "Minimal string-schema")
   (is (mc/validate sd/StringSchema
-                   (eg/make-string-schema {:title "Some elicitaion"
+                   (eg/make-string-schema {:title "Some elicitation"
                                            :description "Elicitation description"
                                            :min-length 10
                                            :max-length 20
