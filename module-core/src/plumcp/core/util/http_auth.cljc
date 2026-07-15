@@ -22,16 +22,20 @@
            [java.util Base64 Base64$Encoder])))
 
 
-;; OpenID config is NOT in 2025-06-18 spec - it is still in Draft now
-(def uri-openid-configuration "/.well-known/openid-configuration")
-
-
 (defn well-known-authorization-server
   "Given a vector of authorization-server URLs, return the well-known
    OAuth authorization server URL."
   [authorization-servers]
   (-> (first authorization-servers)
       (u/inject-uri-prefix sd/uri-oauth-authorization-server)))
+
+
+(defn well-known-openid-configuration
+  "Given a vector of authorization-server URLs, return a deduced
+   well-known OAuth OpenID Connect Discovery 1.0 URL."
+  [authorization-servers]
+  (let [[base _] (first authorization-servers)]
+    (str base sd/uri-oauth-openid-configuration)))
 
 
 ;; PKCE util

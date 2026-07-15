@@ -81,6 +81,7 @@
 
 (def uri-oauth-protected-resource   "/.well-known/oauth-protected-resource")
 (def uri-oauth-authorization-server "/.well-known/oauth-authorization-server")
+(def uri-oauth-openid-configuration "/.well-known/openid-configuration")
 
 
 ;; --- method names ---
