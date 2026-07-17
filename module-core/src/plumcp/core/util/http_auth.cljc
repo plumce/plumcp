@@ -34,7 +34,7 @@
   "Given a vector of authorization-server URLs, return a deduced
    well-known OAuth OpenID Connect Discovery 1.0 URL."
   [authorization-servers]
-  (let [[base _] (first authorization-servers)]
+  (let [[base _] (u/split-web-url (first authorization-servers))]
     (str base sd/uri-oauth-openid-configuration)))
 
 
