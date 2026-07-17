@@ -146,8 +146,12 @@ All notable changes to this project will be documented in this file. This change
       - `make-untitled-multi-select-enum-schema`
       - `make-titled-multi-select-enum-schema`
     - `p.c.a.entity-gen/make-elicit-url-request`
-- Server: Streaming HTTP Transport
+- Server: Streamable HTTP Transport
   - Apply DNS-rebind check to verify Origin/Host headers (403 on error)
+  - Expose OpenID configuration endpoint as a proxy to Authorization server
+- Client: Streamable HTTP Transport
+  - Add support for OpenID Connect Discovery 1.0
+    - Fall back to Authorization server metadata if OpenID config unavailable
 
 ### Fixed
 

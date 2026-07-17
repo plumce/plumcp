@@ -82,6 +82,17 @@
     (handler-for:dynamic-json auth-fn)))
 
 
+(defn handler-for:oauth-openid-configuration
+  "Return a Ring handler `(fn [request])->response` that returns the
+   `Authorization Server Metadata` JSON. This is a proxy-handler for
+   actual 'Authorization Server Metadata' endpoint.
+   See: https://datatracker.ietf.org/doc/html/rfc8414"
+  [openid-config-uri fetch-from-uri auth-cache-millis]
+  (let [auth-fn (-> #(fetch-from-uri openid-config-uri)
+                    (u/fcached auth-cache-millis))]
+    (handler-for:dynamic-json auth-fn)))
+
+
 (defn make-token->claims
   "Given JWKs source (URI-string or no-arg fn) and a jwt-validator fn
    return a token validating function"
@@ -115,6 +126,8 @@
    :authorization-servers Vector of authorization server URLs
    :mcp-server            Base URL for the MCP server
    --Optional--
+   :openid-config-uri     OpenID Connect Discovery URI, `nil` to disable
+                          (default based on authorization server base URI)
    :auth-cache-millis     (default 1h) Authorization info cache duration
    :mcp-uri               URI string for the MCP server, default '/mcp'
    :mcp-server-name       Name for the MCP server
@@ -137,6 +150,7 @@
            ;; --- wrap-route-match (well-known routes) ---
            authorization-servers
            mcp-server
+           openid-config-uri
            ;; optional
            auth-cache-millis
            mcp-uri
@@ -161,7 +175,12 @@
                               (str mcp-server
                                    sd/uri-oauth-protected-resource))
         auth-uri (-> authorization-servers
-                     uha/well-known-authorization-server)]
+                     uha/well-known-authorization-server)
+        openid-config-uri (if (contains? auth-options :openid-config-uri)
+                            openid-config-uri
+                            (or openid-config-uri
+                                (-> authorization-servers
+                                    uha/well-known-openid-configuration)))]
     (uab/may-await [jwks-uri (or jwks-uri
                                  (uab/may-await
                                    [json-string (fetch-from-uri auth-uri)]
@@ -181,7 +200,11 @@
                          (handler-for:oauth-protected-resource))
             has-inst (handler-for:oauth-authorization-server auth-uri
                                                              fetch-from-uri
-                                                             auth-cache-millis)]
+                                                             auth-cache-millis)
+            hoc-inst (when openid-config-uri
+                       (handler-for:oauth-openid-configuration openid-config-uri
+                                                               fetch-from-uri
+                                                               auth-cache-millis))]
         (-> {;; --- for wrap-oauth middleware ---
              :auth-enabled?     true
              :token->claims     (-> #(fetch-from-uri jwks-uri)
@@ -191,13 +214,17 @@
             (u/assoc-some :protected-resource? protected-resource?
                           :claims->error claims->error)
             ;; --- for wrap-routes middleware ---
-            (assoc :well-known-routes {;; protected resource metadata
-                                       sd/uri-oauth-protected-resource
-                                       hpr-inst
-                                       ;; protected resource metadata at /mcp
-                                       (-> sd/uri-oauth-protected-resource
-                                           (str mcp-uri))
-                                       hpr-inst
-                                       ;; authorization server
-                                       sd/uri-oauth-authorization-server
-                                       has-inst}))))))
+            (assoc :well-known-routes (-> {;; protected resource metadata
+                                           sd/uri-oauth-protected-resource
+                                           hpr-inst
+                                           ;; protected resource metadata at /mcp
+                                           (-> sd/uri-oauth-protected-resource
+                                               (str mcp-uri))
+                                           hpr-inst
+                                           ;; authorization server
+                                           sd/uri-oauth-authorization-server
+                                           has-inst}
+                                          (u/assoc-some
+                                           ;; OpenID connect discovery 1.0
+                                           sd/uri-oauth-openid-configuration
+                                           hoc-inst))))))))
