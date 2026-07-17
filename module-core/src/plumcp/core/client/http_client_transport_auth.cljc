@@ -141,7 +141,7 @@
                         "scope"                 "openid"
                         "state"                 state-csrf-token
                         "code_challenge"        code-challenge
-                        "code_challenge_method" "S256"
+                        "code_challenge_method" "S256"  ; per MCP spec
                         "resource"              resource-uri)
             final-url (str base-url "?"
                            (u/url-encode url-params))]

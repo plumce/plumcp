@@ -67,6 +67,20 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
+## [0.3.0-alpha2] - 2026-Jul-??
+
+### Added
+
+### Changed
+
+- Server: Streamable HTTP Transport
+  - Expose OpenID configuration endpoint as a proxy to Authorization server
+- Client: Streamable HTTP Transport
+  - Add support for OpenID Connect Discovery 1.0
+    - Fall back to Authorization server metadata if OpenID config unavailable
+
+### Fixed
+
 ## [0.3.0-alpha1] - 2026-Jul-07
 
 ### Added
@@ -148,10 +162,6 @@ All notable changes to this project will be documented in this file. This change
     - `p.c.a.entity-gen/make-elicit-url-request`
 - Server: Streamable HTTP Transport
   - Apply DNS-rebind check to verify Origin/Host headers (403 on error)
-  - Expose OpenID configuration endpoint as a proxy to Authorization server
-- Client: Streamable HTTP Transport
-  - Add support for OpenID Connect Discovery 1.0
-    - Fall back to Authorization server metadata if OpenID config unavailable
 
 ### Fixed
 
