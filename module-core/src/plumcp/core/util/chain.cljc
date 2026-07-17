@@ -17,12 +17,13 @@
   "Chain given context through a sequence of step functions
    (fn step-fn [context out-fn])."
   [context & steps]
-  (if (seq steps)
-    (let [f (first steps)]
-      (f context
-         (fn [post-context]
-           (apply chain-> post-context (rest steps)))))
-    context))
+  (let [steps (flatten steps)]
+    (if (seq steps)
+      (let [f (first steps)]
+        (f context
+           (fn [post-context]
+             (apply chain-> post-context (rest steps)))))
+      context)))
 
 
 ;; --- Utility to make step-functions operating on chaining context maps ---
@@ -107,6 +108,24 @@
                    (str "input key " in-key
                         " to exist in context"))
       (proc-fn in-val)
+      (f context))))
+
+
+(defn ?--
+  "Step-fn middleware to skip invocation if in-key is absent in context."
+  [in-key step-fn]
+  (fn [context f]
+    (if (contains? context in-key)
+      (step-fn context f)
+      (f context))))
+
+
+(defn not?--
+  "Step-fn middleware to skip invocation if in-key is absent in context."
+  [in-key step-fn]
+  (fn [context f]
+    (if (not (contains? context in-key))
+      (step-fn context f)
       (f context))))
 
 

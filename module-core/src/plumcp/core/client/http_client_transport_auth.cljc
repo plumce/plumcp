@@ -20,7 +20,8 @@
    [plumcp.core.support.http-server :as hs]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
-   [plumcp.core.util.chain :as uch :refer [-!- -!> --- --> >!> >-- >-> chain->]]
+   [plumcp.core.util.chain :as uch :refer [-!- -!> --- --> >--
+                                           ?-- not?-- >-> chain->]]
    [plumcp.core.util.http-auth :as uha]))
 
 
@@ -39,7 +40,9 @@
 ;; --- handle-failure: OAuth handshake ---
 
 ;; 1. get-protected-resource-metadata
-;; 2. get-oauth-authorization-server
+;; 2. EITHER 2a OR 2b (if 2a succeeds then 2b not invoked)
+;;   a. get-oauth-openid-configuration
+;;   b. get-oauth-authorization-server
 ;; 3. register-client (DCR)
 ;; 4. start-callback-server
 ;; 5. open-browser-with-authorization-url
@@ -47,6 +50,35 @@
 ;; 7. stop-callback-server
 ;; 8. get-access-token (+ refresh-token)
 ;;   a. Request had: token-request + code-verifier + resource
+
+
+(defn prm-result->oic-request
+  "Given protected-resource metadata, return a request map to fetch
+   OpenID Configuration (for OpenID Connect Discovery 1.0)"
+  [prm-result]
+  {:uri (-> prm-result
+            :authorization_servers
+            uha/well-known-openid-configuration)
+   :request-method :get})
+
+
+(defn oic-result-str->register-client-request
+  "Given a authorization-server metadata, return a request map to call
+   the (open registration) Dynamic Client Registration (DCR) endpoint.
+   See: https://datatracker.ietf.org/doc/html/rfc7591#section-3.1"
+  [oic-result-str redirect-uris client-name]
+  {:uri (get oic-result-str "registration_endpoint")
+   :request-method :post
+   :headers {"Content-Type" "application/json"}
+   :body (-> oic-result-str
+             (select-keys ["jwks_uri"])
+             (assoc "redirect_uris" redirect-uris
+                    "grant_types" ["authorization_code"]
+                    "response_types" ["code"]
+                    "token_endpoint_auth_method" "client_secret_basic"
+                    "client_name" client-name)
+             u/json-write)})
+
 
 (defn prm-result->asm-request
   "Given protected-resource metadata, return a request map to fetch
@@ -121,12 +153,13 @@
 (defn after-prep-authorization-url
   [context {:keys [mcp-server
                    callback-redirect-uri
+                   ;; intermediate (from context)
+                   authorization-endpoint
                    ;; optional
                    mcp-uri]
             :or {mcp-uri "/mcp"}}
    f]
-  (-> {:authorization-endpoint (get-in context [:asm-result-str
-                                                "authorization_endpoint"])
+  (-> {:authorization-endpoint authorization-endpoint
        :client-id (get-in context [:register-client-result
                                    "client_id"])
        :mcp-server mcp-server
@@ -311,20 +344,82 @@
                          token-cache
                          ;; optional
                          prm-request-middleware
+                         oic-request-middleware
                          asm-request-middleware
                          dcr-request-middleware]
                   :or {prm-request-middleware identity
+                       oic-request-middleware identity
                        asm-request-middleware identity
-                       dcr-request-middleware identity}}]
+                       dcr-request-middleware identity
+                       on-error (fn [error]
+                                  (u/dprint "ERROR:" error))}}]
   (if-let [prm-request (get-resource-metadata headers-lower)]
     (let [>h> (fn [in-key post out-key]  ; shorthand: make HTTP call
-                (>!> in-key (fn [in-val f]
-                              (on-response-body http-client in-val
-                                                f
-                                                on-error))
-                     post out-key))
+                (-!- (fn [context f]
+                       (u/expected! context #(contains? % in-key)
+                                    (str "input key " in-key
+                                         " to exist in context"))
+                       (let [in-val (get context in-key)]
+                         (on-response-body http-client in-val
+                                           (comp f
+                                                 #(assoc context out-key %)
+                                                 post)
+                                           #(do (on-error %)
+                                                context))))))
           -p- (--- #(do (u/dprint "Context" %)
                         %))
+          get-oic [;; get-openid-configuration
+                   ;; ------------------------
+                   ;; prepare to fetch OpenID Configuration
+                   (>-> :prm-result prm-result->oic-request :oic-request)
+                   ;; fetch OpenID configuration
+                   (>-> :oic-request oic-request-middleware :oic-request)
+                   (>h> :oic-request u/json-parse-str :oic-result-str)
+                   (?-- :oic-result-str
+                        (>-- :oic-result-str #(p/write-server! token-cache
+                                                               mcp-server %)))
+                   ;; prepare to dynamically register client
+                   (?-- :oic-result-str
+                        (>-> :oic-result-str #(oic-result-str->register-client-request
+                                               %
+                                               redirect-uris
+                                               client-name) :register-client-request))
+                   ;; populate authorization endpoint
+                   (?-- :oic-result-str
+                        (--> (fn [context]
+                               (get-in context [:oic-result-str
+                                                "authorization_endpoint"]))
+                             :authorization-endpoint))
+                   ;; populate token endpoint
+                   (?-- :oic-result-str
+                        (--> (fn [context]
+                               (get-in context [:oic-result-str
+                                                "token_endpoint"]))
+                             :token-endpoint))]
+          get-asm [;; get-authorization-server-metadata
+                   ;; ---------------------------------
+                   ;; prepare to fetch authorization server metadata
+                   (>-> :prm-result prm-result->asm-request :asm-request)
+                   ;; fetch authorization server metadata
+                   (>-> :asm-request asm-request-middleware :asm-request)
+                   (>h> :asm-request u/json-parse-str :asm-result-str)
+                   (>-- :asm-result-str #(p/write-server! token-cache
+                                                          mcp-server %))
+                   ;; prepare to dynamically register client
+                   (>-> :asm-result-str #(asm-result-str->register-client-request
+                                          %
+                                          redirect-uris
+                                          client-name) :register-client-request)
+                   ;; populate authorization endpoint
+                   (--> (fn [context]
+                          (get-in context [:asm-result-str
+                                           "authorization_endpoint"]))
+                        :authorization-endpoint)
+                   ;; populate token endpoint
+                   (--> (fn [context]
+                          (get-in context [:asm-result-str
+                                           "token_endpoint"]))
+                        :token-endpoint)]
           cleanup-atom (atom [])
           cleanup-stop (fn [stoppable description]
                          (u/expected! stoppable #(satisfies? p/IStoppable %)
@@ -339,18 +434,12 @@
                  ;; fetch protected resource metadata
                  (>-> :prm-request prm-request-middleware :prm-request)
                  (>h> :prm-request u/json-parse :prm-result)
-                 ;; prepare to fetch authorization server metadata
-                 (>-> :prm-result prm-result->asm-request :asm-request)
-                 ;; fetch authorization server metadata
-                 (>-> :asm-request asm-request-middleware :asm-request)
-                 (>h> :asm-request u/json-parse-str :asm-result-str)
-                 (>-- :asm-result-str #(p/write-server! token-cache
-                                                        mcp-server %))
-                 ;; prepare to dynamically register client
-                 (>-> :asm-result-str #(asm-result-str->register-client-request
-                                        %
-                                        redirect-uris
-                                        client-name) :register-client-request)
+                 ;; get OpenID configuration if available
+                 get-oic
+                 ;; else, get authorization server metadata
+                 (->> get-asm
+                      (mapv (fn [sf]
+                              (not?-- :register-client-request sf))))
                  ;; dynamically register client
                  (>-> :register-client-request dcr-request-middleware :register-client-request)
                  (>h> :register-client-request u/json-parse-str :register-client-result)
@@ -358,10 +447,13 @@
                                                                 mcp-server %))
                  ;; make authorization URL for opening later in a browser
                  (-!> (fn [context f]
-                        (after-prep-authorization-url context
-                                                      {:mcp-server mcp-server
-                                                       :callback-redirect-uri callback-redirect-uri}
-                                                      f))
+                        (after-prep-authorization-url
+                         context
+                         {:mcp-server mcp-server
+                          :callback-redirect-uri callback-redirect-uri
+                          :authorization-endpoint (get context
+                                                       :authorization-endpoint)}
+                         f))
                       :auth-code-flow-params)
                  -p-
                  ;; start the callback server/endpoint
@@ -369,8 +461,7 @@
                         (let [[_ callback-uri] (u/split-web-url callback-redirect-uri)
                               state (get-in context [:auth-code-flow-params :state])]
                           (-> (fn [code]
-                                (-> {:token-endpoint     [:asm-result-str
-                                                          "token_endpoint"]
+                                (-> {:token-endpoint     [:token-endpoint]
                                      :authorization-code code
                                      :redirect-uri       callback-redirect-uri
                                      :client-id          [:register-client-result

@@ -51,7 +51,7 @@ The scope of work for this sponsorship is documented
 
 There are Makefile targets for various development tasks:
 
-Setup and teardown:
+### Setup and teardown
 
 ```
 make setup
@@ -59,14 +59,24 @@ make clean
 make distclean  # needs `make setup` later
 ```
 
-Running tests:
+### Running tests
 
 ```
 make clj-test   # run tests in Clojure/JVM
 make cljs-test  # run tests in Node.js
 ```
 
-Module release:
+### Enable OAuth tests (disabled by default)
+
+1. Copy `test-config.template.edn` to `test-config.edn`
+2. Edit suitably
+3. Enable OAuth in `src/test/plumcp/core/test/transport_test.cljc` (in `auth-options-fn`)
+
+### Enable OAuth when running local MCP server (Streamable HTTP)
+
+Enable OAuth in `src/main/plumcp/core/main/main_http_server.cljc` (in `main`/`-main`)
+
+### Module release
 
 ```
 # Edit `module-project-clj.bb` for version

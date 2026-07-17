@@ -26,7 +26,7 @@ A summary of changes as TODO items are below:
 
 ### Major changes
 
-1. [ ] Add support for OpenID Connect Discovery 1.0 to authorization server
+1. [x] Add support for OpenID Connect Discovery 1.0 to authorization server
        discovery
 2. [x] Allow servers to expose icons as additional metadata for tools,
        resources, resource templates, and prompts
