@@ -67,7 +67,7 @@
   [expr]
   (if (:ns &env) ;; :ns only exists in CLJS
     `(await ~expr)
-    `(do ~expr)))
+    expr))
 
 
 ;; --- Backfill ---
@@ -603,8 +603,13 @@
 (defn dprint
   "Pretty-print for debugging."
   [header data]
-  (let [h-line (repeat-str (count header) "-")
-        e-line (repeat-str (count header) "~")]
+  (let [h-text (str header)
+        h-tlen (count h-text)
+        h-cols (-> (str/index-of h-text \newline)
+                   (or h-tlen)
+                   (min h-tlen))
+        h-line (repeat-str h-cols "-")
+        e-line (repeat-str h-cols "~")]
     (eprintln h-line)
     (eprintln header)
     (eprintln h-line)
