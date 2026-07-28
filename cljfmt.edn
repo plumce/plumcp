@@ -6,8 +6,6 @@
  :remove-multiple-non-indenting-spaces? false
  ;; -- fix Calva indentation --
  :extra-indents {;; util
-                 async-defn [[:inner 0]]
-                 async-fn [[:inner 0]]
                  do-async [[:inner 0]]
                  do-await [[:inner 0]]
                  ;; async-bridge

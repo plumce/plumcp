@@ -32,31 +32,12 @@
 ;; --- Async handling (CLJC with JS-interop) ---
 
 
-(defmacro async-defn
-  "Define an async function for JS compatibility - same as `defn` in CLJ,
-   but in CLJS it defines a `(defn ^:async ...)` var."
-  [& defn-params]
-  (assert (seq defn-params)
-          (str "Empty params passed to async-defn: " defn-params))
-  `(defn ^:async ~@defn-params))
-
-
-(defmacro async-fn
-  "Create an async function for JS compatibility - same as `fn` in CLJ,
-   but in CLJS it creates an `(^:async fn ...)`."
-  [& fn-params]
-  (assert (seq fn-params)
-          (str "Empty params passed to async-fn: " fn-params))
-  `(^:async fn
-     ~@fn-params))
-
-
 (defmacro do-async
   "Evaluate body of code as if in an async no-arg function. Useful for
    invocation inside protocol-fn and multi-method, which do not support
    `^:async` metadata tag yet as of CLJS 1.12.145."
   [& body]
-  `(let [f# (async-fn []
+  `(let [f# (^:async fn []
               ~@body)]
      (f#)))
 
