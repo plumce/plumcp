@@ -18,7 +18,6 @@
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
-   [plumcp.core.util.async-bridge :as uab]
    [plumcp.core.util.ring-util :as uru]))
 
 
@@ -38,6 +37,7 @@
            auth-options      {:auth-enabled? false}
            get-auth-tokens   hcta/get-tokens}}]
   (let [auth-enabled? (boolean (:auth-enabled? auth-options))
+        auth-retry-k  :plumcp.core/http-retry
         tokens->hdrs  (fn [tokens]
                         {"Authorization" (str "Bearer "
                                               (:access_token tokens))})
@@ -121,98 +121,111 @@
                             $)
                           (wrap-message $ headers-lower)
                           (u/invoke (deref msg-receiver) $))))
-        on-response (fn [retry-401 status-handlers req-id-or-nil response-or-promise]
-                      (uab/let-await [response response-or-promise]
-                        (let [status (:status response)
-                              headers (:headers response)
-                              headers-lower (update-keys headers
-                                                         str/lower-case)
-                              media-type (->media-type headers-lower)
-                              rx-err (fn [err-text]
-                                       (receive-err req-id-or-nil
-                                                    status
-                                                    err-text
-                                                    headers-lower))
-                              on-err (fn []
-                                       (-> (if (= media-type
-                                                  "text/event-stream")
-                                             (:on-sse response)
-                                             (:on-msg response))
-                                           (u/invoke rx-err)))]
-                          (cond
-                            ;;
-                            ;; SSE body
-                            ;;
-                            (and (= 200 status)
-                                 (= media-type "text/event-stream"))
-                            (-> (:on-sse response)
-                                (u/invoke #(receive-msg % headers-lower)))
-                            ;;
-                            ;; JSON body
-                            ;;
-                            (and (= 200 status)
-                                 (= media-type "application/json"))
-                            (-> (:on-msg response)
-                                (u/invoke #(receive-msg % headers-lower)))
-                            ;;
-                            ;; No body (for sent notification/response)
-                            ;;
-                            (and (= 202 status)
-                                 (nil? media-type))
-                            nil  ; do nothing, server accepted request
-                            ;;
-                            ;; Auth error
-                            ;;
-                            (and auth-enabled?
-                                 (= 401 status)
-                                 (string? (get headers-lower
-                                               "www-authenticate")))
-                            (if-let [sora-tokens (get-auth-tokens headers-lower
-                                                                  auth-options)]
-                              (uab/may-await [tokens sora-tokens]
-                                (u/dprint "Retrying-401 with" tokens)
-                                (retry-401 (tokens->hdrs tokens)))
-                              (on-err))
-                            ;;
-                            ;; Caller's status handling (exceptions)
-                            ;;
-                            (contains? status-handlers status)
-                            (-> status-handlers
-                                (get status)
-                                (u/invoke response))
-                            ;;
-                            ;; Error, perhaps
-                            ;; 400=Bad request or not Initialized yet
-                            ;; 404=Server session does not exist
-                            ;; 500=Internal server error
-                            ;; ...and more...
-                            ;;
-                            :else
-                            (on-err)))))
-        post-message (fn thisfn [message extra-headers]
-                       (->> post-request
-                            (wrap-reqhdrs message)
-                            (wrap-headers extra-headers)
-                            (wrap-reqbody message)
-                            (p/http-call http-client)
-                            (on-response (partial thisfn message)
-                                         {}
-                                         (when (jr/jsonrpc-request? message)
-                                           (:id message)))))
+        on-response (^:async fn [retry-401 request-meta status-handlers
+                                 req-id-or-nil response-or-promise]
+                      (let [response (-> response-or-promise
+                                         u/do-await)
+                            status (:status response)
+                            headers (:headers response)
+                            headers-lower (update-keys headers
+                                                       str/lower-case)
+                            media-type (->media-type headers-lower)
+                            rx-err (fn [err-text]
+                                     (receive-err req-id-or-nil
+                                                  status
+                                                  err-text
+                                                  headers-lower))
+                            on-err (fn []
+                                     (-> (if (= media-type
+                                                "text/event-stream")
+                                           (:on-sse response)
+                                           (:on-msg response))
+                                         (u/invoke rx-err)))]
+                        (cond
+                          ;;
+                          ;; SSE body
+                          ;;
+                          (and (= 200 status)
+                               (= media-type "text/event-stream"))
+                          (-> (:on-sse response)
+                              (u/invoke #(receive-msg % headers-lower)))
+                          ;;
+                          ;; JSON body
+                          ;;
+                          (and (= 200 status)
+                               (= media-type "application/json"))
+                          (-> (:on-msg response)
+                              (u/invoke #(receive-msg % headers-lower)))
+                          ;;
+                          ;; No body (for sent notification/response)
+                          ;;
+                          (and (= 202 status)
+                               (nil? media-type))
+                          nil  ; do nothing, server accepted request
+                          ;;
+                          ;; Auth error
+                          ;;
+                          (and auth-enabled?
+                               (= 401 status)
+                               (if (<= (get request-meta auth-retry-k) 1)
+                                 true
+                                 (do (u/dprint "Too many auth retries, ignored"
+                                               request-meta)
+                                     false))
+                               (string? (get headers-lower
+                                             "www-authenticate")))
+                          (if-let [tokens (-> headers-lower
+                                              (get-auth-tokens auth-options)
+                                              u/do-await)]
+                            (do
+                              (u/dprint "Retrying-401 with" tokens)
+                              (retry-401 (tokens->hdrs tokens)))
+                            (on-err))
+                          ;;
+                          ;; Caller's status handling (exceptions)
+                          ;;
+                          (contains? status-handlers status)
+                          (-> status-handlers
+                              (get status)
+                              (u/invoke response))
+                          ;;
+                          ;; Error, perhaps
+                          ;; 400=Bad request or not Initialized yet
+                          ;; 404=Server session does not exist
+                          ;; 500=Internal server error
+                          ;; ...and more...
+                          ;;
+                          :else
+                          (on-err))))
+        post-message (^:async fn thisfn [message request-meta extra-headers]
+                       (let [new-meta (update request-meta auth-retry-k inc)]
+                         (->> post-request
+                              (wrap-reqhdrs message)
+                              (wrap-headers extra-headers)
+                              (wrap-reqbody message)
+                              (p/http-call http-client)
+                              (on-response (partial thisfn message new-meta)
+                                           new-meta
+                                           {}
+                                           (when (jr/jsonrpc-request? message)
+                                             (:id message))))))
         stream-unsup {405 (fn [_]
                             (u/eprintln
                              "Server does not support GET-stream"))}
-        fetch-stream (fn thisfn [success extra-headers]
-                       (let [f #(->> get-request
-                                     (wrap-reqhdrs success)
-                                     (wrap-headers extra-headers)
-                                     (p/http-call http-client)
-                                     (on-response (partial thisfn
-                                                           success)
-                                                  stream-unsup
-                                                  nil))]
+        fetch-stream (^:async fn thisfn [success extra-headers]
+                       (let [f (^:async fn []
+                                 (->> get-request
+                                      (wrap-reqhdrs success)
+                                      (wrap-headers extra-headers)
+                                      (p/http-call http-client)
+                                      (on-response (partial thisfn
+                                                            success)
+                                                   {auth-retry-k 0}
+                                                   stream-unsup
+                                                   nil)))]
                          #?(:cljs
-                            (f)
+                            (-> (f)
+                                u/do-await)
                             :clj
                             (try
                               (f)
@@ -235,6 +248,7 @@
                                                  (p/http-call http-client))
                                             (p/stop! http-client)))
       (send-message-to-server [_ message] (post-message message
+                                                        {auth-retry-k 0}
                                                         (get-auth-hdrs)))
       (upon-handshake-success [_ success] (when start-get-stream?
                                             (u/background

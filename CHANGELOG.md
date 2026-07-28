@@ -50,6 +50,9 @@ All notable changes to this project will be documented in this file. This change
 - Readable Last-access time
   - Server: In server-session
   - Client: In client state
+- Extensions
+  - Skills: https://github.com/modelcontextprotocol/experimental-ext-skills/blob/main/docs/sep-draft-skills-extension.md
+  - https://modelcontextprotocol.io/extensions/overview
 - Happy transport test
   - test-heartbeat (requires server capable of dropping idle session)
 - Unhappy transport test
@@ -78,6 +81,10 @@ All notable changes to this project will be documented in this file. This change
 - Client: Streamable HTTP Transport
   - Add support for OpenID Connect Discovery 1.0
     - Fall back to Authorization server metadata if OpenID config unavailable
+- Drop utility namespace `plumcp.core.util.chain` (refactoring)
+  - In favour of (JS) `await` introduced in CLJS 1.12.145
+  - OAuth flow error-conditions detected and handled
+  - Auth-retry loop detected and handled in HTTP client transport
 
 ### Fixed
 

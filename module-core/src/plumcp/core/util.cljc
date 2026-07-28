@@ -217,6 +217,21 @@
 ;; --- Map manipulation ---
 
 
+(defmacro keyword-map
+  "Given symbols bound to values, make a map of symbol keywords and
+   corresponding symbol values."
+  ([]
+   {})
+  ([& valsyms]
+   (doseq [each valsyms]
+     (assert (symbol? each) "Every value must be a symbol"))
+   (let [pairs (reduce (fn [acc each]
+                         (conj acc (keyword each) each))
+                       []
+                       valsyms)]
+     `{~@pairs #_"reader needs even number of forms in a map" ~@[]})))
+
+
 (defn assoc-missing
   "Like clojure.core/assoc, except it assoc's only when the key does not
    exist."

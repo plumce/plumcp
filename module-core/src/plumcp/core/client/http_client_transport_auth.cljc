@@ -20,21 +20,24 @@
    [plumcp.core.support.http-server :as hs]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
-   [plumcp.core.util.chain :as uch :refer [-!- -!> --- --> >--
-                                           ?-- not?-- >-> chain->]]
    [plumcp.core.util.http-auth :as uha]))
 
 
 ;; utility
 
 
-(defn on-response-body
-  [http-client request on-200 on-err]
-  (uab/let-await [response (p/http-call http-client request)]
+(defn ^:async http-fetch-body-text!
+  "Make HTTP call as per (Ring) request, returning the body text on HTTP
+   200 or 201 response status. All other HTTP response statuses cause an
+   exception to be thrown."
+  [http-client request]
+  (let [response (-> (p/http-call http-client request)
+                     u/do-await)]
     (-> (:on-msg response)
         (u/invoke (if (#{200 201} (:status response))
-                    on-200
-                    on-err)))))
+                    identity
+                    u/throw!))
+        u/do-await)))
 
 
 ;; --- handle-failure: OAuth handshake ---
@@ -224,71 +227,71 @@
 (defn make-callback-handler
   [on-success callback-uri state cleanup-atom]
   (fn callback-ring-handler [request]
-    (uab/as-async [p-resolve p-reject]
-      (let [method (:request-method request)
-            uri (:uri request)
-            cleanup (fn []
-                      (u/background
-                        {:delay-millis 20}  ; small cooling-off delay
-                        (let [cleanup-tasks (deref cleanup-atom)
-                              cleanup-count (count cleanup-tasks)]
-                          (doseq [[index f] (->> (deref cleanup-atom)
-                                                 (interleave (iterate inc 1))
-                                                 (partition 2))]
-                            (u/eprintln (format "[Cleanup %d/%d]"
-                                                index cleanup-count))
-                            (f)))))]
-        (if (= :get method)
-          (-> (cond
-                ;; callback URI
-                (= callback-uri uri)
-                (let [query-params (-> (:query-string request)
-                                       (u/url-query-params)
-                                       (update-keys keyword))]
-                  ;; match state
-                  (if (= state (:state query-params))
-                    (do
-                      ;; MCP spec 2025-06-18 doesn't suggest to verify
-                      ;; the code by client, so we pass it as received
-                      (on-success (:code query-params))
-                      {:status 202
-                       :headers {}
-                       :callback cleanup})
-                    {:status 400
-                     :headers {"Content-Type" "text/plain"}
-                     :body "CSRF Token (state) mismatch"
-                     :callback cleanup}))
-                ;; favicon
-                (= "/favicon.ico" uri)
-                {:status 404
-                 :headers {"Content-Type" "text/plain"}
-                 :body "No favicon available"}
-                ;; else
-                :else
-                {:status 400
-                 :headers {"Content-Type" "text/plain"}
-                 :body (str "Callback URI must be: "
-                            callback-uri)})
-              p-resolve)
-          (-> {:status 405
-               :headers {"Allow" "GET"
-                         "Content-Type" "text/plain"}
-               :callback cleanup}
-              (u/assoc-some :body (when (not= :head method)
-                                    "Only GET method is allowed"))
-              p-resolve))))))
+    (let [method (:request-method request)
+          uri (:uri request)
+          cleanup (fn []
+                    (u/background
+                      {:delay-millis 20}  ; small cooling-off delay
+                      (let [cleanup-tasks (deref cleanup-atom)
+                            cleanup-count (count cleanup-tasks)]
+                        (doseq [[index f] (->> (deref cleanup-atom)
+                                               (interleave (iterate inc 1))
+                                               (partition 2))]
+                          (u/eprintln (format "[Cleanup %d/%d]"
+                                              index cleanup-count))
+                          (f)))))]
+      (if (= :get method)
+        (cond
+          ;; callback URI
+          (= callback-uri uri)
+          (let [query-params (-> (:query-string request)
+                                 (u/url-query-params)
+                                 (update-keys keyword))]
+            ;; match state
+            (if (= state (:state query-params))
+              (do
+                ;; MCP spec 2025-06-18 doesn't suggest to verify
+                ;; the code by client, so we pass it as received
+                (on-success (:code query-params))
+                {:status 202
+                 :headers {}
+                 :callback cleanup})
+              {:status 400
+               :headers {"Content-Type" "text/plain"}
+               :body "CSRF Token (state) mismatch"
+               :callback cleanup}))
+          ;; favicon
+          (= "/favicon.ico" uri)
+          {:status 404
+           :headers {"Content-Type" "text/plain"}
+           :body "No favicon available"}
+          ;; else
+          :else
+          {:status 400
+           :headers {"Content-Type" "text/plain"}
+           :body (str "Callback URI must be: "
+                      callback-uri)})
+        (-> {:status 405
+             :headers {"Allow" "GET"
+                       "Content-Type" "text/plain"}
+             :callback cleanup}
+            (u/assoc-some :body (when (not= :head method)
+                                  "Only GET method is allowed")))))))
 
 
 ;; ----- main auth handler -----
 
 
-(defn refresh-tokens
+(defn ^:async refresh-tokens
   "Given expired tokens, return refreshed tokens if refresh-attempt
    succeeded, nil otherwise."
   [tokens server client {:keys [http-client
                                 mcp-server
                                 on-error
                                 token-cache]
+                         :or {on-error (fn [error]
+                                         (u/dprint "ERROR Refreshing tokens:"
+                                                   error))}
                          :as auth-options}]
   (let [token-endpoint (:token_endpoint server)
         refresh-token  (:refresh_token tokens)
@@ -296,32 +299,120 @@
                                   "client_id" (:client_id client)
                                   "client_secret" (:client_secret client)
                                   "refresh_token" refresh-token)
-        -h- (fn [post]  ; shorthand: make HTTP call
-              (-!- (fn [request f]
-                     (on-response-body http-client request
-                                       (comp f post)
-                                       on-error))))
-        -p- (--- #(do (u/dprint "Refresh-token context" %)
-                      %))]
-    (uab/as-async [p-resolve p-reject]
-      (-> {:uri token-endpoint
-           :request-method :post
-           :headers {"Content-Type" "application/x-www-form-urlencoded"}
-           :body (-> refresh-params
-                     u/url-encode)}
-          (chain-> -p-
-                   (-h- u/json-parse)
-                   (--- #(do (p/write-tokens! token-cache mcp-server %)
-                             %))
-                   -p-
-                   (--- p-resolve))))))
+        [http-body-data
+         http-err-thrown] (u/catch!
+                           (->> {:uri token-endpoint
+                                 :request-method :post
+                                 :headers {"Content-Type" "application/x-www-form-urlencoded"}
+                                 :body (-> refresh-params
+                                           u/url-encode)}
+                                (http-fetch-body-text! http-client)
+                                u/do-await
+                                u/json-parse))]
+    (if http-err-thrown
+      (on-error http-err-thrown)
+      (do
+        (u/dprint "refresh-tokens::http-body-data" http-body-data)
+        (p/write-tokens! token-cache mcp-server http-body-data)
+        http-body-data))))
 
 
-(defn handle-authz-flow
+(defn ^:async sub-prm-result->register-client-request
+  "Given Protcted Resource Metadata (PRM), fetch either of the following
+   until one of them succeeds:
+   - OpenID Connect config (OIC)
+   - Authorization Server Metadata (ASM)
+   and eventually return the following structure:
+   {:authorization-endpoint ...
+    :token-endpoint ...
+    :register-client-request ...}"
+  [prm-result
+   {:keys [oic-request-middleware
+           asm-request-middleware
+           http-client
+           token-cache
+           mcp-server
+           redirect-uris
+           client-name]
+    :as options}]
+  (try
+    ;; try OpenID Connect config first
+    (let [oic-request (-> prm-result
+                          prm-result->oic-request
+                          oic-request-middleware)
+          oic-result-str (-> http-client
+                             (http-fetch-body-text! oic-request)
+                             u/do-await
+                             u/json-parse-str)]
+      (p/write-server! token-cache
+                       mcp-server oic-result-str)
+      {:authorization-endpoint (get oic-result-str
+                                    "authorization_endpoint")
+       :token-endpoint (get oic-result-str "token_endpoint")
+       :register-client-request (-> oic-result-str
+                                    (oic-result-str->register-client-request
+                                     redirect-uris
+                                     client-name))})
+    (catch #?(:cljs :default :clj Exception) ex
+      (u/eprintln "ERROR Fetching OpenID Connect configuration:"
+                  (ex-message ex))
+      ;; OpenID Connect Discovery failed, so try Authorization Server Metadata
+      (let [asm-request (-> prm-result
+                            prm-result->asm-request
+                            asm-request-middleware)
+            asm-result-str (-> http-client
+                               (http-fetch-body-text! asm-request)
+                               u/do-await
+                               u/json-parse-str)]
+        (p/write-server! token-cache
+                         mcp-server asm-result-str)
+        {:authorization-endpoint (get asm-result-str
+                                      "authorization_endpoint")
+         :token-endpoint (get asm-result-str "token_endpoint")
+         :register-client-request (-> asm-result-str
+                                      (asm-result-str->register-client-request
+                                       redirect-uris
+                                       client-name))}))))
+
+
+(defn sub-make-auth-code-flow-params
+  [{:keys [authorization-endpoint
+           client-id
+           callback-redirect-uri
+           resource-uri]}]
+  (u/expected! authorization-endpoint string?
+               "authorization-endpoint to be an API endpoint string")
+  (u/expected! client-id string? "client-id to be a string")
+  (u/expected! callback-redirect-uri string?
+               "callback-redirect-uri to be a string")
+  (u/expected! resource-uri string? "resource-uri to be a URL string")
+  (let [base-url authorization-endpoint
+        code-verifier (uha/make-code-verifier)
+        state-csrf-token (u/uuid-v7)]
+    (uha/with-code-verifier-challenge [code-challenge code-verifier]
+      (let [url-params (array-map
+                        "response_type"         "code"
+                        "client_id"             client-id
+                        "redirect_uri"          callback-redirect-uri
+                            ; ScaleKit also accepts 'openid <access-scope>'
+                        "scope"                 "openid"
+                        "state"                 state-csrf-token
+                        "code_challenge"        code-challenge
+                        "code_challenge_method" "S256"  ; per MCP spec
+                        "resource"              resource-uri)
+            final-url (str base-url "?"
+                           (u/url-encode url-params))]
+        {:auth-url final-url
+         :code-verifier code-verifier
+         :state state-csrf-token}))))
+
+
+(defn ^:async handle-authz-flow
   "Handle the first part of auth-flow until starting authorization
    code-flow. Includes the following steps:
    Discovery-phase:               1. Protected Resource Metadata
-                                  2. Authorization Server Metadata
+                                  2a. OpenID Connect Discovery
+                                  2b. Authorization Server Metadata
    Authorization phase (DCR):     3. Dynamic Client Registration
    Start Authorization code-flow: 4. Redirect to authorization-endpoint
 
@@ -343,161 +434,128 @@
                          ;;
                          token-cache
                          ;; optional
+                         mcp-uri
                          prm-request-middleware
                          oic-request-middleware
                          asm-request-middleware
                          dcr-request-middleware]
-                  :or {prm-request-middleware identity
+                  :or {mcp-uri "/mcp"
+                       prm-request-middleware identity
                        oic-request-middleware identity
                        asm-request-middleware identity
                        dcr-request-middleware identity
                        on-error (fn [error]
-                                  (u/dprint "ERROR:" error))}}]
+                                  (u/dprint "ERROR Handling authorization flow:"
+                                            error))}
+                  :as options}]
   (if-let [prm-request (get-resource-metadata headers-lower)]
-    (let [>h> (fn [in-key post out-key]  ; shorthand: make HTTP call
-                (-!- (fn [context f]
-                       (u/expected! context #(contains? % in-key)
-                                    (str "input key " in-key
-                                         " to exist in context"))
-                       (let [in-val (get context in-key)]
-                         (on-response-body http-client in-val
-                                           (comp f
-                                                 #(assoc context out-key %)
-                                                 post)
-                                           #(do (on-error %)
-                                                context))))))
-          -p- (--- #(do (u/dprint "Context" %)
-                        %))
-          get-oic [;; get-openid-configuration
-                   ;; ------------------------
-                   ;; prepare to fetch OpenID Configuration
-                   (>-> :prm-result prm-result->oic-request :oic-request)
-                   ;; fetch OpenID configuration
-                   (>-> :oic-request oic-request-middleware :oic-request)
-                   (>h> :oic-request u/json-parse-str :oic-result-str)
-                   (?-- :oic-result-str
-                        (>-- :oic-result-str #(p/write-server! token-cache
-                                                               mcp-server %)))
-                   ;; prepare to dynamically register client
-                   (?-- :oic-result-str
-                        (>-> :oic-result-str #(oic-result-str->register-client-request
-                                               %
-                                               redirect-uris
-                                               client-name) :register-client-request))
-                   ;; populate authorization endpoint
-                   (?-- :oic-result-str
-                        (--> (fn [context]
-                               (get-in context [:oic-result-str
-                                                "authorization_endpoint"]))
-                             :authorization-endpoint))
-                   ;; populate token endpoint
-                   (?-- :oic-result-str
-                        (--> (fn [context]
-                               (get-in context [:oic-result-str
-                                                "token_endpoint"]))
-                             :token-endpoint))]
-          get-asm [;; get-authorization-server-metadata
-                   ;; ---------------------------------
-                   ;; prepare to fetch authorization server metadata
-                   (>-> :prm-result prm-result->asm-request :asm-request)
-                   ;; fetch authorization server metadata
-                   (>-> :asm-request asm-request-middleware :asm-request)
-                   (>h> :asm-request u/json-parse-str :asm-result-str)
-                   (>-- :asm-result-str #(p/write-server! token-cache
-                                                          mcp-server %))
-                   ;; prepare to dynamically register client
-                   (>-> :asm-result-str #(asm-result-str->register-client-request
-                                          %
-                                          redirect-uris
-                                          client-name) :register-client-request)
-                   ;; populate authorization endpoint
-                   (--> (fn [context]
-                          (get-in context [:asm-result-str
-                                           "authorization_endpoint"]))
-                        :authorization-endpoint)
-                   ;; populate token endpoint
-                   (--> (fn [context]
-                          (get-in context [:asm-result-str
-                                           "token_endpoint"]))
-                        :token-endpoint)]
-          cleanup-atom (atom [])
-          cleanup-stop (fn [stoppable description]
-                         (u/expected! stoppable #(satisfies? p/IStoppable %)
-                                      "p/IStoppable instance")
-                         (u/eprintln "Adding stoppable" description)
-                         (swap! cleanup-atom conj
-                                (fn []
-                                  (u/eprintln "Stopping" description)
-                                  (p/stop! stoppable))))]
-      (uab/as-async [p-resolve p-reject]
-        (chain-> {:prm-request prm-request}
-                 ;; fetch protected resource metadata
-                 (>-> :prm-request prm-request-middleware :prm-request)
-                 (>h> :prm-request u/json-parse :prm-result)
-                 ;; get OpenID configuration if available
-                 get-oic
-                 ;; else, get authorization server metadata
-                 (->> get-asm
-                      (mapv (fn [sf]
-                              (not?-- :register-client-request sf))))
-                 ;; dynamically register client
-                 (>-> :register-client-request dcr-request-middleware :register-client-request)
-                 (>h> :register-client-request u/json-parse-str :register-client-result)
-                 (>-- :register-client-result #(p/write-client! token-cache
-                                                                mcp-server %))
-                 ;; make authorization URL for opening later in a browser
-                 (-!> (fn [context f]
-                        (after-prep-authorization-url
-                         context
-                         {:mcp-server mcp-server
-                          :callback-redirect-uri callback-redirect-uri
-                          :authorization-endpoint (get context
-                                                       :authorization-endpoint)}
-                         f))
-                      :auth-code-flow-params)
-                 -p-
-                 ;; start the callback server/endpoint
-                 (--> (fn [context]
-                        (let [[_ callback-uri] (u/split-web-url callback-redirect-uri)
-                              state (get-in context [:auth-code-flow-params :state])]
-                          (-> (fn [code]
-                                (-> {:token-endpoint     [:token-endpoint]
-                                     :authorization-code code
-                                     :redirect-uri       callback-redirect-uri
-                                     :client-id          [:register-client-result
-                                                          "client_id"]
-                                     :code-verifier      [:auth-code-flow-params
-                                                          :code-verifier]
-                                     :client-secret      [:register-client-result
-                                                          "client_secret"]}
-                                    (update-vals (fn [value]
-                                                   (if (vector? value)
-                                                     (get-in context value)
-                                                     value)))
-                                    make-token-request
-                                    (->> (array-map :token-request))
-                                    (chain-> (>h> :token-request u/json-parse
-                                                  :token-result)
-                                             (>-- :token-result
-                                                  #(p/write-tokens! token-cache
-                                                                    mcp-server %))
-                                             -p-
-                                             (>-- :token-result p-resolve))))
-                              (make-callback-handler callback-uri state
-                                                     cleanup-atom)
-                              callback-start-server
-                              (u/dotee cleanup-stop "Callback server"))))
-                      :callback-server)
-                 ;; open the authorization code-flow URL in browser
-                 (>-- :auth-code-flow-params #(-> (:auth-url %)
-                                                  open-browser-auth-url
-                                                  (u/dotee cleanup-stop
-                                                           "Callback browser")))
-                 -p-)))
+    (try
+      (let [;; setup resource tracking for cleanup
+            cleanup-atom (atom [])
+            cleanup-stop (fn [stoppable description]
+                           (u/expected! stoppable #(satisfies? p/IStoppable %)
+                                        "p/IStoppable instance")
+                           (u/eprintln "Adding stoppable" description)
+                           (swap! cleanup-atom conj
+                                  (fn []
+                                    (u/eprintln "Stopping" description)
+                                    (p/stop! stoppable))))
+            ;;
+            prm-request (prm-request-middleware prm-request)
+            ;; --- get Protected Resource metadata
+            prm-result (-> (http-fetch-body-text! http-client prm-request)
+                           u/do-await
+                           u/json-parse)
+            ;; --- make DCR request from either OpenID Connect config
+            ;; --- or Authorization Server metadata
+            {:keys [authorization-endpoint
+                    token-endpoint
+                    register-client-request]} (as-> (u/keyword-map
+                                                     oic-request-middleware
+                                                     asm-request-middleware) $
+                                                (merge $ options)
+                                                (sub-prm-result->register-client-request
+                                                 prm-result $)
+                                                (u/do-await $))
+            ;; --- dynamically register client
+            register-client-result (-> http-client
+                                       (http-fetch-body-text!
+                                        (-> register-client-request
+                                            dcr-request-middleware))
+                                       u/do-await
+                                       u/json-parse-str
+                                       (u/dotee #(p/write-client! token-cache
+                                                                  mcp-server %)))
+            ;; --- make authorization URL for opening later in a browser
+            {:as auth-code-flow-params
+             :keys [auth-url
+                    code-verifier
+                    state]} (-> (u/keyword-map authorization-endpoint
+                                               callback-redirect-uri)
+                                (assoc :client-id (get register-client-result
+                                                       "client_id")
+                                       :resource-uri (str mcp-server mcp-uri))
+                                #_{:authorization-endpoint authorization-endpoint
+                                   :client-id (get register-client-result
+                                                   "client_id")
+                                   :callback-redirect-uri callback-redirect-uri
+                                   :resource-uri (str mcp-server mcp-uri)}
+                                sub-make-auth-code-flow-params
+                                u/do-await)
+            ;; --- callback uri to start server at
+            [_ callback-uri] (u/split-web-url callback-redirect-uri)]
+        ;;
+        ;; --- start callback server/endpoint
+        ;;
+        (uab/as-async [p-resolve p-reject]
+          {}
+          (-> (^:async fn [code]
+                (let [token-request (-> (u/keyword-map token-endpoint
+                                                       code-verifier)
+                                        (assoc
+                                         :authorization-code code
+                                         :redirect-uri callback-redirect-uri
+                                         :client-id (get register-client-result
+                                                         "client_id")
+                                         :client-secret (get register-client-result
+                                                             "client_secret"))
+                                        #_{:token-endpoint     token-endpoint
+                                           :authorization-code code
+                                           :redirect-uri       callback-redirect-uri
+                                           :client-id          (get register-client-result
+                                                                    "client_id")
+                                           :code-verifier      code-verifier
+                                           :client-secret      (get register-client-result
+                                                                    "client_secret")}
+                                        make-token-request)
+                      token-result (-> (http-fetch-body-text! http-client
+                                                              token-request)
+                                       u/do-await
+                                       u/json-parse)]
+                  (p/write-tokens! token-cache
+                                   mcp-server token-result)
+                  (p-resolve token-result)
+                  token-result))
+              (make-callback-handler callback-uri state
+                                     cleanup-atom)
+              callback-start-server
+              (u/dotee cleanup-stop "Callback server"))
+          ;;
+          ;; --- open the authorization code-flow URL in browser
+          ;;
+          (u/eprintln "auth-url" auth-url)
+          (-> auth-url
+              open-browser-auth-url
+              (u/dotee cleanup-stop
+                       "Callback browser")))
+        ;;
+        )
+      (catch #?(:cljs :default :clj Exception) ex
+        (on-error (ex-message ex))))
     (on-error "Cannot get resource-metadata from headers.")))
 
 
-(defn get-tokens
+(defn ^:async get-tokens
   "Return auth tokens if found, refreshed or obtained successfully, nil
    otherwise."
   [headers-lower {:keys [mcp-server
@@ -665,7 +723,8 @@
 
 
 (defn browse-url
-  "Open browser with specified URL."
+  "Open browser with specified URL and return p/IStoppable instance to
+   close the browser process."
   [url]
   (u/eprintln "\nOpening URL in browser:" url)
   #?(:cljs (cond
@@ -678,9 +737,11 @@
                                               (.close window-proxy)))))
              us/env-sworker? (let [wc-prom (.openWindow js/clients url)]
                                (reify p/IStoppable
-                                 (stop! [_] (uab/let-await [wc wc-prom]
-                                              (-> "Cannot close window"
-                                                  u/eprintln))))))
+                                 (stop! [_] (u/do-async
+                                              (let [wc (-> wc-prom
+                                                           u/do-await)]
+                                                (-> "Cannot close window"
+                                                    u/eprintln)))))))
      :clj (let [^Process subproc (uj/browse-url url)]
             (reify p/IStoppable
               (stop! [_] (.destroy subproc))))))
