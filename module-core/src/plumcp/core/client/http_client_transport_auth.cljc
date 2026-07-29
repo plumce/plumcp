@@ -409,9 +409,9 @@
 
 (defn ^:async handle-authz-flow
   "Handle the first part of auth-flow until starting authorization
-   code-flow. Includes the following steps:
+   code-flow. Includes following steps for Dynamic Client Registration:
    Discovery-phase:               1. Protected Resource Metadata
-                                  2a. OpenID Connect Discovery
+                                  2a. OpenID Connect Discovery, or
                                   2b. Authorization Server Metadata
    Authorization phase (DCR):     3. Dynamic Client Registration
    Start Authorization code-flow: 4. Redirect to authorization-endpoint
@@ -460,12 +460,12 @@
                                   (fn []
                                     (u/eprintln "Stopping" description)
                                     (p/stop! stoppable))))
-            ;;
-            prm-request (prm-request-middleware prm-request)
             ;; --- get Protected Resource metadata
-            prm-result (-> (http-fetch-body-text! http-client prm-request)
-                           u/do-await
-                           u/json-parse)
+            prm-result (->> prm-request
+                            prm-request-middleware
+                            (http-fetch-body-text! http-client)
+                            u/do-await
+                            u/json-parse)
             ;; --- make DCR request from either OpenID Connect config
             ;; --- or Authorization Server metadata
             {:keys [authorization-endpoint
