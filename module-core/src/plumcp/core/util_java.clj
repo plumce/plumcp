@@ -84,14 +84,33 @@
   (System/getenv (str env-var-name)))
 
 
+(def platform
+  "OS Platform name, as reported by Java system property 'os.name'."
+  (-> (System/getProperty "os.name")
+      str/lower-case))
+
+
 (def platform-opener
   "Platform-specific command or executable name to open a file/URL."
-  (let [platform (-> (System/getProperty "os.name")
-                     str/lower-case)]
-    (cond
-      (str/starts-with? platform "mac os x") "/usr/bin/open"
-      (str/starts-with? platform "windows") "start"  ; ["cmd" "/c" "start"]
-      :else #_linux "xdg-open")))
+  (cond
+    (str/starts-with? platform "mac os x") "/usr/bin/open"
+    (str/starts-with? platform "windows") "start"  ; ["cmd" "/c" "start"]
+    :else #_linux "xdg-open"))
+
+
+(defn kill-process-tree
+  "Kill process tree. Useful to close browsers."
+  [^Process subproc]
+  (let [pid (.pid subproc)]
+    (if (str/starts-with? platform "windows")
+      ;; Windows - "/T" kills process tree, "/F" by force
+      (jp/start {:out :discard
+                 :err :discard} "taskkill"
+                "/PID" (str pid) "/T" "/F")
+      ;; Unix (Linux/macOS) - negative PID kills process tree
+      (jp/start {:out :discard
+                 :err :discard} "kill"
+                "-SIGTERM" (str (- pid))))))
 
 
 (defn browse-url
@@ -104,6 +123,11 @@
                      platform-opener)]
      (browse-url url browser)))
   ([url browser-executable-name]
-   ;; not setting DISCARD causes 'xdg-open' to hang
-   (jp/start {:out :discard
-              :err :discard} browser-executable-name url)))
+   (->> [(when-not (str/starts-with? platform "windows")
+           ;; *nix detached process group for tree-wide signal control
+           "setsid")
+         browser-executable-name url]
+        (filterv some?)
+        ;; not setting DISCARD causes 'xdg-open' to hang
+        (apply jp/start {:out :discard
+                         :err :discard}))))

@@ -744,7 +744,7 @@
                                                     u/eprintln)))))))
      :clj (let [^Process subproc (uj/browse-url url)]
             (reify p/IStoppable
-              (stop! [_] (.destroy subproc))))))
+              (stop! [_] (uj/kill-process-tree subproc))))))
 
 
 (defn make-client-auth-options

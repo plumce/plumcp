@@ -88,6 +88,9 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+- Client: Streamable HTTP Transport
+  - Close web browser immediately on JVM after OAuth flow is complete
+
 ## [0.3.0-alpha1] - 2026-Jul-07
 
 ### Added
