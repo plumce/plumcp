@@ -124,7 +124,7 @@
      (browse-url url browser)))
   ([url browser-executable-name]
    (->> [(when-not (str/starts-with? platform "windows")
-           ;; *nix detached process group for tree-wide signal control
+           ;; *Nix detached process group for tree-wide signal control
            "setsid")
          browser-executable-name url]
         (filterv some?)

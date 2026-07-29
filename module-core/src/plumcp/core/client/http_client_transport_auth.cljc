@@ -495,11 +495,6 @@
                                 (assoc :client-id (get register-client-result
                                                        "client_id")
                                        :resource-uri (str mcp-server mcp-uri))
-                                #_{:authorization-endpoint authorization-endpoint
-                                   :client-id (get register-client-result
-                                                   "client_id")
-                                   :callback-redirect-uri callback-redirect-uri
-                                   :resource-uri (str mcp-server mcp-uri)}
                                 sub-make-auth-code-flow-params
                                 u/do-await)
             ;; --- callback uri to start server at
@@ -519,14 +514,6 @@
                                                          "client_id")
                                          :client-secret (get register-client-result
                                                              "client_secret"))
-                                        #_{:token-endpoint     token-endpoint
-                                           :authorization-code code
-                                           :redirect-uri       callback-redirect-uri
-                                           :client-id          (get register-client-result
-                                                                    "client_id")
-                                           :code-verifier      code-verifier
-                                           :client-secret      (get register-client-result
-                                                                    "client_secret")}
                                         make-token-request)
                       token-result (-> (http-fetch-body-text! http-client
                                                               token-request)

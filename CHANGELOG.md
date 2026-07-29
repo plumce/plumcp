@@ -74,6 +74,10 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
+- Client: Streamable HTTP Transport - OAuth support
+  - [TODO] Support for OAuth Pre-registration
+  - [TODO] Support for OAuth Client ID Metadata Documents
+
 ### Changed
 
 - Server: Streamable HTTP Transport
