@@ -349,10 +349,10 @@
       {:authorization-endpoint (get oic-result-str
                                     "authorization_endpoint")
        :token-endpoint (get oic-result-str "token_endpoint")
-       :register-client-request (-> oic-result-str
-                                    (oic-result-str->register-client-request
-                                     redirect-uris
-                                     client-name))})
+       :register-client-request (oic-result-str->register-client-request
+                                 oic-result-str
+                                 redirect-uris
+                                 client-name)})
     (catch #?(:cljs :default :clj Exception) ex
       (u/eprintln "ERROR Fetching OpenID Connect configuration:"
                   (ex-message ex))
@@ -369,10 +369,10 @@
         {:authorization-endpoint (get asm-result-str
                                       "authorization_endpoint")
          :token-endpoint (get asm-result-str "token_endpoint")
-         :register-client-request (-> asm-result-str
-                                      (asm-result-str->register-client-request
-                                       redirect-uris
-                                       client-name))}))))
+         :register-client-request (asm-result-str->register-client-request
+                                   asm-result-str
+                                   redirect-uris
+                                   client-name)}))))
 
 
 (defn sub-make-auth-code-flow-params
@@ -394,7 +394,7 @@
                         "response_type"         "code"
                         "client_id"             client-id
                         "redirect_uri"          callback-redirect-uri
-                            ; ScaleKit also accepts 'openid <access-scope>'
+                        ;; ScaleKit also accepts 'openid <access-scope>'
                         "scope"                 "openid"
                         "state"                 state-csrf-token
                         "code_challenge"        code-challenge
