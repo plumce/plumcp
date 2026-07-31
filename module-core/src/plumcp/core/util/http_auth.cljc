@@ -65,7 +65,7 @@
                 (.encodeToString code-verifier)))))
 
 
-(defn with-code-challenge*
+(defn ^:async with-code-challenge*
   "Make code-challenge using SHA-256 and call `(f digest-string)`. In
    CLJS the fn-call happens in a promise."
   [^String code-verifier f]
@@ -81,11 +81,12 @@
                                      (js/btoa)
                                      (str/replace "+" "-")
                                      (str/replace "/" "_")
-                                     (str/replace #"=+$" "")))]
-             (uab/let-await [hashed (sha256 code-verifier)]
-               (-> (b64url-encode hashed)
-                   (doto prn)
-                   (f))))
+                                     (str/replace #"=+$" "")))
+                 hashed (-> (sha256 code-verifier)
+                            u/do-await)]
+             (-> (b64url-encode hashed)
+                 (doto prn)
+                 (f)))
      :clj (let [cv-bytes (->> (.toString StandardCharsets/UTF_8)
                               (.getBytes code-verifier))
                 ^MessageDigest

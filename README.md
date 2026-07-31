@@ -76,6 +76,10 @@ make cljs-test  # run tests in Node.js
 
 Enable OAuth in `src/main/plumcp/core/main/main_http_server.cljc` (in `main`/`-main`)
 
+### Use preregistered OAuth client instead of Dynamic Client Registration
+
+Uncomment `:client-id` and `:client-secret` in `src/main/plumcp/core/main/client.cljc` (in `make-http-transport`)
+
 ### Module release
 
 ```

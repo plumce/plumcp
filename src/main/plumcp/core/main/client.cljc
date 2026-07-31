@@ -39,6 +39,9 @@
                           :callback-redirect-uri "http://localhost:6277/"
                           :callback-start-server #(hs/run-http-server % {:port 6277})
                           ;:token-cache hcta/local-token-cache
+                          ;; --- edit below for preregistered client ---
+                          ;:client-id "..."
+                          ;:client-secret "..."
                           ;;
                           }
                          (u/copy-keys client-options [:info]) ; for :client-name

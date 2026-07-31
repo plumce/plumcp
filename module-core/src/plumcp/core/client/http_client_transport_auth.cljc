@@ -120,7 +120,7 @@
   (u/json-parse-str json-str))
 
 
-(defn after-make-authorization-url
+(defn ^:async after-make-authorization-url
   [{:keys [authorization-endpoint
            client-id
            callback-redirect-uri
@@ -375,7 +375,7 @@
                                    client-name)}))))
 
 
-(defn sub-make-auth-code-flow-params
+(defn ^:async sub-make-auth-code-flow-params
   [{:keys [authorization-endpoint
            client-id
            callback-redirect-uri
@@ -405,6 +405,152 @@
         {:auth-url final-url
          :code-verifier code-verifier
          :state state-csrf-token}))))
+
+
+(defn ^:async prm-result->asm-result-str
+  "Given Protected Resource Metadata (PRM) result as data,
+   1. Fetch Auhorization Server Metadata (ASM)
+   2. Parse the ASM JSON result as data (with string keys)
+   3. Return the parsed result"
+  [prm-result {:keys [asm-request-middleware
+                      http-client]
+               :as auth-options}]
+  (let [asm-request (-> prm-result
+                        prm-result->asm-request
+                        asm-request-middleware)]
+    (-> http-client
+        (http-fetch-body-text! asm-request)
+        u/do-await
+        u/json-parse-str)))
+
+
+(defn ^:async prereg:prm-result->auth-code-flow-params
+  "Authorization flow for Client 'Preregistration'."
+  [prm-result {:keys [;; common
+                      token-cache
+                      mcp-server
+                      mcp-uri
+                      callback-redirect-uri
+                      ;; prereg specific
+                      client-id
+                      client-secret]
+               :as auth-options}]
+  (let [asm-result-str (-> prm-result
+                           (prm-result->asm-result-str auth-options)
+                           u/do-await)]
+    (p/write-server! token-cache
+                     mcp-server asm-result-str)
+    (-> (u/keyword-map callback-redirect-uri
+                       client-id)
+        (assoc :authorization-endpoint (get asm-result-str
+                                            "authorization_endpoint")
+               :resource-uri (str mcp-server mcp-uri))
+        sub-make-auth-code-flow-params
+        u/do-await
+        (assoc :token-endpoint (get asm-result-str
+                                    "token_endpoint")
+               :client-id client-id
+               :client-secret client-secret)
+        (select-keys [:client-id
+                      :client-secret
+                      :auth-url
+                      :code-verifier
+                      :state
+                      :token-endpoint]))))
+
+
+(defn ^:async dcr:prm-result->auth-code-flow-params
+  "Authorization flow for 'Dynamic Client Registration (DCR)'.
+   Given Protcted Resource Metadata (PRM), fetch either of the following
+   until one of them succeeds:
+   - OpenID Connect config (OIC)
+   - Authorization Server Metadata (ASM)
+   and eventually return the following structure:
+   {:client-id ...
+    :client-secret ...
+    :auth-url ...
+    :code-verifier ...
+    :state ...
+    :token-endpoint ...}"
+  [prm-result {:keys [dcr-request-middleware
+                      http-client
+                      token-cache
+                      mcp-server
+                      mcp-uri
+                      callback-redirect-uri]
+               :as auth-options}]
+  (let [;; --- make DCR request from either OpenID Connect config
+        ;; --- or Authorization Server metadata
+        {:keys [authorization-endpoint
+                token-endpoint
+                register-client-request]} (->> auth-options
+                                               (sub-prm-result->register-client-request
+                                                prm-result)
+                                               u/do-await)
+        ;; --- dynamically register client
+        register-client-result (-> http-client
+                                   (http-fetch-body-text!
+                                    (-> register-client-request
+                                        dcr-request-middleware))
+                                   u/do-await
+                                   u/json-parse-str
+                                   (u/dotee #(p/write-client! token-cache
+                                                              mcp-server %)))
+        ;; --- make authorization URL for opening later in a browser
+        {:as auth-code-flow-params
+         :keys [client-id
+                client-secret
+                auth-url
+                code-verifier
+                state]} (-> (u/keyword-map authorization-endpoint
+                                           callback-redirect-uri)
+                            (assoc :client-id (get register-client-result
+                                                   "client_id")
+                                   :resource-uri (str mcp-server mcp-uri))
+                            sub-make-auth-code-flow-params
+                            u/do-await
+                            (assoc :client-id (get register-client-result
+                                                   "client_id")
+                                   :client-secret (get register-client-result
+                                                       "client_secret")))]
+    ;; return a keyword map of the following
+    (u/keyword-map client-id
+                   client-secret
+                   auth-url
+                   code-verifier
+                   state
+                   token-endpoint)))
+
+
+(defn ^:async prm-result->auth-code-flow-params
+  "Given Protected Resource Metadata (PRM), arrive at the Authorization
+   code flow params and return the same with other related context."
+  [prm-result {:keys [client-id]
+               :as auth-options}]
+  ;; Detect
+  ;; 1. Preregistration
+  ;; 2. Client ID Metadata Documents (CMID)
+  ;; 3. Dynamic Client Registration (DCR)
+  (cond
+    ;;
+    ;; Preregistration
+    ;;
+    (some? client-id)
+    (-> prm-result
+        (prereg:prm-result->auth-code-flow-params auth-options)
+        u/do-await)
+    ;;
+    ;; Client ID Metadata Documents (CMID)
+    ;;
+    (true? false)
+    (u/throw! "Not implemented")
+    ;;
+    ;; Dynamic Client Registration (DCR) - Fallback
+    ;;
+    :else
+    (-> prm-result
+        (dcr:prm-result->auth-code-flow-params auth-options)
+        u/do-await)))
 
 
 (defn ^:async handle-authz-flow
@@ -450,7 +596,12 @@
                   :as options}]
   (if-let [prm-request (get-resource-metadata headers-lower)]
     (try
-      (let [;; setup resource tracking for cleanup
+      (let [auth-options (-> {:mcp-uri "/mcp"
+                              :oic-request-middleware identity
+                              :asm-request-middleware identity
+                              :dcr-request-middleware identity}
+                             (merge options))
+            ;; setup resource tracking for cleanup
             cleanup-atom (atom [])
             cleanup-stop (fn [stoppable description]
                            (u/expected! stoppable #(satisfies? p/IStoppable %)
@@ -466,37 +617,16 @@
                             (http-fetch-body-text! http-client)
                             u/do-await
                             u/json-parse)
-            ;; --- make DCR request from either OpenID Connect config
-            ;; --- or Authorization Server metadata
-            {:keys [authorization-endpoint
-                    token-endpoint
-                    register-client-request]} (as-> (u/keyword-map
-                                                     oic-request-middleware
-                                                     asm-request-middleware) $
-                                                (merge $ options)
-                                                (sub-prm-result->register-client-request
-                                                 prm-result $)
-                                                (u/do-await $))
-            ;; --- dynamically register client
-            register-client-result (-> http-client
-                                       (http-fetch-body-text!
-                                        (-> register-client-request
-                                            dcr-request-middleware))
-                                       u/do-await
-                                       u/json-parse-str
-                                       (u/dotee #(p/write-client! token-cache
-                                                                  mcp-server %)))
-            ;; --- make authorization URL for opening later in a browser
-            {:as auth-code-flow-params
-             :keys [auth-url
+            {:keys [client-id
+                    client-secret
+                    auth-url
                     code-verifier
-                    state]} (-> (u/keyword-map authorization-endpoint
-                                               callback-redirect-uri)
-                                (assoc :client-id (get register-client-result
-                                                       "client_id")
-                                       :resource-uri (str mcp-server mcp-uri))
-                                sub-make-auth-code-flow-params
-                                u/do-await)
+                    state
+                    token-endpoint]
+             :as auth-code-flow-params} (-> prm-result
+                                            (prm-result->auth-code-flow-params
+                                             auth-options)
+                                            u/do-await)
             ;; --- callback uri to start server at
             [_ callback-uri] (u/split-web-url callback-redirect-uri)]
         ;;
@@ -506,14 +636,12 @@
           {}
           (-> (^:async fn [code]
                 (let [token-request (-> (u/keyword-map token-endpoint
-                                                       code-verifier)
+                                                       code-verifier
+                                                       client-id
+                                                       client-secret)
                                         (assoc
                                          :authorization-code code
-                                         :redirect-uri callback-redirect-uri
-                                         :client-id (get register-client-result
-                                                         "client_id")
-                                         :client-secret (get register-client-result
-                                                             "client_secret"))
+                                         :redirect-uri callback-redirect-uri)
                                         make-token-request)
                       token-result (-> (http-fetch-body-text! http-client
                                                               token-request)
@@ -741,6 +869,8 @@
    :on-error                (fn [error])
    :redirect-uris           vector of redirect URIs
    :info                    Client-Info, used for client-name
+   :client-id               Pre-agreed Client ID - required for preregistration
+   :client-secret           Pre-agreed Client secret - optional for preregist'n
    :client-name             Client name string (optional if :info present)
    :mcp-server              Base URL string for the MCP server
    :callback-redirect-uri   Redirectto this URI after Auth success
@@ -751,6 +881,12 @@
   (let [{:keys [http-client
                 on-error
                 redirect-uris
+                client-id     ; for preregistered client
+                client-secret ; for preregistered client
+                cimd-server-start?
+                cimd-server-addr
+                cimd-server-port
+                cimd-server-path
                 client-name
                 mcp-server
                 callback-redirect-uri
@@ -786,6 +922,8 @@
     {:auth-enabled?  true
      :http-client    http-client
      :redirect-uris  redirect-uris
+     :client-id      client-id
+     :client-secret  client-secret
      :client-name    client-name
      :mcp-server     mcp-server
      :callback-redirect-uri callback-redirect-uri
