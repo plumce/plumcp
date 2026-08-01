@@ -42,6 +42,8 @@
                           ;; --- edit below for preregistered client ---
                           ;:client-id "..."
                           ;:client-secret "..."
+                          ;; --- edit for Client ID Metadata Doc (CIMD)
+                          ;:client-id "https://.../client.json"
                           ;;
                           }
                          (u/copy-keys client-options [:info]) ; for :client-name

@@ -197,7 +197,8 @@
            redirect-uri
            client-id
            code-verifier
-           client-secret]}]
+           client-secret  ; omitted if nil
+           ]}]
   (u/expected! token-endpoint string?
                ":token-endpoint to be a URL string")
   (u/expected! authorization-code string?
@@ -208,15 +209,17 @@
                ":client-id to be a string")
   (u/expected! code-verifier string?
                ":code-verifier to be a string")
-  (u/expected! client-secret string?
-               ":client-secret to be a string")
-  (let [params (array-map
-                "grant_type" "authorization_code"
-                "code" authorization-code
-                "redirect_uri" redirect-uri
-                "client_id" client-id
-                "code_verifier" code-verifier
-                "client_secret" client-secret)]
+  (when client-secret
+    (u/expected! client-secret string?
+                 ":client-secret to be a string"))
+  (let [params (as-> ["grant_type" "authorization_code"
+                      "code" authorization-code
+                      "redirect_uri" redirect-uri
+                      "client_id" client-id
+                      "code_verifier" code-verifier] $
+                 (concat $ (when (some? client-secret)
+                             ["client_secret" client-secret]))
+                 (apply array-map $))]
     {:uri token-endpoint
      :request-method :post
      :headers {"Content-Type" "application/x-www-form-urlencoded"}
@@ -312,7 +315,6 @@
     (if http-err-thrown
       (on-error http-err-thrown)
       (do
-        (u/dprint "refresh-tokens::http-body-data" http-body-data)
         (p/write-tokens! token-cache mcp-server http-body-data)
         http-body-data))))
 
@@ -344,6 +346,8 @@
                              (http-fetch-body-text! oic-request)
                              u/do-await
                              u/json-parse-str)]
+      (when-not (get oic-result-str "registration_endpoint")
+        (u/throw! "Registration endpoint is missing in OpenID config"))
       (p/write-server! token-cache
                        mcp-server oic-result-str)
       {:authorization-endpoint (get oic-result-str
@@ -424,20 +428,21 @@
         u/json-parse-str)))
 
 
-(defn ^:async prereg:prm-result->auth-code-flow-params
-  "Authorization flow for Client 'Preregistration'."
-  [prm-result {:keys [;; common
-                      token-cache
-                      mcp-server
-                      mcp-uri
-                      callback-redirect-uri
-                      ;; prereg specific
-                      client-id
-                      client-secret]
-               :as auth-options}]
-  (let [asm-result-str (-> prm-result
-                           (prm-result->asm-result-str auth-options)
-                           u/do-await)]
+(defn ^:async prereg-cimd:prm-result->auth-code-flow-params
+  "Common authorization flow for Pre-registered Client and CIMD."
+  [prm-result asm-result-str {:keys [;; common
+                                     token-cache
+                                     mcp-server
+                                     mcp-uri
+                                     callback-redirect-uri
+                                     ;; prereg specific
+                                     client-id
+                                     client-secret]
+                              :as auth-options}]
+  (let [asm-result-str (or asm-result-str
+                           (-> prm-result
+                               (prm-result->asm-result-str auth-options)
+                               u/do-await))]
     (p/write-server! token-cache
                      mcp-server asm-result-str)
     (-> (u/keyword-map callback-redirect-uri
@@ -524,33 +529,61 @@
 
 (defn ^:async prm-result->auth-code-flow-params
   "Given Protected Resource Metadata (PRM), arrive at the Authorization
-   code flow params and return the same with other related context."
-  [prm-result {:keys [client-id]
+   code flow params and return the following attributes:
+   {:client-id ...
+    :client-secret ...  ; only populated for DCR, else passed as is
+    :auth-url ...
+    :code-verifier ...
+    :state ...
+    :token-endpoint ...}
+   Client registration is handled in the following order of priority:
+   1. Preregistered Client:
+      Both `client-id` and `client-secret` attributes are required.
+   2. Client ID Metadata Documents (CMID):
+      Client is assumed to be 'public' and metadata document is assumed
+      to include `token_endpoint_auth_method=none` (JSON) implying that
+      'client-secret' attribute won't be communicated in token request.
+   3. Dynamic Client Registration (DCR):
+      `client-secret` value is taken from client-registration response."
+  [prm-result {:keys [client-id
+                      client-secret]
                :as auth-options}]
-  ;; Detect
-  ;; 1. Preregistration
-  ;; 2. Client ID Metadata Documents (CMID)
-  ;; 3. Dynamic Client Registration (DCR)
-  (cond
-    ;;
-    ;; Preregistration
-    ;;
-    (some? client-id)
-    (-> prm-result
-        (prereg:prm-result->auth-code-flow-params auth-options)
-        u/do-await)
-    ;;
-    ;; Client ID Metadata Documents (CMID)
-    ;;
-    (true? false)
-    (u/throw! "Not implemented")
-    ;;
-    ;; Dynamic Client Registration (DCR) - Fallback
-    ;;
-    :else
-    (-> prm-result
-        (dcr:prm-result->auth-code-flow-params auth-options)
-        u/do-await)))
+  (let [!asm-result-str (volatile! nil)]
+    (cond
+      ;;
+      ;; Preregistration
+      ;;
+      (and (some? client-id)
+           (some? client-secret))
+      (-> prm-result
+          (prereg-cimd:prm-result->auth-code-flow-params nil auth-options)
+          u/do-await)
+      ;;
+      ;; Client ID Metadata Documents (CMID)
+      ;;
+      (and (string? client-id)
+           (-> (str/lower-case client-id)
+               (str/starts-with? "https://"))
+           (try
+             (-> prm-result
+                 (prm-result->asm-result-str auth-options)
+                 u/do-await
+                 (u/dotee #(vreset! !asm-result-str %))
+                 (get "client_id_metadata_document_supported")
+                 true?)
+             (catch #?(:cljs :default :clj Exception) _
+               false)))
+      (-> prm-result
+          (prereg-cimd:prm-result->auth-code-flow-params @!asm-result-str
+                                                         auth-options)
+          u/do-await)
+      ;;
+      ;; Dynamic Client Registration (DCR) - Fallback
+      ;;
+      :else
+      (-> prm-result
+          (dcr:prm-result->auth-code-flow-params auth-options)
+          u/do-await))))
 
 
 (defn ^:async handle-authz-flow
@@ -666,6 +699,7 @@
         ;;
         )
       (catch #?(:cljs :default :clj Exception) ex
+        (u/print-stack-trace ex)
         (on-error (ex-message ex))))
     (on-error "Cannot get resource-metadata from headers.")))
 
@@ -869,8 +903,8 @@
    :on-error                (fn [error])
    :redirect-uris           vector of redirect URIs
    :info                    Client-Info, used for client-name
-   :client-id               Pre-agreed Client ID - required for preregistration
-   :client-secret           Pre-agreed Client secret - optional for preregist'n
+   :client-id               Preregistered Client ID (omitted for DCR)
+   :client-secret           Preregistered Client secret (omitted for DCR/CIMD)
    :client-name             Client name string (optional if :info present)
    :mcp-server              Base URL string for the MCP server
    :callback-redirect-uri   Redirectto this URI after Auth success
@@ -881,12 +915,8 @@
   (let [{:keys [http-client
                 on-error
                 redirect-uris
-                client-id     ; for preregistered client
-                client-secret ; for preregistered client
-                cimd-server-start?
-                cimd-server-addr
-                cimd-server-port
-                cimd-server-path
+                client-id     ; for preregistered client, ClientID Metadata Doc
+                client-secret ; for preregistered client only
                 client-name
                 mcp-server
                 callback-redirect-uri

@@ -70,13 +70,13 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
-## [0.3.0-alpha2] - 2026-Jul-??
+## [0.3.0-alpha2] - 2026-Aug-??
 
 ### Added
 
 - Client: Streamable HTTP Transport - OAuth Client Registration
   - Support for Pre-registered OAuth Client
-  - [TODO] Support for OAuth Client ID Metadata Documents
+  - Support for OAuth Client ID Metadata Documents (CIMD)
 
 ### Changed
 

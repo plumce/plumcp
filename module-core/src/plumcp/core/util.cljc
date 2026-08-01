@@ -619,8 +619,9 @@
   "Print stack trace to the STDERR or error console."
   [e]
   (eprintln e)
-  #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
-     :clj (.printStackTrace ^Throwable e ^PrintWriter *err*)))
+  (when (instance? #?(:cljs js/Error :clj Throwable) e)
+    #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
+       :clj (.printStackTrace ^Throwable e ^PrintWriter *err*))))
 
 
 (defn wraptee

@@ -39,7 +39,7 @@ A summary of changes as TODO items are below:
 6. [x] Add support for URL mode elicitation
 7. [x] Add tool calling support to sampling via `tools` and `toolChoice`
        parameters
-8. [ ] Add support for OAuth Client ID Metadata Documents as a recommended
+8. [x] Add support for OAuth Client ID Metadata Documents as a recommended
        client registration mechanism
 9. [x] Add support for (potentially long running) tasks to enable tracking
        durable requests with polling and deferred result retrieval

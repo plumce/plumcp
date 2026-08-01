@@ -76,9 +76,26 @@ make cljs-test  # run tests in Node.js
 
 Enable OAuth in `src/main/plumcp/core/main/main_http_server.cljc` (in `main`/`-main`)
 
-### Use preregistered OAuth client instead of Dynamic Client Registration
+### Alternatives to OAuth Dynamic Client Registration (DCR) for testing
+
+#### Use preregistered OAuth client
 
 Uncomment `:client-id` and `:client-secret` in `src/main/plumcp/core/main/client.cljc` (in `make-http-transport`)
+
+#### Use Client ID Metadata Document (CIMD)
+
+1. Edit `script/client-id-metadata-document/client.json` suitably
+2. Run a web server serving the `client.json` file:
+   ```
+   cd script/client-id-metadata-document
+   jwebserver  # this utility is part of JDK since Java 18
+   ```
+3. Run a tunneling service, e.g. [cloudflared](https://github.com/cloudflare/cloudflared/releases):
+   ```
+   cloudflared tunnel --url http://localhost:8000
+   ```
+4. Make sure `"client_id"` points to the HTTPS URL for `client.json`
+5. Now test with your OAuth Authorization server
 
 ### Module release
 
