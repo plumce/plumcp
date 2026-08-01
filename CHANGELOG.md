@@ -83,8 +83,9 @@ All notable changes to this project will be documented in this file. This change
 - Server: Streamable HTTP Transport
   - Expose OpenID configuration endpoint as a proxy to Authorization server
 - Client: Streamable HTTP Transport
-  - Add support for OpenID Connect Discovery 1.0
-    - Fall back to Authorization server metadata if OpenID config unavailable
+  - OAuth: Add support for OpenID Connect Discovery 1.0
+    - Try OpenID configuration if Authorization server metadata unavailable
+  - OAuth: Dynamic Client Registration only if `registration_endpoint` available
 - Drop utility namespace `plumcp.core.util.chain` (refactoring)
   - In favour of (JS) `await` introduced in CLJS 1.12.145
   - OAuth flow error-conditions detected and handled

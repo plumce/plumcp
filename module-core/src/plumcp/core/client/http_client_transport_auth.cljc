@@ -319,66 +319,6 @@
         http-body-data))))
 
 
-(defn ^:async sub-prm-result->register-client-request
-  "Given Protcted Resource Metadata (PRM), fetch either of the following
-   until one of them succeeds:
-   - OpenID Connect config (OIC)
-   - Authorization Server Metadata (ASM)
-   and eventually return the following structure:
-   {:authorization-endpoint ...
-    :token-endpoint ...
-    :register-client-request ...}"
-  [prm-result
-   {:keys [oic-request-middleware
-           asm-request-middleware
-           http-client
-           token-cache
-           mcp-server
-           redirect-uris
-           client-name]
-    :as options}]
-  (try
-    ;; try OpenID Connect config first
-    (let [oic-request (-> prm-result
-                          prm-result->oic-request
-                          oic-request-middleware)
-          oic-result-str (-> http-client
-                             (http-fetch-body-text! oic-request)
-                             u/do-await
-                             u/json-parse-str)]
-      (when-not (get oic-result-str "registration_endpoint")
-        (u/throw! "Registration endpoint is missing in OpenID config"))
-      (p/write-server! token-cache
-                       mcp-server oic-result-str)
-      {:authorization-endpoint (get oic-result-str
-                                    "authorization_endpoint")
-       :token-endpoint (get oic-result-str "token_endpoint")
-       :register-client-request (oic-result-str->register-client-request
-                                 oic-result-str
-                                 redirect-uris
-                                 client-name)})
-    (catch #?(:cljs :default :clj Exception) ex
-      (u/eprintln "ERROR Fetching OpenID Connect configuration:"
-                  (ex-message ex))
-      ;; OpenID Connect Discovery failed, so try Authorization Server Metadata
-      (let [asm-request (-> prm-result
-                            prm-result->asm-request
-                            asm-request-middleware)
-            asm-result-str (-> http-client
-                               (http-fetch-body-text! asm-request)
-                               u/do-await
-                               u/json-parse-str)]
-        (p/write-server! token-cache
-                         mcp-server asm-result-str)
-        {:authorization-endpoint (get asm-result-str
-                                      "authorization_endpoint")
-         :token-endpoint (get asm-result-str "token_endpoint")
-         :register-client-request (asm-result-str->register-client-request
-                                   asm-result-str
-                                   redirect-uris
-                                   client-name)}))))
-
-
 (defn ^:async sub-make-auth-code-flow-params
   [{:keys [authorization-endpoint
            client-id
@@ -428,6 +368,23 @@
         u/json-parse-str)))
 
 
+(defn ^:async prm-result->oic-result-str
+  "Given Protected Resource Metadata (PRM) result as data,
+   1. Fetch OpenID Configuration (OIC)
+   2. Parse the OIC JSON result as data (with string keys)
+   3. Return the parsed result"
+  [prm-result {:keys [oic-request-middleware
+                      http-client]
+               :as auth-options}]
+  (let [oic-request (-> prm-result
+                        prm-result->oic-request
+                        oic-request-middleware)]
+    (-> http-client
+        (http-fetch-body-text! oic-request)
+        u/do-await
+        u/json-parse-str)))
+
+
 (defn ^:async prereg-cimd:prm-result->auth-code-flow-params
   "Common authorization flow for Pre-registered Client and CIMD."
   [prm-result asm-result-str {:keys [;; common
@@ -464,35 +421,64 @@
                       :token-endpoint]))))
 
 
-(defn ^:async dcr:prm-result->auth-code-flow-params
+(defn asm-result-str->dcr-request
+  "Given Authorization Server Metadata (ASM) data with string keys,
+   prepare Dynamic Client Registration (DCR) request details."
+  [asm-result-str {:keys [token-cache
+                          mcp-server
+                          redirect-uris
+                          client-name]
+                   :as auth-options}]
+  (p/write-server! token-cache
+                   mcp-server asm-result-str)
+  {:authorization-endpoint (get asm-result-str
+                                "authorization_endpoint")
+   :token-endpoint (get asm-result-str "token_endpoint")
+   :register-client-request (asm-result-str->register-client-request
+                             asm-result-str
+                             redirect-uris
+                             client-name)})
+
+
+(defn oic-result-str->dcr-request
+  "Given OpenID Configuration (OIC) data with string keys, prepare
+   Dynamic Client Registration (DCR) request details."
+  [oic-result-str {:keys [token-cache
+                          mcp-server
+                          redirect-uris
+                          client-name]
+                   :as auth-options}]
+  (p/write-server! token-cache
+                   mcp-server oic-result-str)
+  {:authorization-endpoint (get oic-result-str
+                                "authorization_endpoint")
+   :token-endpoint (get oic-result-str "token_endpoint")
+   :register-client-request (oic-result-str->register-client-request
+                             oic-result-str
+                             redirect-uris
+                             client-name)})
+
+
+(defn ^:async dcr-request->auth-code-flow-params
   "Authorization flow for 'Dynamic Client Registration (DCR)'.
-   Given Protcted Resource Metadata (PRM), fetch either of the following
-   until one of them succeeds:
-   - OpenID Connect config (OIC)
-   - Authorization Server Metadata (ASM)
-   and eventually return the following structure:
+   Make DCR call, returning the following:
    {:client-id ...
     :client-secret ...
     :auth-url ...
     :code-verifier ...
     :state ...
     :token-endpoint ...}"
-  [prm-result {:keys [dcr-request-middleware
-                      http-client
-                      token-cache
-                      mcp-server
-                      mcp-uri
-                      callback-redirect-uri]
-               :as auth-options}]
-  (let [;; --- make DCR request from either OpenID Connect config
-        ;; --- or Authorization Server metadata
-        {:keys [authorization-endpoint
-                token-endpoint
-                register-client-request]} (->> auth-options
-                                               (sub-prm-result->register-client-request
-                                                prm-result)
-                                               u/do-await)
-        ;; --- dynamically register client
+  [{:keys [authorization-endpoint
+           token-endpoint
+           register-client-request]
+    :as dcr-request} {:keys [dcr-request-middleware
+                             http-client
+                             token-cache
+                             mcp-server
+                             mcp-uri
+                             callback-redirect-uri]
+                      :as auth-options}]
+  (let [;; --- dynamically register client
         register-client-result (-> http-client
                                    (http-fetch-body-text!
                                     (-> register-client-request
@@ -548,7 +534,8 @@
   [prm-result {:keys [client-id
                       client-secret]
                :as auth-options}]
-  (let [!asm-result-str (volatile! nil)]
+  (let [!asm-result-str (volatile! nil)
+        !oic-result-str (volatile! nil)]
     (cond
       ;;
       ;; Preregistration
@@ -579,11 +566,43 @@
           u/do-await)
       ;;
       ;; Dynamic Client Registration (DCR) - Fallback
+      ;; based on Authorization Server Metadata (ASM)
+      ;;
+      (try
+        (-> prm-result
+            (prm-result->asm-result-str auth-options)
+            u/do-await
+            (u/dotee #(vreset! !asm-result-str %))
+            (get "registration_endpoint")
+            string?)
+        (catch #?(:cljs :default :clj Exception) _
+          false))
+      (-> (deref !asm-result-str)
+          (asm-result-str->dcr-request auth-options)
+          (dcr-request->auth-code-flow-params auth-options)
+          u/do-await)
+      ;;
+      ;; Dynamic Client Registration (DCR) - Fallback
+      ;; based on OpenID Configuration (OIC)
+      ;;
+      (try
+        (-> prm-result
+            (prm-result->oic-result-str auth-options)
+            u/do-await
+            (u/dotee #(vreset! !oic-result-str %))
+            (get "registration_endpoint")
+            string?)
+        (catch #?(:cljs :default :clj Exception) _
+          false))
+      (-> (deref !oic-result-str)
+          (oic-result-str->dcr-request auth-options)
+          (dcr-request->auth-code-flow-params auth-options)
+          u/do-await)
+      ;;
+      ;; Client registration is unavailable
       ;;
       :else
-      (-> prm-result
-          (dcr:prm-result->auth-code-flow-params auth-options)
-          u/do-await))))
+      (u/throw! "OAuth client registration is unavailable"))))
 
 
 (defn ^:async handle-authz-flow
