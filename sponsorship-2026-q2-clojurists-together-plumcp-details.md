@@ -59,7 +59,7 @@ A summary of changes as TODO items are below:
 6. [ ] Support polling SSE streams by allowing servers to disconnect at will
 7. [ ] Support polling in GET streams, resumption always via GET regardless
        of stream origin
-8. [ ] Align OAuth 2.0 Protected Resource Metadata discovery with RFC 9728,
+8. [x] Align OAuth 2.0 Protected Resource Metadata discovery with RFC 9728,
        making `WWW-Authenticate` header optional with fallback to
        `.well-known` endpoint
 9. [x] Add support for default values in all primitive types (string, number,

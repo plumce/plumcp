@@ -32,10 +32,12 @@
   [http-client
    & {:keys [start-get-stream?
              ^{:see [hcta/make-client-auth-options]} auth-options
-             ^{:see [hcta/get-tokens]} get-auth-tokens]
+             ^{:see [hcta/get-tokens]} get-auth-tokens
+             ^{:see [hcta/get-protected-resource-metadata]} get-prm-data]
       :or {start-get-stream? true
            auth-options      {:auth-enabled? false}
-           get-auth-tokens   hcta/get-tokens}}]
+           get-auth-tokens   hcta/get-tokens
+           get-prm-data      hcta/get-protected-resource-metadata}}]
   (let [auth-enabled? (boolean (:auth-enabled? auth-options))
         auth-retry-k  :plumcp.core/http-retry
         tokens->hdrs  (fn [tokens]
@@ -140,7 +142,10 @@
                                                 "text/event-stream")
                                            (:on-sse response)
                                            (:on-msg response))
-                                         (u/invoke rx-err)))]
+                                         (u/invoke rx-err)))
+                            !protected-resource-metadata (volatile! nil)
+                            set-prm! #(-> !protected-resource-metadata
+                                          (vreset! %))]
                         (cond
                           ;;
                           ;; SSE body
@@ -172,9 +177,12 @@
                                  (do (u/dprint "Too many auth retries, ignored"
                                                request-meta)
                                      false))
-                               (string? (get headers-lower
-                                             "www-authenticate")))
-                          (if-let [tokens (-> headers-lower
+                               (or (deref !protected-resource-metadata)
+                                   (-> headers-lower
+                                       (get-prm-data auth-options)
+                                       u/do-await
+                                       (u/dotee set-prm!))))
+                          (if-let [tokens (-> @!protected-resource-metadata
                                               (get-auth-tokens auth-options)
                                               u/do-await)]
                             (do

@@ -17,6 +17,7 @@
       :clj [plumcp.core.util-java :as uj])
    [clojure.string :as str]
    [plumcp.core.protocol :as p]
+   [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.http-server :as hs]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
@@ -44,8 +45,8 @@
 
 ;; 1. get-protected-resource-metadata
 ;; 2. EITHER 2a OR 2b (if 2a succeeds then 2b not invoked)
-;;   a. get-oauth-openid-configuration
-;;   b. get-oauth-authorization-server
+;;   a. get-oauth-authorization-server
+;;   b. get-oauth-openid-configuration
 ;; 3. register-client (DCR)
 ;; 4. start-callback-server
 ;; 5. open-browser-with-authorization-url
@@ -171,7 +172,7 @@
       (after-make-authorization-url f)))
 
 
-(defn get-resource-metadata
+(defn get-resource-metadata-request
   "Given HTTP 401 response lowercase headers, return a Ring request to
    fetch Protected Resource Metadata (PRM) if available, nil otherwise."
   [headers-lower]
@@ -186,6 +187,37 @@
               rm-endpoint (subs wwwa begin-index until-index)]
           {:uri rm-endpoint
            :request-method :get})))))
+
+
+(defn ^:async get-protected-resource-metadata
+  [headers-lower {:keys [prm-request-middleware
+                         http-client
+                         mcp-uri]
+                  :or {mcp-uri "/mcp"
+                       prm-request-middleware identity}
+                  :as auth-options}]
+  (let [get-prm-result (^:async fn [prm-request]
+                         (->> prm-request
+                              prm-request-middleware
+                              (http-fetch-body-text! http-client)
+                              u/do-await
+                              u/json-parse))]
+    (if-let [prm-request (get-resource-metadata-request headers-lower)]
+      (-> prm-request
+          get-prm-result
+          u/do-await)
+      (try
+        (let [prm-request {:uri (str sd/uri-oauth-protected-resource
+                                     mcp-uri)
+                           :request-method :get}]
+          (-> prm-request
+              get-prm-result
+              u/do-await))
+        (catch #?(:cljs :default :clj Exception) _
+          (-> {:uri sd/uri-oauth-protected-resource
+               :request-method :get}
+              get-prm-result
+              u/do-await))))))
 
 
 ;; ----- Callback -----
@@ -618,119 +650,112 @@
    is supposed to:
    (a) ensure a running (or launched) web server to handle redirects
    (b) open the browser"
-  [headers-lower {:keys [;; common args
-                         http-client
-                         on-error
-                         ;; args for ASM
-                         redirect-uris
-                         client-name
-                         ;;
-                         mcp-server
-                         callback-redirect-uri
-                         callback-start-server
-                         open-browser-auth-url
-                         ;;
-                         token-cache
-                         ;; optional
-                         mcp-uri
-                         prm-request-middleware
-                         oic-request-middleware
-                         asm-request-middleware
-                         dcr-request-middleware]
-                  :or {mcp-uri "/mcp"
-                       prm-request-middleware identity
-                       oic-request-middleware identity
-                       asm-request-middleware identity
-                       dcr-request-middleware identity
-                       on-error (fn [error]
-                                  (u/dprint "ERROR Handling authorization flow:"
-                                            error))}
-                  :as options}]
-  (if-let [prm-request (get-resource-metadata headers-lower)]
-    (try
-      (let [auth-options (-> {:mcp-uri "/mcp"
-                              :oic-request-middleware identity
-                              :asm-request-middleware identity
-                              :dcr-request-middleware identity}
-                             (merge options))
-            ;; setup resource tracking for cleanup
-            cleanup-atom (atom [])
-            cleanup-stop (fn [stoppable description]
-                           (u/expected! stoppable #(satisfies? p/IStoppable %)
-                                        "p/IStoppable instance")
-                           (u/eprintln "Adding stoppable" description)
-                           (swap! cleanup-atom conj
-                                  (fn []
-                                    (u/eprintln "Stopping" description)
-                                    (p/stop! stoppable))))
-            ;; --- get Protected Resource metadata
-            prm-result (->> prm-request
-                            prm-request-middleware
-                            (http-fetch-body-text! http-client)
-                            u/do-await
-                            u/json-parse)
-            {:keys [client-id
-                    client-secret
-                    auth-url
-                    code-verifier
-                    state
-                    token-endpoint]
-             :as auth-code-flow-params} (-> prm-result
-                                            (prm-result->auth-code-flow-params
-                                             auth-options)
-                                            u/do-await)
-            ;; --- callback uri to start server at
-            [_ callback-uri] (u/split-web-url callback-redirect-uri)]
+  [protected-resource-metadata
+   {:keys [;; common args
+           http-client
+           on-error
+           ;; args for ASM
+           redirect-uris
+           client-name
+           ;;
+           mcp-server
+           callback-redirect-uri
+           callback-start-server
+           open-browser-auth-url
+           ;;
+           token-cache
+           ;; optional
+           mcp-uri
+           prm-request-middleware
+           oic-request-middleware
+           asm-request-middleware
+           dcr-request-middleware]
+    :or {mcp-uri "/mcp"
+         prm-request-middleware identity
+         oic-request-middleware identity
+         asm-request-middleware identity
+         dcr-request-middleware identity
+         on-error (fn [error]
+                    (u/dprint "ERROR Handling authorization flow:"
+                              error))}
+    :as options}]
+  (try
+    (let [auth-options (-> {:mcp-uri "/mcp"
+                            :oic-request-middleware identity
+                            :asm-request-middleware identity
+                            :dcr-request-middleware identity}
+                           (merge options))
+          ;; setup resource tracking for cleanup
+          cleanup-atom (atom [])
+          cleanup-stop (fn [stoppable description]
+                         (u/expected! stoppable #(satisfies? p/IStoppable %)
+                                      "p/IStoppable instance")
+                         (u/eprintln "Adding stoppable" description)
+                         (swap! cleanup-atom conj
+                                (fn []
+                                  (u/eprintln "Stopping" description)
+                                  (p/stop! stoppable))))
+          {:keys [client-id
+                  client-secret
+                  auth-url
+                  code-verifier
+                  state
+                  token-endpoint]
+           :as auth-code-flow-params} (-> protected-resource-metadata
+                                          (prm-result->auth-code-flow-params
+                                           auth-options)
+                                          u/do-await)
+          ;; --- callback uri to start server at
+          [_ callback-uri] (u/split-web-url callback-redirect-uri)]
+      ;;
+      ;; --- start callback server/endpoint
+      ;;
+      (uab/as-async [p-resolve p-reject]
+        {}
+        (-> (^:async fn [code]
+              (let [token-request (-> (u/keyword-map token-endpoint
+                                                     code-verifier
+                                                     client-id
+                                                     client-secret)
+                                      (assoc
+                                       :authorization-code code
+                                       :redirect-uri callback-redirect-uri)
+                                      make-token-request)
+                    token-result (-> (http-fetch-body-text! http-client
+                                                            token-request)
+                                     u/do-await
+                                     u/json-parse)]
+                (p/write-tokens! token-cache
+                                 mcp-server token-result)
+                (p-resolve token-result)
+                token-result))
+            (make-callback-handler callback-uri state
+                                   cleanup-atom)
+            callback-start-server
+            (u/dotee cleanup-stop "Callback server"))
         ;;
-        ;; --- start callback server/endpoint
+        ;; --- open the authorization code-flow URL in browser
         ;;
-        (uab/as-async [p-resolve p-reject]
-          {}
-          (-> (^:async fn [code]
-                (let [token-request (-> (u/keyword-map token-endpoint
-                                                       code-verifier
-                                                       client-id
-                                                       client-secret)
-                                        (assoc
-                                         :authorization-code code
-                                         :redirect-uri callback-redirect-uri)
-                                        make-token-request)
-                      token-result (-> (http-fetch-body-text! http-client
-                                                              token-request)
-                                       u/do-await
-                                       u/json-parse)]
-                  (p/write-tokens! token-cache
-                                   mcp-server token-result)
-                  (p-resolve token-result)
-                  token-result))
-              (make-callback-handler callback-uri state
-                                     cleanup-atom)
-              callback-start-server
-              (u/dotee cleanup-stop "Callback server"))
-          ;;
-          ;; --- open the authorization code-flow URL in browser
-          ;;
-          (u/eprintln "auth-url" auth-url)
-          (-> auth-url
-              open-browser-auth-url
-              (u/dotee cleanup-stop
-                       "Callback browser")))
-        ;;
-        )
-      (catch #?(:cljs :default :clj Exception) ex
-        (u/print-stack-trace ex)
-        (on-error (ex-message ex))))
-    (on-error "Cannot get resource-metadata from headers.")))
+        (u/eprintln "auth-url" auth-url)
+        (-> auth-url
+            open-browser-auth-url
+            (u/dotee cleanup-stop
+                     "Callback browser")))
+      ;;
+      )
+    (catch #?(:cljs :default :clj Exception) ex
+      (u/print-stack-trace ex)
+      (on-error (ex-message ex)))))
 
 
 (defn ^:async get-tokens
   "Return auth tokens if found, refreshed or obtained successfully, nil
    otherwise."
-  [headers-lower {:keys [mcp-server
-                         token-expired?
-                         token-cache]
-                  :or {token-expired? (constantly true)}
-                  :as auth-options}]
+  [protected-resource-metadata {:keys [mcp-server
+                                       token-expired?
+                                       token-cache]
+                                :or {token-expired? (constantly true)}
+                                :as auth-options}]
   (if-some [tokens (p/read-tokens token-cache mcp-server)]
     (if (token-expired? tokens)
       (refresh-tokens tokens
@@ -738,7 +763,7 @@
                       (p/read-client token-cache mcp-server)
                       auth-options)
       tokens)
-    (handle-authz-flow headers-lower auth-options)))
+    (handle-authz-flow protected-resource-metadata auth-options)))
 
 
 ;; ----- token cache -----

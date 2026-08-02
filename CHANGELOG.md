@@ -83,6 +83,8 @@ All notable changes to this project will be documented in this file. This change
 - Server: Streamable HTTP Transport
   - Expose OpenID configuration endpoint as a proxy to Authorization server
 - Client: Streamable HTTP Transport
+  - OAuth: Decouple Resource metadata URI from `WWW-Authenticate` header
+    - Fallback to `.well-known` endpoints (Protected Resource Metadata)
   - OAuth: Add support for OpenID Connect Discovery 1.0
     - Try OpenID configuration if Authorization server metadata unavailable
   - OAuth: Dynamic Client Registration only if `registration_endpoint` available

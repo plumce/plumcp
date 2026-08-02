@@ -12,7 +12,6 @@
    client transport."
   (:require
    #?(:cljs [clojure.string :as str])
-   #?(:cljs [plumcp.core.util.async-bridge :as uab])
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u])
   #?(:cljs (:require-macros [plumcp.core.util.http-auth])
