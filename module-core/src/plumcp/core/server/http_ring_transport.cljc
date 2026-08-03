@@ -353,6 +353,8 @@
    :protected-resource? - (fn [request])->boolean determines if request
                           pertains to an OAuth-protected resource,
                           default implementation always returns true
+   :required-scopes     - (fn [request])->[scopes] determines required scopes
+                          (:scopes-supported subset) for requested resource
    :token->claims       - (fn [token])->claims-map returns claims map if
                           token is valid, nil otherwise
    :claims->error       - (fn [claims request])->error-detail or nil,
@@ -360,22 +362,38 @@
    :resource-metadata   - resource-metadata URL (required if auth enabled)"
   [handler {:keys [auth-enabled?
                    protected-resource?
+                   ^{:see ['p.c.s.http-ring-auth/handler-for:oauth-protected-resource]}
+                   required-scopes  ; also specify :scopes-supported ^
                    token->claims
                    claims->error
                    resource-metadata]
             :or {auth-enabled? false
                  protected-resource? (constantly true)
+                 required-scopes (constantly [])
                  claims->error (constantly nil)}}]
   (when auth-enabled?
     (u/expected! token->claims fn? "token->claims to be a (fn [token])")
     (u/expected! resource-metadata string? "a valid resource-metadata"))
   (if auth-enabled?
-    (let [errh {"WWW-Authenticate"
+    (let [auth-errh (fn [request]
+                      (let [base {"realm" "OAuth"
+                                  "resource_metadata" resource-metadata}
+                            scope (some->> (required-scopes request)
+                                           seq  ; may produce nil
+                                           (str/join " "))]
+                        {"WWW-Authenticate"
+                         (str "Bearer "
+                              (->> (u/assoc-some base "scope" scope)
+                                   seq  ; turn map into a sequence
+                                   (map (fn [[k v]]
+                                          (format "%s=\"%s\"" k v)))
+                                   (str/join " ")))}))
+          errh {"WWW-Authenticate"
                 (-> "Bearer realm=\"OAuth\", resource_metadata=\"%s\""
                     (format resource-metadata))}
-          auth-error (fn [status error detail]
+          auth-error (fn [request status error detail]
                        {:status status
-                        :headers errh
+                        :headers (auth-errh request)
                         :body {:error error
                                :error-description detail}})]
       (fn oauth-gatekeeper [request]
@@ -400,12 +418,12 @@
                      :body {:error "forbidden"
                             :error-description error-detail}}
                     (handler request)))
-                (auth-error 401
+                (auth-error request 401
                             "unauthorized"
                             "Invalid authorization token"))
               ;; else
               :else
-              (auth-error 401
+              (auth-error request 401
                           "unauthorized"
                           "Missing or invalid authorization header")))
           (handler request))))

@@ -46,7 +46,7 @@
            ;; optional
            mcp-server-name
            mcp-docs-uri
-           scopes-supported
+           ^{:see [hrt/wrap-oauth :required-scopes]} scopes-supported
            jwks-uri]
     :or {scopes-supported []}}]
   (u/expected! runtime some? "runtime to be present")
@@ -117,6 +117,8 @@
    :jwks-cache-millis   (default 1h) JWKS cache duration
    :protected-resource? (fn [request])->bool to find protected resources,
                         default: always returns true
+   :required-scopes     (fn [request])->[scopes] determines required scopes
+                        (:scopes-supported subset) for requested resource
    :claims->error       (fn [claims request])->error-msg-or-nil to check
                         authorization, default: always returns nil
    :resource-metadata   Resource metadata URL string, default: derived
@@ -145,6 +147,7 @@
            fetch-from-uri
            protected-resource?
            jwks-cache-millis
+           required-scopes
            claims->error
            resource-metadata
            ;; --- wrap-route-match (well-known routes) ---
@@ -212,6 +215,7 @@
                                     (make-token->claims jwt->claims))
              :resource-metadata resource-metadata}
             (u/assoc-some :protected-resource? protected-resource?
+                          :required-scopes required-scopes
                           :claims->error claims->error)
             ;; --- for wrap-routes middleware ---
             (assoc :well-known-routes (-> {;; protected resource metadata

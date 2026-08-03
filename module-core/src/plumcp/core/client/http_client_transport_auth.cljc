@@ -174,7 +174,7 @@
 
 (defn parse-www-authenticate-header
   "Parse 'WWW-Authenticate' header value (string) in a manner compliant
-   with RFC9728 Section 5.1 and RFC 6750 Section 3, returning a map of
+   with RFC 9728 Section 5.1 and RFC 6750 Section 3, returning a map of
    key/value pairs. For example:
    {\"error\" \"...\"
     \"scope\" \"...\"

@@ -74,6 +74,15 @@ All notable changes to this project will be documented in this file. This change
 
 ### Added
 
+- Server: Streamable HTTP Transport - OAuth
+  - Kwarg `:required-scopes` to determine required scopes for resource
+    - In `p.c.s.http-ring-transport/wrap-oauth`, part of `auth-options`
+  - [Todo] JWT Audience/resource validation (Is the token intended for me?)
+  - [Todo] JWT scopes validation (Does this token authorize this operation)
+    - [Todo] Kwarg `:resource->scopes` and `:resource->audience`
+    - [Todo] Return HTTP 401 with "insufficient_scope", e.g. see below
+      - `WWW-Authenticate: Bearer error="insufficient_scope", scope="tools.execute"`
+    - [Todo] Return HTTP 403 for audience check failure
 - Client: Streamable HTTP Transport - OAuth Client Registration
   - Support for Pre-registered OAuth Client
   - Support for OAuth Client ID Metadata Documents (CIMD)
@@ -88,6 +97,9 @@ All notable changes to this project will be documented in this file. This change
   - OAuth: Add support for OpenID Connect Discovery 1.0
     - Try OpenID configuration if Authorization server metadata unavailable
   - OAuth: Dynamic Client Registration only if `registration_endpoint` available
+  - [WIP] OAuth: Use `WWW-Authenticate` challenge header `scope` in authorization request
+    - In `sub-make-auth-code-flow-params` fn
+    - [Todo] Re-authorize on `error="insufficient_scope"`
 - Drop utility namespace `plumcp.core.util.chain` (refactoring)
   - In favour of (JS) `await` introduced in CLJS 1.12.145
   - OAuth flow error-conditions detected and handled
@@ -95,6 +107,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+- Server: Streamable HTTP Transport
+  - Include `scope` (if available) in OAuth 401 `WWW-Authenticate` header
 - Client: Streamable HTTP Transport
   - Close web browser immediately on JVM after OAuth flow is complete
 
