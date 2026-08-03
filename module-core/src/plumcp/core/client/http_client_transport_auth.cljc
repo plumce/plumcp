@@ -172,21 +172,83 @@
       (after-make-authorization-url f)))
 
 
+(defn parse-www-authenticate-header
+  "Parse 'WWW-Authenticate' header value (string) in a manner compliant
+   with RFC9728 Section 5.1 and RFC 6750 Section 3, returning a map of
+   key/value pairs. For example:
+   {\"error\" \"...\"
+    \"scope\" \"...\"
+    \"realm\" \"OAuth\"
+    \"resource_metadata\" \"...\"}
+   "
+  [header]
+  (u/dprint "Parsing header" header)
+  (when (str/starts-with? header "Bearer ")
+    (let [delimiter?  (fn [x] (or (= \, x) (str/blank? (str x))))
+          name-char?  (fn [x] (re-matches #"[a-zA-Z_\-.0-9]" (str x)))
+          equal-char? (fn [x] (= \= x))
+          str-marker? (fn [x] (= \" x))
+          +name-char  (fn [buffer x] (update buffer 0 #(str % x)))
+          +value-char (fn [buffer x] (update buffer 1 #(str % x)))
+          new-buffer  ["" ""]]
+      (loop [retval {}
+             remain (seq (subs header 7))
+             buffer new-buffer
+             ;; parse state - what is currently being pased?
+             pstate :delim ; :delim(iter), :name, :oper :value
+             ]
+        (if (nil? remain)
+          retval
+          (let [ch (first remain)
+                nremain (next remain)]
+            (case pstate
+              :delim (cond
+                       ;; delimiter?
+                       (delimiter? ch)  ; then :delim continues
+                       (recur retval nremain buffer pstate)
+                       ;; name-char?
+                       (name-char? ch)   ; then name continues
+                       (recur retval nremain (+name-char buffer ch) :name)
+                       ;;
+                       :else
+                       (u/expected! ch "character to be whitespace or name"))
+              :name (cond
+                      ;; name continues?
+                      (name-char? ch)
+                      (recur retval nremain (+name-char buffer ch) pstate)
+                      ;; operator?
+                      (equal-char? ch)
+                      (recur retval nremain buffer :oper)
+                      ;;
+                      :else
+                      (u/expected! ch "character to be name or '='"))
+              :oper (cond
+                      (str-marker? ch)
+                      (recur retval nremain buffer :value)
+                      ;;
+                      :else
+                      (u/expected! ch "character to be '\"'"))
+              :value (cond
+                       (str-marker? ch)
+                       (recur (conj retval buffer) nremain new-buffer :delim)
+                       :else
+                       (recur retval nremain (+value-char buffer ch) pstate))
+              (u/throw! (str "Invalid parser-state " pstate)))))))))
+
+
 (defn get-resource-metadata-request
   "Given HTTP 401 response lowercase headers, return a Ring request to
    fetch Protected Resource Metadata (PRM) if available, nil otherwise."
   [headers-lower]
   (when-let [wwwa (get headers-lower "www-authenticate")]
-    (let [rm-prefix "resource_metadata=\""]
-      (when-let [rm-index (and (str/starts-with? wwwa "Bearer ")
-                               (str/includes? wwwa "realm=\"OAuth\"")
-                               (str/index-of wwwa rm-prefix))]
-        (let [begin-index (+ ^long rm-index (count rm-prefix))
-              until-index (str/index-of wwwa "\""
-                                        begin-index)
-              rm-endpoint (subs wwwa begin-index until-index)]
-          {:uri rm-endpoint
-           :request-method :get})))))
+    (let [wwwa-map (parse-www-authenticate-header wwwa)
+          realm (get wwwa-map "realm")
+          rmeta (get wwwa-map "resource_metadata")]
+      (u/dprint "wwwa-map" wwwa-map)
+      (when (and (= "OAuth" realm)
+                 (string? rmeta))
+        {:uri (get wwwa-map "resource_metadata")
+         :request-method :get}))))
 
 
 (defn ^:async get-protected-resource-metadata
