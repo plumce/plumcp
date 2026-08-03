@@ -111,6 +111,8 @@ All notable changes to this project will be documented in this file. This change
   - Include `scope` (if available) in OAuth 401 `WWW-Authenticate` header
 - Client: Streamable HTTP Transport
   - Close web browser immediately on JVM after OAuth flow is complete
+- Module plumcp-core-auth
+  - Fully convert JWT claims into a Clojure map before returning
 
 ## [0.3.0-alpha1] - 2026-Jul-07
 

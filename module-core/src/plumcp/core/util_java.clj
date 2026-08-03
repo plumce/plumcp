@@ -15,7 +15,18 @@
    [clojure.string :as str])
   (:import
    [java.io IOException]
+   [java.util List Map]
    [java.util.concurrent ExecutorService Executors]))
+
+
+(defn java->clj
+  "Rough equivalent of ClojureScript's `js->clj`."
+  [obj]
+  (condp instance? obj
+    Map (-> (into {} obj)
+            (update-vals java->clj))
+    List (mapv java->clj obj)
+    obj))
 
 
 (defn file-exists?
