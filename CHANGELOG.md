@@ -78,11 +78,11 @@ All notable changes to this project will be documented in this file. This change
   - Kwarg `:required-scopes` to determine required scopes for resource
     - In `p.c.s.http-ring-transport/wrap-oauth`, part of `auth-options`
   - [Todo] JWT Audience/resource validation (Is the token intended for me?)
-  - [Todo] JWT scopes validation (Does this token authorize this operation)
-    - [Todo] Kwarg `:resource->scopes` and `:resource->audience`
-    - [Todo] Return HTTP 401 with "insufficient_scope", e.g. see below
-      - `WWW-Authenticate: Bearer error="insufficient_scope", scope="tools.execute"`
+    - [Todo] Kwarg `:resource->audience`
     - [Todo] Return HTTP 403 for audience check failure
+  - JWT scope validation (Does this token authorize this operation)
+    - Kwarg `:required-scopes` to determine resource scopes
+    - Return HTTP 401 with `error="insufficient_scope"` and `scope="..."`
 - Client: Streamable HTTP Transport - OAuth Client Registration
   - Support for Pre-registered OAuth Client
   - Support for OAuth Client ID Metadata Documents (CIMD)
