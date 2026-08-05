@@ -1,4 +1,5 @@
 {:lint-as {plumcp.core.util/do-async clojure.core/do
+           plumcp.core.util/induce-> clojure.core/->
            plumcp.core.util.async-bridge/may-await clojure.core/let
            plumcp.core.util.async-bridge/let-await clojure.core/let
            plumcp.core.test.test-util/until-done clojure.core/let

@@ -511,6 +511,47 @@
    x))
 
 
+;; --- Chain of execution ---
+
+
+(defn induce
+  "Equivalent of `clojure.core/reduce` over a collection of (fn [v])
+   with `init` initial value."
+  [init f-coll]
+  (reduce (fn [v f]
+            (f v))
+          init
+          f-coll))
+
+
+(defmacro induce->
+  "Same as `clojure.core/->` but implemented using reduce, so that any
+   step can return `(reduced <val>)` to short circuit execution."
+  [init & steps]
+  (let [f-coll (mapv (fn [form]
+                       (let [vsym (gensym "value")]
+                         `(fn [~vsym]
+                            ~(if (list? form)
+                               `(~(first form) ~vsym ~@(rest form))
+                               `(~form ~vsym)))))
+                     steps)]
+    `(induce ~init [~@f-coll])))
+
+
+(defmacro induce->>
+  "Same as `clojure.core/->>` but implemented using reduce, so that any
+   step can return `(reduced <val>)` to short circuit execution."
+  [init & steps]
+  (let [f-coll (mapv (fn [form]
+                       (let [vsym (gensym "value")]
+                         `(fn [~vsym]
+                            ~(if (list? form)
+                               `(~@form ~vsym)
+                               `(~form ~vsym)))))
+                     steps)]
+    `(induce ~init [~@f-coll])))
+
+
 ;; --- Printing ---
 
 
