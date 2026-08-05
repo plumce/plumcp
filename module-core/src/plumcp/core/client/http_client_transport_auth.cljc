@@ -181,10 +181,22 @@
     \"realm\" \"OAuth\"
     \"resource_metadata\" \"...\"}
    "
-  [header]
-  (u/dprint "Parsing header" header)
-  (when (str/starts-with? header "Bearer ")
-    (let [delimiter?  (fn [x] (or (= \, x) (str/blank? (str x))))
+  [header-or-map]
+  (cond
+    ;;
+    ;; headers map
+    ;;
+    (map? header-or-map)
+    (when-let [header-str (or (get header-or-map "www-authenticate")
+                              (get header-or-map "WWW-Authenticate"))]
+      (parse-www-authenticate-header header-str))
+    ;;
+    ;; string header value
+    ;;
+    (and (string? header-or-map)
+         (str/starts-with? header-or-map "Bearer "))
+    (let [header header-or-map
+          delimiter?  (fn [x] (or (= \, x) (str/blank? (str x))))
           name-char?  (fn [x] (re-matches #"[a-zA-Z_\-.0-9]" (str x)))
           equal-char? (fn [x] (= \= x))
           str-marker? (fn [x] (= \" x))
@@ -240,9 +252,8 @@
   "Given HTTP 401 response lowercase headers, return a Ring request to
    fetch Protected Resource Metadata (PRM) if available, nil otherwise."
   [headers-lower]
-  (when-let [wwwa (get headers-lower "www-authenticate")]
-    (let [wwwa-map (parse-www-authenticate-header wwwa)
-          realm (get wwwa-map "realm")
+  (when-let [wwwa-map (parse-www-authenticate-header headers-lower)]
+    (let [realm (get wwwa-map "realm")
           rmeta (get wwwa-map "resource_metadata")]
       (u/dprint "wwwa-map" wwwa-map)
       (when (and (= "OAuth" realm)
@@ -416,6 +427,7 @@
 (defn ^:async sub-make-auth-code-flow-params
   [{:keys [authorization-endpoint
            client-id
+           scope
            callback-redirect-uri
            resource-uri]}]
   (u/expected! authorization-endpoint string?
@@ -432,8 +444,7 @@
                         "response_type"         "code"
                         "client_id"             client-id
                         "redirect_uri"          callback-redirect-uri
-                        ;; ScaleKit also accepts 'openid <access-scope>'
-                        "scope"                 "openid"
+                        "scope"                 (or scope "openid")
                         "state"                 state-csrf-token
                         "code_challenge"        code-challenge
                         "code_challenge_method" "S256"  ; per MCP spec
@@ -486,6 +497,7 @@
                                      mcp-server
                                      mcp-uri
                                      callback-redirect-uri
+                                     scope
                                      ;; prereg specific
                                      client-id
                                      client-secret]
@@ -497,6 +509,7 @@
     (p/write-server! token-cache
                      mcp-server asm-result-str)
     (-> (u/keyword-map callback-redirect-uri
+                       scope
                        client-id)
         (assoc :authorization-endpoint (get asm-result-str
                                             "authorization_endpoint")
@@ -570,7 +583,8 @@
                              token-cache
                              mcp-server
                              mcp-uri
-                             callback-redirect-uri]
+                             callback-redirect-uri
+                             scope]
                       :as auth-options}]
   (let [;; --- dynamically register client
         register-client-result (-> http-client
@@ -588,6 +602,7 @@
                 auth-url
                 code-verifier
                 state]} (-> (u/keyword-map authorization-endpoint
+                                           scope
                                            callback-redirect-uri)
                             (assoc :client-id (get register-client-result
                                                    "client_id")

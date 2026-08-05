@@ -109,9 +109,9 @@ All notable changes to this project will be documented in this file. This change
   - OAuth: Add support for OpenID Connect Discovery 1.0
     - Try OpenID configuration if Authorization server metadata unavailable
   - OAuth: Dynamic Client Registration only if `registration_endpoint` available
-  - [WIP] OAuth: Use `WWW-Authenticate` challenge header `scope` in authorization request
+  - OAuth: Use `WWW-Authenticate` challenge attr `scope` in authorization request
     - In `sub-make-auth-code-flow-params` fn
-    - [Todo] Re-authorize on `error="insufficient_scope"`
+    - Re-authorize on HTTP 403 + WWW-A with `error="insufficient_scope"`
 - Drop utility namespace `plumcp.core.util.chain` (refactoring)
   - In favour of (JS) `await` introduced in CLJS 1.12.145
   - OAuth flow error-conditions detected and handled

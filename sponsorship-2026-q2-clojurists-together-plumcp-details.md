@@ -30,7 +30,7 @@ A summary of changes as TODO items are below:
        discovery
 2. [x] Allow servers to expose icons as additional metadata for tools,
        resources, resource templates, and prompts
-3. [ ] Enhance authorization flows with incremental scope consent via
+3. [x] Enhance authorization flows with incremental scope consent via
        `WWW-Authenticate`
 4. [x] Validate tool names as per the new spec
 5. [x] Update `ElicitResult` and `EnumSchema` to use a more standards-based

@@ -145,7 +145,25 @@
                                          (u/invoke rx-err)))
                             !protected-resource-metadata (volatile! nil)
                             set-prm! #(-> !protected-resource-metadata
-                                          (vreset! %))]
+                                          (vreset! %))
+                            get-prm! (^:async fn []
+                                       (or (deref !protected-resource-metadata)
+                                           (-> headers-lower
+                                               (get-prm-data auth-options)
+                                               u/do-await
+                                               (u/dotee set-prm!))))
+                            !wwwa-map (volatile! nil)
+                            set-wwwa-map! #(vreset! !wwwa-map %)
+                            get-wwwa-map! #(or (deref !wwwa-map)
+                                               (some->
+                                                headers-lower
+                                                hcta/parse-www-authenticate-header
+                                                (u/dotee set-wwwa-map!)))
+                            add-scope (fn [m]
+                                        (u/assoc-some
+                                         m
+                                         :scope (some-> (get-wwwa-map!)
+                                                        (get "scope"))))]
                         (cond
                           ;;
                           ;; SSE body
@@ -177,16 +195,32 @@
                                  (do (u/dprint "Too many auth retries, ignored"
                                                request-meta)
                                      false))
-                               (or (deref !protected-resource-metadata)
-                                   (-> headers-lower
-                                       (get-prm-data auth-options)
-                                       u/do-await
-                                       (u/dotee set-prm!))))
-                          (if-let [tokens (-> @!protected-resource-metadata
-                                              (get-auth-tokens auth-options)
+                               (-> (get-prm!)
+                                   u/do-await))
+                          (if-let [tokens (-> (get-prm!)
+                                              u/do-await
+                                              (get-auth-tokens (-> auth-options
+                                                                   add-scope))
                                               u/do-await)]
                             (do
                               (u/dprint "Retrying-401 with" tokens)
+                              (retry-401 (tokens->hdrs tokens)))
+                            (on-err))
+                          ;;
+                          ;; 403 with WWW-A error="insufficient_scope"
+                          ;;
+                          (and auth-enabled?
+                               (= 403 status)
+                               (some-> (get-wwwa-map!)
+                                       (get "error")
+                                       (= "insufficient_scope")))
+                          (if-let [tokens (-> (get-prm!)
+                                              u/do-await
+                                              (get-auth-tokens (-> auth-options
+                                                                   add-scope))
+                                              u/do-await)]
+                            (do
+                              (u/dprint "Retrying-403 with" tokens)
                               (retry-401 (tokens->hdrs tokens)))
                             (on-err))
                           ;;
