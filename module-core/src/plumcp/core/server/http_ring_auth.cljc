@@ -111,6 +111,8 @@
    :jwt->claims         (fn [jwks-json-str jwt])->claims-map-or-nil to
                         validate and unpack JWT as claims, auto-detected
                         if the 'auth' module is in classpath
+   :valid-issuer-set    Set of valid/expected issuers
+   :valid-audience-set  Set of valid/expected audience
    --Optional--
    :jwks-uri            URI to fetch JWKS as a JSON-string from
    :fetch-from-uri      (fn [uri])->body-text to fetch from JWKS URI
@@ -118,7 +120,7 @@
    :protected-resource? (fn [request])->bool to find protected resources,
                         default: always returns true
    :required-scopes     (fn [request])->[scopes] determines required scopes
-                        (:scopes-supported subset) for requested resource
+                        (subset of :scopes-supported) for requested resource
    :claims->error       (fn [claims request])->error-msg-or-nil to check
                         authorization, default: always returns nil
    :resource-metadata   Resource metadata URL string, default: derived
@@ -134,7 +136,7 @@
    :mcp-uri               URI string for the MCP server, default '/mcp'
    :mcp-server-name       Name for the MCP server
    :mcp-docs-uri          URI string for the MCP server docs
-   :scopes-supported      Scopes upported for the resources
+   :scopes-supported      Scopes supported for the resources
    See:
    ----
    plumcp.core.server.http-ring-transport/wrap-oauth
@@ -142,6 +144,8 @@
   [runtime
    {:keys [;; --- wrap-oauth middleware ---
            jwt->claims
+           valid-issuer-set
+           valid-audience-set
            ;; optional
            jwks-uri
            fetch-from-uri
@@ -169,11 +173,13 @@
          mcp-server-name (-> (kl/?get runtime rt/?server-info)
                              :name)}
     :as auth-options}]
-  (u/expected! jwt->claims fn? "jwt->claims to be a (fn [jwks-str jwt-str])")
+  (u/expected! jwt->claims fn? ":jwt->claims to be a (fn [jwks-str jwt-str])")
+  (u/expected! valid-issuer-set seq ":valid-issuer-set to be non-empty set")
+  (u/expected! valid-audience-set seq ":valid-audience-set to be non-empty set")
   (u/expected! authorization-servers u/non-empty-vector?
-               "authorization-servers to be a non-empty vector of URLs")
+               ":authorization-servers to be a non-empty vector of URLs")
   (u/expected! mcp-server u/non-empty-string?
-               "mcp-server to be a base URL string")
+               ":mcp-server to be a base URL string")
   (let [resource-metadata (or resource-metadata
                               (str mcp-server
                                    sd/uri-oauth-protected-resource))
@@ -213,6 +219,8 @@
              :token->claims     (-> #(fetch-from-uri jwks-uri)
                                     (u/fcached jwks-cache-millis)
                                     (make-token->claims jwt->claims))
+             :valid-issuer-set  valid-issuer-set
+             :valid-audience-set valid-audience-set
              :resource-metadata resource-metadata}
             (u/assoc-some :protected-resource? protected-resource?
                           :required-scopes required-scopes

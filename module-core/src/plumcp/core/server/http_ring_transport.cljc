@@ -11,15 +11,16 @@
   "Server implementation for Streamable HTTP transport."
   (:require
    [clojure.pprint :as pp]
-   [clojure.set :as set]
    [clojure.string :as str]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.server.http-ring-stream :as hrs]
+   [plumcp.core.server.http-ring-transport-auth :as hrta]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]
+   [plumcp.core.util.auth-util :as uau]
    [plumcp.core.util.ring-util :as uru]
    [plumcp.core.util.stream :as um]))
 
@@ -346,26 +347,6 @@
 ;; ----- OAuth -----
 
 
-(defn default-claims->scope
-  "Extract scope set from given JWT claims map. Since the scope key in a
-   JWT claims map is not standardized, an identity provider is free to
-   use any key they like. Hence, the scope extraction is speculative and
-   works on a best effort basis. You may want to use a specific logic to
-   extract scope for your identity provider."
-  [claims]
-  (let [scope (get claims "scope")
-        scp (get claims "scp")
-        token-set (fn [s] (-> s
-                              (str/split #" +")
-                              set))]
-    (cond
-      (string? scope) (token-set scope)
-      (string? scp) (token-set scp)
-      (sequential? scope) (set scope)
-      (sequential? scp) (set scp)
-      :else #{})))
-
-
 (defn wrap-oauth
   "Wrap given Ring handler with OAuth validation and flow-handshake.
    Option KW-args:
@@ -375,30 +356,36 @@
                           pertains to an OAuth-protected resource,
                           default implementation always returns true
    :required-scopes     - (fn [request])->[scopes] determines required scopes
-                          (:scopes-supported subset) for requested resource
+                          (`:scopes-supported` subset) for requested resource
    :token->claims       - (fn [token])->claims-map returns claims map if
                           token is valid, nil otherwise
-   :claims->scope       - (fn [claims])->scope-set determines the set of
+   :claims->scope-set   - (fn [claims])->scope-set determines the set of
                           scopes in the claims map
    :claims->error       - (fn [claims request])->error-detail or nil,
                           default implementation returns nil (success)
+   :valid-issuer-set    - Set of valid JWT issuers (identity provider)
+   :valid-audience-set  - Set of valid JWT audience (MCP server)
    :resource-metadata   - resource-metadata URL (required if auth enabled)"
   [handler {:keys [auth-enabled?
                    protected-resource?
                    ^{:see ['p.c.s.http-ring-auth/handler-for:oauth-protected-resource]}
                    required-scopes  ; also specify :scopes-supported ^
                    token->claims
-                   claims->scope
+                   claims->scope-set
                    claims->error
+                   valid-issuer-set
+                   valid-audience-set
                    resource-metadata]
             :or {auth-enabled? false
                  protected-resource? (constantly true)
                  required-scopes (constantly [])
-                 claims->scope default-claims->scope
+                 claims->scope-set uau/default-claims->scope-set
                  claims->error (constantly nil)}}]
   (when auth-enabled?
-    (u/expected! token->claims fn? "token->claims to be a (fn [token])")
-    (u/expected! resource-metadata string? "a valid resource-metadata"))
+    (u/expected! token->claims fn? ":token->claims to be a (fn [token])")
+    (u/expected! valid-issuer-set seq ":valid-issuer-set to be non-empty")
+    (u/expected! valid-audience-set seq ":valid-audience-set to be non-empty")
+    (u/expected! resource-metadata string? "a valid :resource-metadata"))
   (if auth-enabled?
     (let [auth-errh (fn thisfn
                       ([scope-set extra-headers]
@@ -428,7 +415,16 @@
       (^:async fn oauth-gatekeeper [request]
         (if (protected-resource? request)
           (let [auth-header (get-in request [:headers
-                                             "authorization"])]
+                                             "authorization"])
+                required-scopes-set (set (required-scopes request))
+                handle-request (fn [claims]
+                                 (if-let [error-detail (claims->error claims
+                                                                      request)]
+                                   {:status 403
+                                    :headers errh
+                                    :body {:error "forbidden"
+                                           :error-description error-detail}}
+                                   (handler request)))]
             (cond
               ;; Bearer token in request?
               (when auth-header
@@ -442,30 +438,20 @@
                                   (u/dprint "Error validating JWT"
                                             e)
                                   nil))]
-                (let [required (set (required-scopes request))
-                      granted (set (claims->scope claims))]
-                  ;(u/dprint "claims" claims)
-                  (cond
-                    ;; insufficient scopes granted
-                    (not (set/subset? required granted))
-                    (let [missing (set/difference required granted)
-                          missing-text (->> (str/join " " missing)
-                                            (str "Missing scope: "))]
-                      (auth-error missing 403 {:error "insufficient_scope"
-                                               :error_description missing-text}
-                                  "insufficient_scope"
-                                  missing-text))
-                    ;; missing audience
-                    false
-                    :FIXME
-                    ;; all well
-                    :else
-                    (if-let [error-detail (claims->error claims request)]
-                      {:status 403
-                       :headers errh
-                       :body {:error "forbidden"
-                              :error-description error-detail}}
-                      (handler request))))
+                (-> claims
+                    (u/induce->
+                     (hrta/induce-verify-expiry resource-metadata
+                                                required-scopes-set)
+                     (hrta/induce-verify-issuer valid-issuer-set
+                                                resource-metadata
+                                                required-scopes-set)
+                     (hrta/induce-verify-audience valid-audience-set
+                                                  resource-metadata
+                                                  required-scopes-set)
+                     (hrta/induce-verify-scopes claims->scope-set
+                                                resource-metadata
+                                                required-scopes-set)
+                     handle-request))
                 (auth-error (required-scopes request) 401 {}
                             "unauthorized"
                             "Invalid authorization token"))

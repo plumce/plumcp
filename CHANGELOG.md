@@ -75,14 +75,15 @@ All notable changes to this project will be documented in this file. This change
 ### Added
 
 - Server: Streamable HTTP Transport - OAuth
+  - Kwargs in `p.c.s.http-ring-auth/make-ring-auth-options`
+    - [BREAKING] Required kwargs
+      - `:valid-issuer-set`
+      - `:valid-audience-set`
+    - Optional kwargs
+      - `:required-scopes` - `(fn [request])->scopes-set`
+      - `:scopes-supported`
   - Kwarg `:required-scopes` to determine required scopes for resource
     - In `p.c.s.http-ring-transport/wrap-oauth`, part of `auth-options`
-  - [Todo] JWT Audience/resource validation (Is the token intended for me?)
-    - [Todo] Kwarg `:resource->audience`
-    - [Todo] Return HTTP 403 for audience check failure
-  - JWT scope validation (Does this token authorize this operation)
-    - Kwarg `:required-scopes` to determine resource scopes
-    - Return HTTP 401 with `error="insufficient_scope"` and `scope="..."`
 - Client: Streamable HTTP Transport - OAuth Client Registration
   - Support for Pre-registered OAuth Client
   - Support for OAuth Client ID Metadata Documents (CIMD)
@@ -91,6 +92,17 @@ All notable changes to this project will be documented in this file. This change
 
 - Server: Streamable HTTP Transport
   - Expose OpenID configuration endpoint as a proxy to Authorization server
+  - JWT Token (claims) validation
+    - Time validity (On error returns 401)
+      - Expiration: Is it still valid right now?
+      - NotBefore: Has its validity period started?
+      - IssuedAt: Was this token issued at a reasonable time?
+    - Issuer (against `:valid-issuer-set`): Who created this token?
+      - On error returns 401
+    - Audience (against `:valid-audience-set`): Was this token intended for me?
+      - On error returns 401
+    - Scope (against `:required-scopes`): What is this caller allowed to do?
+      - On error returns 403 with `error="insufficient_scope"`
 - Client: Streamable HTTP Transport
   - OAuth: Decouple Resource metadata URI from `WWW-Authenticate` header
     - Fallback to `.well-known` endpoints (Protected Resource Metadata)

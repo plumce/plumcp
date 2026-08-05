@@ -1,4 +1,10 @@
 ;; Test config - copy this file as test-config.edn and edit
-{:auth0-authz-server "FIXME"
- :scalekit-authz-server "FIXME"
- :workos-authz-server "FIXME"}
+{:auth0 {:authz-server "FIXME"
+         :valid-issuer-set #{"FIXME"}
+         :valid-audience-set #{"FIXME"}}
+ :scalekit {:authz-server "FIXME"
+            :valid-issuer-set #{"FIXME"}
+            :valid-audience-set #{"FIXME"}}
+ :workos {:authz-server "FIXME"
+          :valid-issuer-set #{"FIXME"}
+          :valid-audience-set #{"FIXME"}}}

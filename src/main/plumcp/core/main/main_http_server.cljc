@@ -26,7 +26,9 @@
   []
   (let [server-runtime (:runtime server/server-options)]
     (->> {:jwt->claims au/validate-jwt
-          :authorization-servers [(:auth0-authz-server tu/test-config)]
+          :valid-issuer-set (get-in tu/test-config [:auth0 :valid-issuer-set])
+          :valid-audience-set (get-in tu/test-config [:auth0 :valid-audience-set])
+          :authorization-servers [(get-in tu/test-config [:auth0 :authz-server])]
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 
@@ -38,7 +40,9 @@
   []
   (let [server-runtime (:runtime server/server-options)]
     (->> {:jwt->claims au/validate-jwt
-          :authorization-servers [(:scalekit-authz-server tu/test-config)]
+          :valid-issuer-set (get-in tu/test-config [:scalekit :valid-issuer-set])
+          :valid-audience-set (get-in tu/test-config [:scalekit :valid-audience-set])
+          :authorization-servers [(get-in tu/test-config [:scalekit :authz-server])]
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 
@@ -49,7 +53,9 @@
   []
   (let [server-runtime (:runtime server/server-options)]
     (->> {:jwt->claims au/validate-jwt
-          :authorization-servers [(:workos-authz-server tu/test-config)]
+          :valid-issuer-set (get-in tu/test-config [:workos :valid-issuer-set])
+          :valid-audience-set (get-in tu/test-config [:workos :valid-audience-set])
+          :authorization-servers [(get-in tu/test-config [:workos :authz-server])]
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 
