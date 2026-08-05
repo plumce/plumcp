@@ -24,11 +24,12 @@
   "Sample auth options for Auth0
    Ref: https://aembit.io/blog/configuring-an-mcp-server-with-auth0-as-the-authorization-server"
   []
-  (let [server-runtime (:runtime server/server-options)]
+  (let [server-runtime (:runtime server/server-options)
+        auth0-test-config (:auth0 tu/test-config)]
     (->> {:jwt->claims au/validate-jwt
-          :valid-issuer-set (get-in tu/test-config [:auth0 :valid-issuer-set])
-          :valid-audience-set (get-in tu/test-config [:auth0 :valid-audience-set])
-          :authorization-servers [(get-in tu/test-config [:auth0 :authz-server])]
+          :valid-issuer-set (:valid-issuer-set auth0-test-config)
+          :valid-audience-set (:valid-audience-set auth0-test-config)
+          :authorization-servers (:authz-server-set auth0-test-config)
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 
@@ -38,11 +39,12 @@
    See: https://www.scalekit.com/blog/implement-oauth-for-mcp-servers
         and ScaleKit docs"
   []
-  (let [server-runtime (:runtime server/server-options)]
+  (let [server-runtime (:runtime server/server-options)
+        scalekit-test-config (:scalekit tu/test-config)]
     (->> {:jwt->claims au/validate-jwt
-          :valid-issuer-set (get-in tu/test-config [:scalekit :valid-issuer-set])
-          :valid-audience-set (get-in tu/test-config [:scalekit :valid-audience-set])
-          :authorization-servers [(get-in tu/test-config [:scalekit :authz-server])]
+          :valid-issuer-set (:valid-issuer-set scalekit-test-config)
+          :valid-audience-set (:valid-audience-set scalekit-test-config)
+          :authorization-servers (:authz-server-set scalekit-test-config)
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 
@@ -51,11 +53,12 @@
   "Sample auth options for WorkOS
    See: WorkOS docs"
   []
-  (let [server-runtime (:runtime server/server-options)]
+  (let [server-runtime (:runtime server/server-options)
+        workos-test-config (:workos tu/test-config)]
     (->> {:jwt->claims au/validate-jwt
-          :valid-issuer-set (get-in tu/test-config [:workos :valid-issuer-set])
-          :valid-audience-set (get-in tu/test-config [:workos :valid-audience-set])
-          :authorization-servers [(get-in tu/test-config [:workos :authz-server])]
+          :valid-issuer-set (:valid-issuer-set workos-test-config)
+          :valid-audience-set (:valid-audience-set workos-test-config)
+          :authorization-servers (:authz-server-set workos-test-config)
           :mcp-server "http://localhost:3000"}
          (hra/make-ring-auth-options server-runtime))))
 
