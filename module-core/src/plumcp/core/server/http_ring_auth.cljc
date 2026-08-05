@@ -50,7 +50,7 @@
            jwks-uri]
     :or {scopes-supported []}}]
   (u/expected! runtime some? "runtime to be present")
-  (u/expected! authorization-servers u/non-empty-vector?
+  (u/expected! authorization-servers u/non-empty-set?
                "authorization-servers to be a non-empty vector of URLs")
   (u/expected! mcp-server u/non-empty-string?
                "mcp-server to be a base URL, e.g. 'http://localhost:3000'")
@@ -127,7 +127,7 @@
                         from :mcp-server option
    (Well-known) Handler KW-args:
    ----------------------
-   :authorization-servers Vector of authorization server URLs
+   :authorization-servers Set of authorization server URLs
    :mcp-server            Base URL for the MCP server
    --Optional--
    :openid-config-uri     OpenID Connect Discovery URI, `nil` to disable
@@ -176,8 +176,8 @@
   (u/expected! jwt->claims fn? ":jwt->claims to be a (fn [jwks-str jwt-str])")
   (u/expected! valid-issuer-set seq ":valid-issuer-set to be non-empty set")
   (u/expected! valid-audience-set seq ":valid-audience-set to be non-empty set")
-  (u/expected! authorization-servers u/non-empty-vector?
-               ":authorization-servers to be a non-empty vector of URLs")
+  (u/expected! authorization-servers u/non-empty-set?
+               ":authorization-servers to be a non-empty set of URLs")
   (u/expected! mcp-server u/non-empty-string?
                ":mcp-server to be a base URL string")
   (let [resource-metadata (or resource-metadata

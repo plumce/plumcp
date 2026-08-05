@@ -207,6 +207,13 @@
        (seq v)))
 
 
+(defn non-empty-set?
+  "Return true if argument is a non-empty set, false otherwise."
+  [v]
+  (and (set? v)
+       (seq v)))
+
+
 (defn derefable?
   "Return true if (deref x) is allowed on the argument, false otherwise."
   [x]
