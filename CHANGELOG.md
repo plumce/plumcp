@@ -77,11 +77,11 @@ All notable changes to this project will be documented in this file. This change
 - Server: Streamable HTTP Transport - OAuth
   - Kwargs in `p.c.s.http-ring-auth/make-ring-auth-options`
     - [BREAKING] Required kwargs
-      - `:valid-issuer-set`
-      - `:valid-audience-set`
+      - `:valid-issuer-set` - set of valid token issuers
+      - `:valid-audience-set` - set of valid audience
     - Optional kwargs
-      - `:required-scopes` - `(fn [request])->scopes-set`
-      - `:scopes-supported`
+      - `:request->scope-set` - `(fn [request])->scopes-set`
+      - `:scopes-supported` - collection of all supported scopes
   - Kwarg `:required-scopes` to determine required scopes for resource
     - In `p.c.s.http-ring-transport/wrap-oauth`, part of `auth-options`
 - Client: Streamable HTTP Transport - OAuth Client Registration
@@ -92,6 +92,8 @@ All notable changes to this project will be documented in this file. This change
 
 - Server: Streamable HTTP Transport
   - Expose OpenID configuration endpoint as a proxy to Authorization server
+  - In `p.c.s.http-ring-auth/make-ring-auth-options`
+    - [BREAKING] Kwarg `:authorization-servers` is now a set
   - JWT Token (claims) validation
     - Time validity (On error returns 401)
       - Expiration: Is it still valid right now?

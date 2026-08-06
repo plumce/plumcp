@@ -46,16 +46,18 @@
            ;; optional
            mcp-server-name
            mcp-docs-uri
-           ^{:see [hrt/wrap-oauth :required-scopes]} scopes-supported
+           ^{:see [hrt/wrap-oauth :request->scope-set]} scopes-supported
            jwks-uri]
     :or {scopes-supported []}}]
   (u/expected! runtime some? "runtime to be present")
   (u/expected! authorization-servers u/non-empty-set?
-               "authorization-servers to be a non-empty vector of URLs")
+               ":authorization-servers to be a non-empty vector of URLs")
   (u/expected! mcp-server u/non-empty-string?
-               "mcp-server to be a base URL, e.g. 'http://localhost:3000'")
+               ":mcp-server to be a base URL, e.g. 'http://localhost:3000'")
   (u/expected! mcp-uri u/non-empty-string?
-               "mcp-uri to be a URI string, e.g. '/mcp'")
+               ":mcp-uri to be a URI string, e.g. '/mcp'")
+  (u/expected! scopes-supported (every-pred coll? #(every? string? %))
+               ":scopes-supported to be a collection of scopes")
   (let [mcp-server (u/stripr mcp-server "/")]
     (-> {"resource" (str mcp-server
                          mcp-uri)
@@ -119,7 +121,7 @@
    :jwks-cache-millis   (default 1h) JWKS cache duration
    :protected-resource? (fn [request])->bool to find protected resources,
                         default: always returns true
-   :required-scopes     (fn [request])->[scopes] determines required scopes
+   :request->scope-set  (fn [request])->#{scopes} determines required scopes
                         (subset of :scopes-supported) for requested resource
    :claims->error       (fn [claims request])->error-msg-or-nil to check
                         authorization, default: always returns nil
@@ -151,7 +153,7 @@
            fetch-from-uri
            protected-resource?
            jwks-cache-millis
-           required-scopes
+           request->scope-set
            claims->error
            resource-metadata
            ;; --- wrap-route-match (well-known routes) ---
@@ -223,7 +225,7 @@
              :valid-audience-set valid-audience-set
              :resource-metadata resource-metadata}
             (u/assoc-some :protected-resource? protected-resource?
-                          :required-scopes required-scopes
+                          :request->scope-set request->scope-set
                           :claims->error claims->error)
             ;; --- for wrap-routes middleware ---
             (assoc :well-known-routes (-> {;; protected resource metadata

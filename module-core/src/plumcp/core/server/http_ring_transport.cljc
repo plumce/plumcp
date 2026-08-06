@@ -355,7 +355,7 @@
    :protected-resource? - (fn [request])->boolean determines if request
                           pertains to an OAuth-protected resource,
                           default implementation always returns true
-   :required-scopes     - (fn [request])->[scopes] determines required scopes
+   :request->scope-set  - (fn [request])->#{scopes} determines required scopes
                           (`:scopes-supported` subset) for requested resource
    :token->claims       - (fn [token])->claims-map returns claims map if
                           token is valid, nil otherwise
@@ -369,7 +369,7 @@
   [handler {:keys [auth-enabled?
                    protected-resource?
                    ^{:see ['p.c.s.http-ring-auth/handler-for:oauth-protected-resource]}
-                   required-scopes  ; also specify :scopes-supported ^
+                   request->scope-set  ; also specify :scopes-supported ^
                    token->claims
                    claims->scope-set
                    claims->error
@@ -378,7 +378,7 @@
                    resource-metadata]
             :or {auth-enabled? false
                  protected-resource? (constantly true)
-                 required-scopes (constantly [])
+                 request->scope-set (constantly #{})
                  claims->scope-set uau/default-claims->scope-set
                  claims->error (constantly nil)}}]
   (when auth-enabled?
@@ -416,7 +416,7 @@
         (if (protected-resource? request)
           (let [auth-header (get-in request [:headers
                                              "authorization"])
-                required-scopes-set (set (required-scopes request))
+                required-scope-set (request->scope-set request)
                 handle-request (fn [claims]
                                  (if-let [error-detail (claims->error claims
                                                                       request)]
@@ -441,23 +441,23 @@
                 (-> claims
                     (u/induce->
                      (hrta/induce-verify-expiry resource-metadata
-                                                required-scopes-set)
+                                                required-scope-set)
                      (hrta/induce-verify-issuer valid-issuer-set
                                                 resource-metadata
-                                                required-scopes-set)
+                                                required-scope-set)
                      (hrta/induce-verify-audience valid-audience-set
                                                   resource-metadata
-                                                  required-scopes-set)
+                                                  required-scope-set)
                      (hrta/induce-verify-scopes claims->scope-set
                                                 resource-metadata
-                                                required-scopes-set)
+                                                required-scope-set)
                      handle-request))
-                (auth-error (required-scopes request) 401 {}
+                (auth-error required-scope-set 401 {}
                             "unauthorized"
                             "Invalid authorization token"))
               ;; else
               :else
-              (auth-error (required-scopes request) 401 {}
+              (auth-error required-scope-set 401 {}
                           "unauthorized"
                           "Missing or invalid authorization header")))
           (handler request))))
