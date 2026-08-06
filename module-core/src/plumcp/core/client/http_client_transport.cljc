@@ -190,7 +190,7 @@
                           ;;
                           (and auth-enabled?
                                (= 401 status)
-                               (if (<= (get request-meta auth-retry-k) 1)
+                               (if (<= (long (get request-meta auth-retry-k)) 1)
                                  true
                                  (do (u/dprint "Too many auth retries, ignored"
                                                request-meta)
