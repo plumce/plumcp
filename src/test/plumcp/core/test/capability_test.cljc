@@ -263,9 +263,9 @@
 
 (def tool-add
   (cap/make-tool-item "add"
-                      (-> {"a" {:type "number" :description "first number"}
-                           "b" {:type "number" :description "second number"}}
-                          (eg/make-tool-input-output-schema ["a" "b"]))
+                      (-> {:a {:type "number" :description "first number"}
+                           :b {:type "number" :description "second number"}}
+                          (eg/make-tool-input-output-schema [:a :b]))
                       tool-add-handler))
 
 
@@ -276,9 +276,9 @@
 
 (def tool-mul
   (cap/make-tool-item "add"
-                      (-> {"a" {:type "number" :description "first number"}
-                           "b" {:type "number" :description "second number"}}
-                          (eg/make-tool-input-output-schema ["a" "b"]))
+                      (-> {:a {:type "number" :description "first number"}
+                           :b {:type "number" :description "second number"}}
+                          (eg/make-tool-input-output-schema [:a :b]))
                       tool-mul-handler))
 
 
