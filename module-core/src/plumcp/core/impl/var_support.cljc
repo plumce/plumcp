@@ -295,7 +295,12 @@
                                                           :maximum])))))
         required (->> arg-syms
                       (remove (fn [sym]
-                                (false? (:required? (meta sym)))))
+                                (let [smeta (meta sym)]
+                                  (or
+                                   ;; unless `:required? false` specified
+                                   (false? (:required? smeta))
+                                   ;; :default implies `:required? false`
+                                   (contains? smeta :default)))))
                       (mapv str)
                       (mapv keyword))
         inschema {:type "object"

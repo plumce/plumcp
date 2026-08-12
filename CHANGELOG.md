@@ -79,6 +79,7 @@ All notable changes to this project will be documented in this file. This change
 ### Fixed
 
 - Required tool params are validated and returned as tool execution error
+- Infer `:default <val>` in tool param definitions as `:required? false`
 
 ## [0.3.0-alpha2] - 2026-Aug-06
 
