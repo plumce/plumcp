@@ -151,9 +151,13 @@
 ;; --- Structures ---
 
 
+(def attr-key
+  "Attribute name/key representation."
+  [:or :keyword :string])
+
 (def attr-map
   "Map of (open ended) attribute names and corresponding values."
-  [:map-of [:or :keyword :string] :any])
+  [:map-of attr-key :any])
 
 (def ProgressToken
   "A progress token, used to associate progress notifications with the
@@ -1143,7 +1147,7 @@
    :inputSchema {:$schema? :string
                  :type [:= "object"]
                  :properties? attr-map
-                 :required? [:vector :string]}
+                 :required? [:vector attr-key]}
    ;; Execution-related properties for this tool.
    :execution? ToolExecution
    ;; An optional JSON Schema object defining the structure of the tool's
@@ -1154,7 +1158,7 @@
    :outputSchema? {:$schema? :string
                    :type [:= "object"]
                    :properties? attr-map
-                   :required? [:vector :string]}
+                   :required? [:vector attr-key]}
    ;; Optional additional tool information.
    ;; Display name precedence order is: title, annotations.title, then name.
    :annotations? ToolAnnotations

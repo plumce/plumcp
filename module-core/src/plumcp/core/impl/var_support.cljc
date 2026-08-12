@@ -283,8 +283,9 @@
         arg-syms (validate-var-arglists var-instance tool-opts)
         properties (zipmap (->> arg-syms
                                 (map (fn [sym]
-                                       (or (:name (meta sym))
-                                           (str sym)))))
+                                       (-> (or (:name (meta sym))
+                                               (str sym))
+                                           keyword))))
                            (->> arg-syms
                                 (map meta)
                                 (map #(-> {:type (:type %)
@@ -295,7 +296,8 @@
         required (->> arg-syms
                       (remove (fn [sym]
                                 (false? (:required? (meta sym)))))
-                      (mapv str))
+                      (mapv str)
+                      (mapv keyword))
         inschema {:type "object"
                   :properties properties
                   :required required}
