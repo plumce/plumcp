@@ -87,7 +87,7 @@
   [name ^{:see [eg/make-tool-input-output-schema]} input-schema handler
    & {:as options}]
   (let [call-tool-handler (-> handler
-                              mh/make-call-tool-handler)]
+                              (mh/make-call-tool-handler input-schema))]
     (-> (eg/make-tool name input-schema options)
         (ic/make-tools-capability-item call-tool-handler))))
 

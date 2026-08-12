@@ -54,8 +54,10 @@ A summary of changes as TODO items are below:
 3. [x] Have the servers respond with HTTP 403 Forbidden for invalid Origin
        headers in Streamable HTTP transport
 4. [ ] Review _Security Best Practices Guidance_ - add required utility fns
-5. [ ] Return Input validation errors as Tool Execution Errors rather than
+5. [x] Return Input validation errors as Tool Execution Errors rather than
        Protocol Errors to enable model self-correction
+   - Validating "Required tool params" is implemented
+   - JSON-Schema validation implementation is pending
 6. [ ] Support polling SSE streams by allowing servers to disconnect at will
 7. [ ] Support polling in GET streams, resumption always via GET regardless
        of stream origin

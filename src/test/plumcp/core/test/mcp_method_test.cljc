@@ -17,6 +17,7 @@
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-method :as im]
+   [plumcp.core.impl.method-handler :as mh]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.test.test-support :as ts]
    [plumcp.core.test.test-util :as tu]
@@ -97,14 +98,15 @@
                                   :id id})))
         resources-cap (ic/make-resources-capability [resource-cap-item]
                                                     [template-cap-item])
-        tools-cap (-> (eg/make-tool "tool1"
-                                    (-> {"a" {:type "number" :description "first number"}
-                                         "b" {:type "number" :description "second number"}}
-                                        (eg/make-tool-input-output-schema ["a" "b"])))
-                      (ic/make-tools-capability-item (fn [{:keys [^long a ^long b]}]
-                                                       {:out (+ a b)}))
-                      vector
-                      ic/make-tools-capability)
+        tools-cap (let [inschema (-> {:a {:type "number" :description "first number"}
+                                      :b {:type "number" :description "second number"}}
+                                     (eg/make-tool-input-output-schema [:a :b]))]
+                    (-> (eg/make-tool "tool1" inschema)
+                        (ic/make-tools-capability-item (-> (fn [{:keys [^long a ^long b]}]
+                                                             (str "out:" (+ a b)))
+                                                           (mh/make-call-tool-handler inschema)))
+                        vector
+                        ic/make-tools-capability))
         server-caps (-> ic/default-server-capabilities
                         (ic/update-completions-capability completions-cap)
                         (ic/update-prompts-capability prompts-cap)
@@ -287,9 +289,9 @@
                im/tools-list)) "no-caps, session-less")
     (is (= {:result {:tools [{:name "tool1"
                               :inputSchema {:type "object",
-                                            :properties {"a" {:type "number", :description "first number"},
-                                                         "b" {:type "number", :description "second number"}},
-                                            :required ["a" "b"]}}]}}
+                                            :properties {:a {:type "number", :description "first number"},
+                                                         :b {:type "number", :description "second number"}},
+                                            :required [:a :b]}}]}}
            (-> (eg/make-list-tools-request)
                (rt/upsert-runtime runtime-server-session)
                im/tools-list)) "with-session"))
@@ -307,8 +309,15 @@
            (-> (eg/make-call-tool-request "tool2" {:a 10 :b 20})
                (rt/upsert-runtime runtime-server-session)
                im/tools-call
-               (update-in [:error :data] dissoc :_meta))) "with-session")
-    (is (= {:result {:out 30}}
+               (update-in [:error :data] dissoc :_meta)))
+        "bad params (tool name) with-session")
+    (is (= {:result {:content [{:type "text", :text "Missing tool param :b"}],
+                     :isError true}}
+           (-> (eg/make-call-tool-request "tool1" {:a 10 :x 20})
+               (rt/upsert-runtime runtime-server-session)
+               im/tools-call))
+        "bad params (tool args) with-session - should be tool execution error")
+    (is (= {:result {:content [{:type "text", :text "out:30"}], :isError false}}
            (-> (eg/make-call-tool-request "tool1" {:a 10 :b 20})
                (rt/upsert-runtime runtime-server-session)
                im/tools-call
@@ -473,7 +482,8 @@
                              (rt/upsert-runtime server-runtime)
                              im/tools-call)))
             :mkresult (fn [task-id]
-                        {:out 30
+                        {:content [{:type "text", :text "out:30"}],
+                         :isError false
                          :_meta {sd/meta-related-task-key {:taskId task-id}}})}
            ;; --- client runtime (task: elicitation call) ---
            {:runtime (-> runtime-client-caps

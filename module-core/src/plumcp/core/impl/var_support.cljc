@@ -301,7 +301,7 @@
                   :required required}
         handler  (-> var-instance
                      var-handler
-                     mh/make-call-tool-handler)]
+                     (mh/make-call-tool-handler inschema))]
     (as-> {:description tool-doc} $
       (u/assoc-some $
                     :annotations (:mcp-annotations vm)
