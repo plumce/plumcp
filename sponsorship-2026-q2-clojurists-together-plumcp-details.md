@@ -53,14 +53,18 @@ A summary of changes as TODO items are below:
        human-readable context during initialization
 3. [x] Have the servers respond with HTTP 403 Forbidden for invalid Origin
        headers in Streamable HTTP transport
-4. [ ] Review _Security Best Practices Guidance_ - add required utility fns
+4. [x] Review _Security Best Practices Guidance_ - add required utility fns
+   - Mostly inapplicable as the majority is meant for MCP proxy
+   - MCP server `Origin` header check already implemented
 5. [x] Return Input validation errors as Tool Execution Errors rather than
        Protocol Errors to enable model self-correction
    - Validating "Required tool params" is implemented
    - JSON-Schema validation implementation is pending
-6. [ ] Support polling SSE streams by allowing servers to disconnect at will
-7. [ ] Support polling in GET streams, resumption always via GET regardless
+6. [x] Support polling SSE streams by allowing servers to disconnect at will
+   - SSE-Stream and server are already detached at session level
+7. [x] Support polling in GET streams, resumption always via GET regardless
        of stream origin
+   - Polling streams and resumption via GET is already supported
 8. [x] Align OAuth 2.0 Protected Resource Metadata discovery with RFC 9728,
        making `WWW-Authenticate` header optional with fallback to
        `.well-known` endpoint
