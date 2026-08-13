@@ -14,6 +14,7 @@
    [plumcp.core.api.entity-support :as es]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.deps.session-mem :as sm]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-support :as is]
    [plumcp.core.impl.var-support :as vs]
@@ -611,7 +612,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/InitializeResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-initialize!
   "Send initialize request to the MCP server and setup a session
@@ -697,7 +698,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListPromptsResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-list-prompts
   "Fetch (from server) and return the list of MCP prompts (value in CLJ,
@@ -723,7 +724,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListResourcesResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-list-resources
   "Fetch (from server) and return the list of MCP resources (value in
@@ -749,7 +750,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListResourceTemplatesResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-list-resource-templates
   "Fetch (from server) and return the list of MCP resource templates
@@ -776,7 +777,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListToolsResult
-              sd/JSONRPCError
+              sd/MCPError
               on-jsonrpc-response
               on-jsonrpc-response-error-throw!]} caching-list-tools
   "Fetch (from server) and return the list of MCP tools (value in CLJ,
@@ -948,9 +949,11 @@
   {;; -- received by both client and server --
    sd/method-notifications-cancelled cancel-server-request
    sd/method-notifications-progress update-client-request-progress
+   sd/method-notifications-tasks-status u/nop  ; ignore
    ;; -- received by client --
    sd/method-notifications-message log-message
    sd/method-notifications-resources-updated u/nop  ; ignore
+   sd/method-notifications-elicitation-complete u/nop  ; ignore
    ;; list-changed
    sd/method-notifications-prompts-list_changed (-> fetch-prompts
                                                     wrap-initialized-check)
@@ -1043,7 +1046,9 @@
                                                              client-notification-handlers
                                                              notification-handlers)
                                   (rt/get-runtime)))
-                          (merge override)))
+                          (merge override)
+                          (assoc (kl/->key rt/?whoami) rs/default-whoami-client
+                                 (kl/->key rt/?client-session) (sm/make-in-memory-common-session))))
         get-jsonrpc-handler (fn []
                               (or jsonrpc-handler
                                   (make-client-jsonrpc-message-handler

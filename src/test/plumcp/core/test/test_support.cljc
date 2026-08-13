@@ -11,7 +11,21 @@
   "Support infra for tests."
   (:require
    [plumcp.core.deps.runtime :as rt]
-   [plumcp.core.deps.runtime-support :as rs]))
+   [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.deps.session-mem :as sm]))
+
+
+(defn make-runtime-client-session
+  ([seed-runtime]
+   (let [context {}
+         client-session (sm/make-in-memory-common-session)
+         context (-> context
+                     (rt/upsert-runtime seed-runtime)
+                     (rt/?whoami rs/default-whoami-client)
+                     (rt/?client-session client-session))]
+     (rt/get-runtime context)))
+  ([]
+   (make-runtime-client-session {})))
 
 
 (defn make-runtime-server-session
@@ -23,6 +37,7 @@
                                                                message)))
          context (-> context
                      (rt/upsert-runtime seed-runtime)
+                     (rt/?whoami rs/default-whoami-server)
                      (rt/?session server-session))]
      (rs/set-initialized-timestamp context)
      (rt/get-runtime context)))

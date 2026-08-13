@@ -12,9 +12,9 @@
   ;module/json-jsonista  {:local/root "module-core-json-jsonista"}
   ;; --- runtime/dev dependencies for module-core ---
   ;; Clojure
-  org.clojure/clojure {:mvn/version "1.12.4"}
+  org.clojure/clojure {:mvn/version "1.12.5"}
   ;; ClojureScript
-  thheller/shadow-cljs {:mvn/version "3.2.1"}  ; adds CLJS 1.12.42
+  thheller/shadow-cljs {:mvn/version "3.4.11"}  ; adds CLJS 1.12.145
   ;; --- Debugging ---
   io.github.tonsky/clojure-plus {:mvn/version "1.7.0"}
   pjstadig/humane-test-output {:mvn/version "0.11.0"}
@@ -30,6 +30,8 @@
                 mx.cider/tools.deps.enrich-classpath {:mvn/version "1.19.3"},
                 nrepl/nrepl {:mvn/version "1.5.0"},
                 refactor-nrepl/refactor-nrepl {:mvn/version "3.11.0"}}
+   :jvm-opts  ["-XX:-OmitStackTraceInFastThrow" "-Xms512m" "-Xmx512m"
+               "-Dclojure.main.report=stderr"]
    :main-opts ["-m" "nrepl.cmdline"
                "--middleware" "[\"cider.nrepl/cider-middleware\"]"]}
   ;;***********

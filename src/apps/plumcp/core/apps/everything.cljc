@@ -217,7 +217,8 @@
            message-type
            ^{:doc "Whether to include an example image"
              :type "boolean"
-             :name "include-image"}
+             :name "include-image"
+             :required? false}
            include-image?]
     :as args}]
   (if-let [item (case message-type

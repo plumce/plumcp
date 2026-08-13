@@ -247,14 +247,23 @@
 
 (defn make-sampling-capability
   "Given function `(fn [create-message-request])->create-message-result`
+   or sampling-config map {:handler f :tools optional-tools-declaration}
    make sampling capability."
   [^{:see [eg/make-create-message-request
-           eg/make-create-message-result]} f]
-  (reify
-    p/IMcpCapability
-    (get-capability-declaration [_] {})
-    p/IMcpSampling
-    (get-sampling-response [_ request] (f request))))
+           eg/make-create-message-result]} sampling-config]
+  (let [{:keys [handler
+                ; :context is soft-deprecated, so unsupported
+                tools]} (if (fn? sampling-config) ; backward compatible
+                          {:handler sampling-config}
+                          sampling-config)
+        decl (-> {}
+                 (u/assoc-some :tools (when tools
+                                        {})))]
+    (reify
+      p/IMcpCapability
+      (get-capability-declaration [_] decl)
+      p/IMcpSampling
+      (get-sampling-response [_ request] (handler request)))))
 
 
 (defn make-elicitation-capability
@@ -276,6 +285,37 @@
   (reify
     p/IMcpCapability
     (get-capability-declaration [_] {})))
+
+
+(defn make-tasks-capability
+  [& {:keys [list
+             cancel
+             requests]
+      :or {list {}
+           cancel nil  ; disable by default
+           requests {}}}]
+  (let [declaration (-> {}
+                        (u/assoc-some :list list
+                                      :cancel cancel
+                                      :requests requests))]
+    (reify
+      p/IMcpCapability
+      (get-capability-declaration [_] declaration))))
+
+
+(def default-client-tasks-capability
+  "Default client capability for tasks, which enables everything."
+  (make-tasks-capability {:list {}
+                          :cancel nil  ; disable by default
+                          :requests {:sampling {:createMessage {}}
+                                     :elicitation {:create {}}}}))
+
+
+(def default-server-tasks-capability
+  "Default server capability for tasks, which enables everything."
+  (make-tasks-capability {:list {}
+                          :cancel nil  ; disable by default
+                          :requests {:tools {:call {}}}}))
 
 
 (declare make-prompts-capability)
@@ -480,12 +520,14 @@
 
 
 (def default-client-capabilities {:experimental nil
+                                  :tasks        default-client-tasks-capability
                                   :roots        nil
                                   :sampling     nil
                                   :elicitation  nil})
 
 
 (def default-server-capabilities {:experimental nil
+                                  :tasks        default-server-tasks-capability
                                   :logging      logging-capability
                                   :completions  nil
                                   :prompts      nil
@@ -514,6 +556,7 @@
 
 (defn get-capability-experimental [capabilities] (get capabilities
                                                       :experimental))
+(defn get-capability-tasks [capabilities] (get capabilities :tasks))
 
 ;; ~~ Updates ~~
 
@@ -597,11 +640,13 @@
    ```"
   [client-capabilities]
   (let [{:keys [experimental
+                tasks
                 roots
                 sampling
                 elicitation]} client-capabilities]
     (u/assoc-some {}
                   :experimental (capability->declaration experimental)
+                  :tasks        (capability->declaration tasks)
                   :roots        (capability->declaration roots)
                   :sampling     (capability->declaration sampling)
                   :elicitation  (capability->declaration elicitation))))
@@ -621,6 +666,7 @@
   [server-capabilities]
   (let [{:keys [experimental
                 logging
+                tasks
                 completions
                 prompts
                 resources
@@ -628,6 +674,7 @@
     (u/assoc-some {}
                   :experimental (capability->declaration experimental)
                   :logging      (capability->declaration logging)
+                  :tasks        (capability->declaration tasks)
                   :completions  (capability->declaration completions)
                   :prompts      (capability->declaration prompts)
                   :resources    (capability->declaration resources)

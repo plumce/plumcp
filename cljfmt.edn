@@ -4,8 +4,12 @@
  :insert-missing-whitespace? true
  :indent-line-comments? true
  :remove-multiple-non-indenting-spaces? false
- ;; -- fix Calva indentation for async-bridge --
- :extra-indents {as-async [[:inner 0]]
+ ;; -- fix Calva indentation --
+ :extra-indents {;; util
+                 do-async [[:inner 0]]
+                 do-await [[:inner 0]]
+                 ;; async-bridge
+                 as-async [[:inner 0]]
                  let-await [[:inner 0]]
                  may-await [[:inner 0]]
                  do-iterator [[:inner 0]]

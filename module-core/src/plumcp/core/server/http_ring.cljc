@@ -57,6 +57,7 @@
                                                     :well-known-routes)
                                :on-uri-mismatch default-handler})
         (sh/wrap-exception-catching)
+        (hrt/wrap-dns-rebind-check options)
         (rt/wrap-runtime runtime))))
 
 

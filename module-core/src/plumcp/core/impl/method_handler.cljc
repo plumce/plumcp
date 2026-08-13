@@ -10,6 +10,7 @@
 (ns plumcp.core.impl.method-handler
   "Support for writing method handlers."
   (:require
+   [clojure.string :as str]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.schema.json-rpc :as jr]
@@ -122,16 +123,97 @@
        "argument to be either of call-tool-result/content-vector/string"))))
 
 
+(defn report-missing-params
+  "Detect any missing params and report tool execution error if so.
+   Return nil on no error."
+  [input-schema kwargs]
+  (let [{:keys [properties required]} input-schema]
+    (when-let [missing (->> required
+                            (filter #(not (contains? kwargs %)))
+                            (map pr-str)
+                            seq)]
+      (let [missing-content (->> (str/join ", " missing)
+                                 (str "Missing tool param"
+                                      (when (next missing) \s)
+                                      \space)
+                                 eg/make-text-content)]
+        (make-call-tool-result [missing-content] true)))))
+
+
+(defn report-json-schema-violation
+  "Detect any JSON schema violation and report tool execution error if
+   so. Return nil on no error."
+  [input-schema kwargs]
+  ;;
+  ;; wrong param :type
+  ;;
+  ;; --- FIXME
+  ;;
+  ;; enum violation
+  ;;
+  ;; --- FIXME
+  ;;
+  ;; minimum/maximum violation
+  ;;
+  ;; --- FIXME
+  ;;
+  ;; minLength/maxLength violation (string too short/long)
+  ;;
+  ;; --- FIXME
+  ;;
+  ;; pattern/format violation
+  ;;
+  ;; --- FIXME
+  ;;
+  ;; additionalProperties violation
+  ;;
+  ;; --- FIXME
+  ;;
+  ;; any other JSON-Schema violation
+  ;;
+  ;; --------------------------------------------
+  ;; type	                                x: "123" when integer
+  ;; required	                            missing x
+  ;; enum	                                mode: "turbo"
+  ;; const	                              wrong constant
+  ;; minimum / maximum	                  x: -1
+  ;; exclusiveMinimum / exclusiveMaximum	boundary violation
+  ;; multipleOf	                          invalid multiple
+  ;; minLength / maxLength	              string too short/long
+  ;; pattern	                            regex mismatch
+  ;; minItems / maxItems	                invalid array size
+  ;; items	                              array element wrong type
+  ;; additionalProperties	                unexpected property
+  ;; properties	                          nested property invalid
+  ;; anyOf / oneOf / allOf	              schema combination fails
+  ;; not	                                prohibited shape
+  ;;
+  )
+
+
 (defn make-call-tool-handler
   "Make call-tool handler fn from the given
    `(fn [kwargs]) -> call-tool-result`."
-  [f]
+  [f input-schema]
   (fn call-tool-handler [kwargs]
-    (try
-      (-> (f kwargs)
-          as-call-tool-result)
-      (catch #?(:cljs js/Error
-                :clj Exception) ex
-        (rs/log-mcpcall-failure kwargs ex)
-        (make-call-tool-result [(eg/make-text-content (ex-message ex))]
-                               true)))))
+    (or
+     ;;
+     ;; missing required params
+     ;;
+     (report-missing-params input-schema kwargs)
+     ;;
+     ;; wrong param value
+     ;;
+     (report-json-schema-violation input-schema kwargs)
+     ;;
+     ;; invoke supplied handler
+     ;;
+     (try
+       (-> (f kwargs)
+           as-call-tool-result)
+       (catch #?(:cljs js/Error
+                 :clj Exception) ex
+         (rs/log-mcpcall-failure kwargs ex)
+         (make-call-tool-result [(-> (ex-message ex)
+                                     eg/make-text-content)]
+                                true))))))

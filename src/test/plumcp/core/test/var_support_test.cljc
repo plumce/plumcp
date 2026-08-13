@@ -35,6 +35,8 @@
     temperature :temperature
     stop-sequences :stopSequences
     metadata :metadata
+    tools :tools
+    tool-choice :toolChoice
     ;;
     :as kwargs}]
   (eg/make-create-message-result "model-name"
@@ -43,9 +45,10 @@
 
 
 (deftest test-sampling-var
-  (let [s1 (vs/make-sampling-handler-from-var #'sampling-one)]
+  (let [{:keys [handler]} (-> #'sampling-one
+                              vs/make-sampling-config-from-var)]
     (is (= {:model "model-name", :role "user", :content "content"}
-           (s1 {})))))
+           (handler {})))))
 
 
 (defn ^{:mcp-type :elicitation} elicitation-one
@@ -62,7 +65,7 @@
 (deftest test-elicitation-var
   (let [e1 (vs/make-elicitation-handler-from-var #'elicitation-one)]
     (is (= {:action "action"}
-         (e1 {})))))
+           (e1 {})))))
 
 
 ;; --- Server capability ---
@@ -85,7 +88,7 @@
                :handler)]
     (is (= {:messages
             [{:role "user", :content {:type "text", :text "AEC, VXII"}}]}
-         (ph {})))))
+           (ph {})))))
 
 
 (defn ^{:mcp-type :resource
@@ -102,7 +105,7 @@
         rh (-> (p/find-handler rc ruri)
                :handler)]
     (is (= {:contents [{:uri "rs1://res", :text "res1"}]}
-         (rh {:uri ruri})))))
+           (rh {:uri ruri})))))
 
 
 (defn ^{:mcp-type :resource-template

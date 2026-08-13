@@ -10,6 +10,54 @@
 (ns user)
 
 
+(defn env-true?
+  [env-var sys-prop]
+  (-> (System/getenv env-var)          ; env var overrides sysprop
+      (or (System/getProperty sys-prop))   ; meant for build files
+      (or "true")    ; set value as NOT "true" to disable warnings
+      parse-boolean
+      true?))
+
+
+(def verbose? (env-true? "VERBOSE" "verbose"))
+(def devmode? (env-true? "DEVMODE" "devmode"))
+
+
+(defn eprintln
+  "Print to STDERR."
+  [& args]
+  (binding [*out* *err*]
+    (apply println args)
+    (flush)))
+
+
+(when verbose?
+  (eprintln)
+  (eprintln "╭────────────────────────────────────────────────────────╮")
+  (eprintln "│ VERBOSE mode is ON. Prints the following to STDERR:    │")
+  (eprintln "│ - Reflection warnings                                  │")
+  (eprintln "│ - Instrumentation events                               │")
+  (eprintln "│                                                        │")
+  (eprintln "│ To turn verbose mode off, set either:                  │")
+  (eprintln "│ - Environment var: `VERBOSE=false` (overrides sysprop) │")
+  (eprintln "│ - System property: `verbose=false`                     │")
+  (eprintln "╰────────────────────────────────────────────────────────╯")
+  (eprintln))
+
+
+(when devmode?
+  (eprintln)
+  (eprintln "╭────────────────────────────────────────────────────────╮")
+  (eprintln "│ DEVMODE mode is ON. Does the following:                │")
+  (eprintln "│ - Instrumentation & patching                           │")
+  (eprintln "│                                                        │")
+  (eprintln "│ To turn DEVMODE off, set either:                       │")
+  (eprintln "│ - Environment var: `DEVMODE=false` (overrides sysprop) │")
+  (eprintln "│ - System property: `devmode=false`                     │")
+  (eprintln "╰────────────────────────────────────────────────────────╯")
+  (eprintln))
+
+
 ;; Equivalent of the following in Leiningen project.clj:
 ;; ```
 ;; :global-vars {*warn-on-reflection* true
@@ -18,21 +66,7 @@
 ;; ```
 ;; See: https://ask.clojure.org/index.php/3787/theres-enable-warn-reflection-from-command-running-clojure?show=12656#a12656
 ;;
-(when (-> (System/getenv "VERBOSE")        ; env var overrides sysprop
-          (or (System/getProperty "verbose"))  ; meant for build files
-          (or "true")    ; set value as NOT "true" to disable warnings
-          parse-boolean
-          true?)
-  (binding [*out* *err*]
-    (println)
-    (println "╭───────────────────────────────────────────────────────────╮")
-    (println "│  Reflection warning is ON. To turn this off, set either:  │")
-    (println "│                                                           │")
-    (println "│  - Environment var: `VERBOSE=false` (overrides sysprop)   │")
-    (println "│  - System property: `verbose=false`                       │")
-    (println "╰───────────────────────────────────────────────────────────╯")
-    (println)
-    (flush))
+(when verbose?
   (alter-var-root #'*warn-on-reflection* (constantly true))
   (alter-var-root #'*assert* (constantly true))
   (alter-var-root #'*unchecked-math* (constantly :warn-on-boxed)))
@@ -46,3 +80,20 @@
 ;; Enable humane test output
 (require 'pjstadig.humane-test-output)
 (pjstadig.humane-test-output/activate!)
+
+
+;; Patch Malli schema-spec validation
+(require '[malli.core :as mc]
+         '[plumcp.core.schema.schema-util :as su])
+(when devmode?
+  (when verbose?
+    (eprintln)
+    (eprintln "╭─────────────────────────────────────────────────────────╮")
+    (eprintln "│ PATCHING plumcp.core.schema.schema-util/validate-schema │")
+    (eprintln "│ for early Malli schema validation. Throws up on error.  │")
+    (eprintln "╰─────────────────────────────────────────────────────────╯")
+    (eprintln))
+  (alter-var-root #'su/validate-schema
+                  (constantly (fn [spec]
+                                (mc/schema spec)
+                                spec))))

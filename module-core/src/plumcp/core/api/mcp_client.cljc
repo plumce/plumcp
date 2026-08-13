@@ -48,7 +48,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/InitializeResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} initialize-and-notify!
   "Send initialize request to the MCP server and on success, setup a
@@ -107,7 +107,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListPromptsResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} list-prompts
   "Return (from cache if available, else fetch from server) the list of
@@ -130,7 +130,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/GetPromptResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} get-prompt
   "Get the prompt identified by name from the server, returning prompt
@@ -150,7 +150,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListResourcesResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} list-resources
   "Return (from cache if available, else fetch from server) the list of
@@ -173,7 +173,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListResourceTemplatesResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} list-resource-templates
   "Return (from cache if available, else fetch from server) the list of
@@ -198,7 +198,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ReadResourceResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} read-resource
   "Read the resource identified by the URI on the server, returning the
@@ -219,7 +219,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/ListToolsResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} list-tools
   "Return (from cache if available, else fetch from server) the list of
@@ -242,7 +242,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/CallToolResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} call-tool
   "Call the tool identified by tool-name on the server, returning the
@@ -263,7 +263,7 @@
 
 (defn ^{:see [sd/JSONRPCResponse
               sd/CompleteResult
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} complete
   "Get completion suggestion from the server, returning completion
@@ -281,7 +281,7 @@
 
 
 (defn ^{:see [sd/JSONRPCResponse
-              sd/JSONRPCError
+              sd/MCPError
               cs/on-jsonrpc-response
               cs/on-jsonrpc-response-error-throw!]} ping
   "Ping the server, returning the ping result (value in CLJ, js/Promise

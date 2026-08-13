@@ -4,10 +4,11 @@ All notable changes to this project will be documented in this file. This change
 
 ## [TODO/IDEA]
 
-### Added
+### To Add
 
 - Protocol
-  - Spec: 2025-11-25
+  - Spec: 2026-07-28
+    - https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
   - https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/
 - MCP Client
   - Check that _initialized_ ops have session-context before sending request
@@ -49,12 +50,15 @@ All notable changes to this project will be documented in this file. This change
 - Readable Last-access time
   - Server: In server-session
   - Client: In client state
+- Extensions
+  - Skills: https://github.com/modelcontextprotocol/experimental-ext-skills/blob/main/docs/sep-draft-skills-extension.md
+  - https://modelcontextprotocol.io/extensions/overview
 - Happy transport test
   - test-heartbeat (requires server capable of dropping idle session)
 - Unhappy transport test
   - Connect to a non-existent HTTP endpoint
 
-### Changed
+### To Change
 
 - MCP Client
   - Re-implement client as a protocol instance - easy self-reference
@@ -65,6 +69,155 @@ All notable changes to this project will be documented in this file. This change
   - WebSocket server
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
+
+## [0.3.0-beta1] - 2026-Aug-14
+
+### Fixed
+
+- Required tool params are validated and returned as tool execution error
+- Infer `:default <val>` in tool param definitions as `:required? false`
+
+## [0.3.0-alpha2] - 2026-Aug-06
+
+### Added
+
+- Server: Streamable HTTP Transport - OAuth
+  - Kwargs in `p.c.s.http-ring-auth/make-ring-auth-options`
+    - [BREAKING] Required kwargs
+      - `:valid-issuer-set` - set of valid token issuers
+      - `:valid-audience-set` - set of valid audience
+    - Optional kwargs
+      - `:request->scope-set` - `(fn [request])->scopes-set`
+      - `:scopes-supported` - collection of all supported scopes
+  - Kwarg `:required-scopes` to determine required scopes for resource
+    - In `p.c.s.http-ring-transport/wrap-oauth`, part of `auth-options`
+- Client: Streamable HTTP Transport - OAuth Client Registration
+  - Support for Pre-registered OAuth Client
+  - Support for OAuth Client ID Metadata Documents (CIMD)
+
+### Changed
+
+- Server: Streamable HTTP Transport
+  - Expose OpenID configuration endpoint as a proxy to Authorization server
+  - In `p.c.s.http-ring-auth/make-ring-auth-options`
+    - [BREAKING] Kwarg `:authorization-servers` is now a set
+  - JWT Token (claims) validation
+    - Time validity (On error returns 401)
+      - Expiration: Is it still valid right now?
+      - NotBefore: Has its validity period started?
+      - IssuedAt: Was this token issued at a reasonable time?
+    - Issuer (against `:valid-issuer-set`): Who created this token?
+      - On error returns 401
+    - Audience (against `:valid-audience-set`): Was this token intended for me?
+      - On error returns 401
+    - Scope (against `:required-scopes`): What is this caller allowed to do?
+      - On error returns 403 with `error="insufficient_scope"`
+- Client: Streamable HTTP Transport
+  - OAuth: Decouple Resource metadata URI from `WWW-Authenticate` header
+    - Fallback to `.well-known` endpoints (Protected Resource Metadata)
+  - OAuth: Add support for OpenID Connect Discovery 1.0
+    - Try OpenID configuration if Authorization server metadata unavailable
+  - OAuth: Dynamic Client Registration only if `registration_endpoint` available
+  - OAuth: Use `WWW-Authenticate` challenge attr `scope` in authorization request
+    - In `sub-make-auth-code-flow-params` fn
+    - Re-authorize on HTTP 403 + WWW-A with `error="insufficient_scope"`
+- Drop utility namespace `plumcp.core.util.chain` (refactoring)
+  - In favour of (JS) `await` introduced in CLJS 1.12.145
+  - OAuth flow error-conditions detected and handled
+  - Auth-retry loop detected and handled in HTTP client transport
+
+### Fixed
+
+- Server: Streamable HTTP Transport
+  - Include `scope` (if available) in OAuth 401 `WWW-Authenticate` header
+- Client: Streamable HTTP Transport
+  - Close web browser immediately on JVM after OAuth flow is complete
+- Module plumcp-core-auth
+  - Fully convert JWT claims into a Clojure map before returning
+
+## [0.3.0-alpha1] - 2026-Jul-07
+
+### Added
+
+- Icons reference option for the following
+  - Server-info & Client-info
+    - `p.c.a.entity-gen/make-implementation`
+    - `p.c.a.entity-support/make-info`
+  - Primitives exposed by server
+    - Prompts - `p.c.a.entity-gen/make-prompt`
+    - Resources - `p.c.a.entity-gen/make-resource`
+    - Resource templates - `p.c.a.entity-gen/make-resource-template`
+    - Tools - `p.c.a.entity-gen/make-tool`
+- Standards based approach for `ElicitResult` and `EnumSchema`
+  Schema and Entity generator functions
+  - Untitled/Titled, Single-select/Multi-select enum schema
+- Elicitation Form/URL routing support
+  - `p.c.a.capability/make-elicitation-routing-handler`
+- Sampling
+  - Support for `tools` declaration in sampling handler var metadata
+    - `:mcp-sampling-tools`
+- Implementation/Info
+  - Added attrs to `make-implementation` (by extension to `make-info`)
+    - `:description`
+    - `:website-url`
+- Var support
+  - Allow tool definition attributes
+    - `:annotations`
+    - `:execution`
+- Tasks orchestration
+  - [x] Protocol ICommonSession (client and server) for tasks backend
+  - [x] Entity generators/support in `p.c.a.entity-support` ns
+    - `make-working-task`
+    - `clean-task`
+    - `task-state-terminal?`
+    - `update-task`
+    - `update-task-status`
+    - `update-task-status-to-input-required`
+    - `update-task-status-to-completed`
+    - `update-task-status-to-failed`
+    - `update-task-status-to-cancelled`
+    - `get-task-status`
+    - `get-task-result`
+    - `get-task-error`
+  - [x] Capability declaration
+  - [x] Augmentated invocation
+    - [x] Tool
+    - [x] Sampling
+    - [x] Elicitation
+  - [x] Operations
+    - [x] List
+    - [x] Get
+    - [ ] Cancel (not supported yet, disabled by default)
+    - [x] Get result
+  - [ ] Notifications (not implemented yet)
+    - [ ] Task notifications (not implemented yet)
+    - [ ] Elicitation notifications (not implemented yet)
+
+### Changed
+
+- [BREAKING CHANGE] Require CLJS 1.12.145 (with `await`) or higher
+- [BREAKING CHANGE] Rename function
+  - `p.c.a.capability/`: `make-sampling-handler` to `make-sampling-config`
+  - `p.c.i.var-support/`: `make-sampling-handler-from-var` to `make-sampling-config-from-var`
+    - The signature is also changed to return a map
+- [WIP] Implement MCP protocol 2025-Nov-25 spec
+- Validate tool names as per spec
+- Deprecate entity generation functions in `p.c.a.entity-gen` ns:
+  - `p.c.a.entity-gen/make-enum-schema`
+  - `p.c.a.entity-gen/make-elicit-request`
+- Update `ElicitResult` and `EnumSchema` to adopt standards based approach
+  - `ElicitResult` `:content` may also be a string-vector now
+  - `ElicitRequest` may be created using
+    - `p.c.a.entity-gen/make-elicit-form-request` with new schema fns below
+      - `make-untitled-single-select-enum-schema`
+      - `make-titled-single-select-enum-schema`
+      - `make-untitled-multi-select-enum-schema`
+      - `make-titled-multi-select-enum-schema`
+    - `p.c.a.entity-gen/make-elicit-url-request`
+- Server: Streamable HTTP Transport
+  - Apply DNS-rebind check to verify Origin/Host headers (403 on error)
+
+### Fixed
 
 ## [0.2.2] - 2026-Jun-22
 

@@ -572,7 +572,7 @@
                                   ;; now return the result as usual
                                   (es/make-sampling-text-message-result
                                    "test-model" sd/role-user "test")))
-                               cap/make-sampling-handler)
+                               cap/make-sampling-config)
           server-callbacks {"sampling-handler" u/nop}
           client-notific-h (fn [notif]
                              (cs/cancel-server-request notif)
@@ -782,7 +782,9 @@
   (tu/async-test [done!]
     (let [tools [(vs/make-tool-from-var #'request-sampling)]
           calls (vs/make-callback-from-var #'receive-sampling)
-          samph (vs/make-sampling-handler-from-var #'sampling-handler)
+          samph (-> #'sampling-handler
+                    vs/make-sampling-config-from-var
+                    :handler)
           store (atom [])
           uprog (fn [progress-notification]
                   (let [progress (:params progress-notification)]

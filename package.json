@@ -2,7 +2,7 @@
   "jose": "^6.2.2"
  },
  "devDependencies": {
-    "shadow-cljs": "^3.2.1",
+    "shadow-cljs": "^3.4.11",
     "wait-sync": "^1.0.1"
   }
 }
