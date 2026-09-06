@@ -126,7 +126,11 @@
         ^Executor e (.get op)]
     (reset! !interrupted? true)
     (.shutdownNow ^ExecutorService e)  ; is an ExecutorService instance
-    (.close ^HttpClient client)
+    (try
+      (.shutdownNow ^HttpClient client)
+      (catch NoSuchMethodError _
+        (try (.close ^HttpClient client) (catch Throwable _ nil)))
+      (catch Throwable _ nil))
     (System/gc)))
 
 
