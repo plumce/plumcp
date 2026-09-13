@@ -9,7 +9,7 @@
   :dependencies [[io.github.plumce/plumcp.core "{{version}}"]
                  [cheshire/cheshire "6.2.0"]]
   :repl-options {:init-ns plumcp.core}
-  :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}}
+  :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.6"]]}}
   :scm {:dir ".."}
   :deploy-repositories [["releases" {:url "https://clojars.org"
                                      :creds :gpg}]])
