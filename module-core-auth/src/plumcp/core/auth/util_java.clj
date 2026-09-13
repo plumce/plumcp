@@ -9,6 +9,7 @@
 
 (ns plumcp.core.auth.util-java
   "Java/JVM specific Auth utility functions."
+  (:require [plumcp.core.util-java :as uj])
   (:import [org.jose4j.jwk JsonWebKey JsonWebKeySet VerificationJwkSelector]
            [org.jose4j.jws JsonWebSignature]
            [org.jose4j.jwt JwtClaims]
@@ -43,7 +44,8 @@
                                (.build))
               ;; it (below) throws an exception if the token is expired
               ^JwtClaims jwt-claims (.processToClaims jwt-consumer jwt)]
-          (.getClaimsMap jwt-claims))))
+          (-> (.getClaimsMap jwt-claims)
+              uj/java->clj))))
     (catch Exception e
       (throw (ex-info (str "Failed to validate token and get claims: "
                            (.getMessage e))

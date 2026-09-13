@@ -13,7 +13,6 @@
    [bling.explain :as be]
    [malli.core :as mc]
    [malli.error :as me]
-   [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.var-support :as vs]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]

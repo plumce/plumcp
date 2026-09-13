@@ -305,3 +305,54 @@
   [context method-name]
   (-> (rt/?notification-handlers context)
       (get method-name)))
+
+
+;; --- Host identification ---
+
+
+(def default-whoami-client "Default MCP-CLIENT WhoAmI" {:role :client})
+(def default-whoami-server "Default MCP-SERVER WhoAmI" {:role :server})
+
+
+(defn whoami-role
+  "Return the host role (:client or :server)"
+  [context]
+  (-> (rt/?whoami context)
+      :role))
+
+
+(defn whoami-client?
+  "Return true if the host is an MCP client, false otherwise."
+  [context]
+  (-> (whoami-role context)
+      (= :client)))
+
+
+(defn whoami-server?
+  "Return true if the host is an MCP server, false otherwise."
+  [context]
+  (-> (whoami-role context)
+      (= :server)))
+
+
+;; --- Host-agnostic helpers ---
+
+
+(defn my-capabilities
+  "Return client or server capabilities as per WhoAmI role."
+  [context]
+  (let [role (whoami-role context)]
+    (case role
+      :client (rt/?client-capabilities context)
+      :server (rt/?server-capabilities context)
+      (u/expected-enum! role #{:client :server}))))
+
+
+(defn my-session
+  "Return client or server session as per WhoAmI role."
+  [context]
+  (let [role (whoami-role context)]
+    (case role
+      :client (rt/?client-session context)
+      :server (rt/?session context)
+      (u/expected-enum! role #{:client :server}))))
