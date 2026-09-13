@@ -108,9 +108,9 @@
                        headers-lower (-> headers
                                          (update-keys str/lower-case))
                        on-event-str (fn [on-message event-str]
-                                      (-> (str/split-lines event-str)
-                                          u/parse-sse-event-lines
-                                          on-message))]
+                                      (some-> (str/split-lines event-str)
+                                              u/parse-sse-event-lines
+                                              on-message))]
                    (-> {:status status
                         :headers headers
                         :headers-lower headers-lower
