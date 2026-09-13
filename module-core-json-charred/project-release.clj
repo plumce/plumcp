@@ -7,9 +7,9 @@
                 *assert* true
                 *unchecked-math* :warn-on-boxed}
   :dependencies [[io.github.plumce/plumcp.core "{{version}}"]
-                 [com.cnuernber/charred "1.038"]]
+                 [com.cnuernber/charred "1.042"]]
   :repl-options {:init-ns plumcp.core}
-  :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.4"]]}}
+  :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.6"]]}}
   :scm {:dir ".."}
   :deploy-repositories [["releases" {:url "https://clojars.org"
                                      :creds :gpg}]])

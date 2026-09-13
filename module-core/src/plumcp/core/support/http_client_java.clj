@@ -208,6 +208,7 @@
                  (->> (body->string-lines body)
                       u/chunkify-string-lines
                       (map u/parse-sse-event-lines)
+                      (remove nil?)
                       (map on-event)
                       dorun)))
      :on-msg (fn on-msg [on-message]

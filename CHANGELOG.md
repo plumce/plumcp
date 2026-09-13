@@ -219,6 +219,20 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+## [0.2.3] - 2026-Sep-13
+
+### Changed
+
+- Module Dependencies
+  - `plumcp.core-json-charred`: `charred` from `1.038` to `1.042`
+  - `plumcp.core-json-jsonista`: `jsonista` from `1.0.0` to `1.0.1`
+
+### Fixed
+
+- Fix [#12](https://github.com/plumce/plumcp/issues/12)
+  - Make SSE message parser relaxed and spec compliant
+  - Ignore `nil` values returned by SSE message parser
+
 ## [0.2.2] - 2026-Jun-22
 
 ### Fixed

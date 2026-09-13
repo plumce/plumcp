@@ -923,7 +923,8 @@
    ```
    Return the data-string if found, nil otherwise."
   [event-lines]
-  (when (= "event: message" (first event-lines))
+  (when (some #{"event: message"
+                "event:message"} event-lines)
     (when-some [data-line (some #(when (str/starts-with? % "data:") %)
                                 event-lines)]
       (-> (subs data-line 5)
