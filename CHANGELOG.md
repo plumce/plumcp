@@ -66,6 +66,20 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
+## [0.2.3] - 2026-Sep-13
+
+### Changed
+
+- Module Dependencies
+  - `plumcp.core-json-charred`: `charred` from `1.038` to `1.042`
+  - `plumcp.core-json-jsonista`: `jsonista` from `1.0.0` to `1.0.1`
+
+### Fixed
+
+- Fix [#12](https://github.com/plumce/plumcp/issues/12)
+  - Make SSE message parser relaxed and spec compliant
+  - Ignore `nil` values returned by SSE message parser
+
 ## [0.2.2] - 2026-Jun-22
 
 ### Fixed

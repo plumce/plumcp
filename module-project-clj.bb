@@ -4,7 +4,7 @@
          '[selmer.parser :as sel])
 
 
-(def module-version "0.2.2")
+(def module-version "0.2.3")
 
 
 (defn delete-tree
