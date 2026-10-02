@@ -3,7 +3,7 @@
         io.github.paintparty/bling {:mvn/version "0.10.0"
                                     :exclusions [org.clojure/clojure]}
         ;; Schema validation
-        metosin/malli {:mvn/version "0.20.1"
+        metosin/malli {:mvn/version "0.20.2"
                        :exclusions [org.clojure/clojure]}
         ;;
         }}

@@ -9,7 +9,7 @@
   :dependencies [[io.github.plumce/plumcp.core "{{version}}"]
                  [io.github.paintparty/bling "0.10.0"
                   :exclusions [org.clojure/clojure]]
-                 [metosin/malli "0.20.1"
+                 [metosin/malli "0.20.2"
                   :exclusions [org.clojure/clojure]]]
   :repl-options {:init-ns plumcp.core}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.12.6"]]}}
