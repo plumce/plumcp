@@ -51,7 +51,7 @@ The scope of work for this sponsorship is documented
 
 There are Makefile targets for various development tasks:
 
-Setup and teardown:
+### Setup and teardown
 
 ```
 make setup
@@ -59,14 +59,45 @@ make clean
 make distclean  # needs `make setup` later
 ```
 
-Running tests:
+### Running tests
 
 ```
 make clj-test   # run tests in Clojure/JVM
 make cljs-test  # run tests in Node.js
 ```
 
-Module release:
+### Enable OAuth tests (disabled by default)
+
+1. Copy `test-config.template.edn` to `test-config.edn`
+2. Edit suitably
+3. Enable OAuth in `src/test/plumcp/core/test/transport_test.cljc` (in `auth-options-fn`)
+
+### Enable OAuth when running local MCP server (Streamable HTTP)
+
+Enable OAuth in `src/main/plumcp/core/main/main_http_server.cljc` (in `main`/`-main`)
+
+### Alternatives to OAuth Dynamic Client Registration (DCR) for testing
+
+#### Use preregistered OAuth client
+
+Uncomment `:client-id` and `:client-secret` in `src/main/plumcp/core/main/client.cljc` (in `make-http-transport`)
+
+#### Use Client ID Metadata Document (CIMD)
+
+1. Edit `script/client-id-metadata-document/client.json` suitably
+2. Run a web server serving the `client.json` file:
+   ```
+   cd script/client-id-metadata-document
+   jwebserver  # this utility is part of JDK since Java 18
+   ```
+3. Run a tunneling service, e.g. [cloudflared](https://github.com/cloudflare/cloudflared/releases):
+   ```
+   cloudflared tunnel --url http://localhost:8000
+   ```
+4. Make sure `"client_id"` points to the HTTPS URL for `client.json`
+5. Now test with your OAuth Authorization server
+
+### Module release
 
 ```
 # Edit `module-project-clj.bb` for version

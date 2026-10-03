@@ -20,7 +20,8 @@
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.support.traffic-logger :as stl]
-   [plumcp.core.util :as u]))
+   [plumcp.core.util :as u]
+   [plumcp.core.util.key-lookup :as kl]))
 
 
 ;; --- Notification handling ---
@@ -78,6 +79,7 @@
   {;; -- received by both client and server --
    sd/method-notifications-cancelled cancel-client-request
    sd/method-notifications-progress update-server-request-progress
+   sd/method-notifications-tasks-status u/nop  ; ignore
    ;; -- received by server --
    sd/method-notifications-initialized set-init-timestamp
    sd/method-notifications-roots-list_changed refetch-roots})
@@ -220,7 +222,8 @@
                                                              server-notification-handlers
                                                              notification-handlers)
                                   (rt/get-runtime)))
-                          (merge override)))
+                          (merge override)
+                          (assoc (kl/->key rt/?whoami) rs/default-whoami-server)))
         get-jsonrpc-handler (fn []
                               (or jsonrpc-handler
                                   (-> server-options

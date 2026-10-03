@@ -44,6 +44,11 @@
 (def version "Current PluMCP version" (find-version))
 
 
+(def meta-key
+  "Key to use in a map for meta information."
+  :plumcp.core/meta)
+
+
 (def http-status-key
   "Keyword to communicate HTTP status as domain info."
   :plumcp.core/http-status)

@@ -114,7 +114,7 @@
 
 
 (defn kill-process-tree
-  "Kill process tree. Similar to Clojure/JVM `(.destroy ^Process proc)`"
+  "Kill process tree. Useful to close browsers."
   [^ChildProcess subproc]
   (let [pid (.-pid subproc)]
     (if (= js/process.platform "win32")

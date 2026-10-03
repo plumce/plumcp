@@ -24,7 +24,8 @@
 
 (def common-bidirectional-notification-handlers
   {sd/method-notifications-cancelled im/notifications-cancelled
-   sd/method-notifications-progress  im/notifications-progress})
+   sd/method-notifications-progress  im/notifications-progress
+   sd/method-notifications-tasks-status im/notifications-tasks-status})
 
 
 (def server-received-notification-handlers
@@ -49,8 +50,22 @@
        sd/method-notifications-tools-list_changed
        im/notifications-tools-list_changed
        ;; log messages
-       sd/method-notifications-message im/notifications-message}
+       sd/method-notifications-message im/notifications-message
+       ;; elicitation
+       sd/method-notifications-elicitation-complete
+       im/notifications-elicitation-complete}
       (merge common-bidirectional-notification-handlers)))
+
+
+;; ----- Client & Server -----
+
+
+(def mcp-common-methods
+  {;; tasks
+   sd/method-tasks-list   im/tasks-list
+   sd/method-tasks-cancel im/tasks-cancel
+   sd/method-tasks-get    im/tasks-get
+   sd/method-tasks-result im/tasks-result})
 
 
 ;; ----- Server -----
@@ -79,6 +94,7 @@
        sd/method-logging-setLevel          im/logging-setLevel
        sd/method-resources-templates-list  im/resources-templates-list
        sd/method-tools-call                im/tools-call}
+      (merge mcp-common-methods)
       (merge server-received-notification-handlers)
       ;; wrap the method impls with session check/propagation
       (update-vals (fn [handler]
@@ -103,6 +119,7 @@
        sd/method-roots-list im/roots-list
        sd/method-sampling-createMessage im/sampling-createMessage
        sd/method-elicitation-create im/elicitation-create}
+      (merge mcp-common-methods)
       (merge client-received-notification-handlers)))
 
 

@@ -29,6 +29,28 @@
            [java.util Base64 Date TimeZone])))
 
 
+;; --- Async handling (CLJC with JS-interop) ---
+
+
+(defmacro do-async
+  "Evaluate body of code as if in an async no-arg function. Useful for
+   invocation inside protocol-fn and multi-method, which do not support
+   `^:async` metadata tag yet as of CLJS 1.12.145."
+  [& body]
+  `(let [f# (^:async fn []
+              ~@body)]
+     (f#)))
+
+
+(defmacro do-await
+  "Await completion of async execution of an expression. Has no effect
+   in CLJ, but in CLJS it uses JS-await."
+  [expr]
+  (if (:ns &env) ;; :ns only exists in CLJS
+    `(await ~expr)
+    expr))
+
+
 ;; --- Backfill ---
 
 
@@ -185,6 +207,13 @@
        (seq v)))
 
 
+(defn non-empty-set?
+  "Return true if argument is a non-empty set, false otherwise."
+  [v]
+  (and (set? v)
+       (seq v)))
+
+
 (defn derefable?
   "Return true if (deref x) is allowed on the argument, false otherwise."
   [x]
@@ -193,6 +222,21 @@
 
 
 ;; --- Map manipulation ---
+
+
+(defmacro keyword-map
+  "Given symbols bound to values, make a map of symbol keywords and
+   corresponding symbol values."
+  ([]
+   {})
+  ([& valsyms]
+   (doseq [each valsyms]
+     (assert (symbol? each) "Every value must be a symbol"))
+   (let [pairs (reduce (fn [acc each]
+                         (conj acc (keyword each) each))
+                       []
+                       valsyms)]
+     `{~@pairs #_"reader needs even number of forms in a map" ~@[]})))
 
 
 (defn assoc-missing
@@ -220,6 +264,20 @@
         (reduce (fn [m [k v]]
                   (assoc-some m k v))
                 (assoc-some m k v)))))
+
+
+(defn assoc-some-in
+  "Like clojure.core/assoc-in, except it assoc's only when value is not
+   nil."
+  ([m ks v]
+   (if (some? v)
+     (assoc-in m ks v)
+     m))
+  ([m ks v & more]
+   (->> (partition 2 more)
+        (reduce (fn [m [k v]]
+                  (assoc-some-in m k v))
+                (assoc-some-in m ks v)))))
 
 
 (defn copy-keys
@@ -460,6 +518,47 @@
    x))
 
 
+;; --- Chain of execution ---
+
+
+(defn induce
+  "Equivalent of `clojure.core/reduce` over a collection of (fn [v])
+   with `init` initial value."
+  [init f-coll]
+  (reduce (fn [v f]
+            (f v))
+          init
+          f-coll))
+
+
+(defmacro induce->
+  "Same as `clojure.core/->` but implemented using reduce, so that any
+   step can return `(reduced <val>)` to short circuit execution."
+  [init & steps]
+  (let [f-coll (mapv (fn [form]
+                       (let [vsym (gensym "value")]
+                         `(fn [~vsym]
+                            ~(if (list? form)
+                               `(~(first form) ~vsym ~@(rest form))
+                               `(~form ~vsym)))))
+                     steps)]
+    `(induce ~init [~@f-coll])))
+
+
+(defmacro induce->>
+  "Same as `clojure.core/->>` but implemented using reduce, so that any
+   step can return `(reduced <val>)` to short circuit execution."
+  [init & steps]
+  (let [f-coll (mapv (fn [form]
+                       (let [vsym (gensym "value")]
+                         `(fn [~vsym]
+                            ~(if (list? form)
+                               `(~@form ~vsym)
+                               `(~form ~vsym)))))
+                     steps)]
+    `(induce ~init [~@f-coll])))
+
+
 ;; --- Printing ---
 
 
@@ -548,8 +647,13 @@
 (defn dprint
   "Pretty-print for debugging."
   [header data]
-  (let [h-line (repeat-str (count header) "-")
-        e-line (repeat-str (count header) "~")]
+  (let [h-text (str header)
+        h-tlen (count h-text)
+        h-cols (-> (str/index-of h-text \newline)
+                   (or h-tlen)
+                   (min h-tlen))
+        h-line (repeat-str h-cols "-")
+        e-line (repeat-str h-cols "~")]
     (eprintln h-line)
     (eprintln header)
     (eprintln h-line)
@@ -563,8 +667,9 @@
   "Print stack trace to the STDERR or error console."
   [e]
   (eprintln e)
-  #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
-     :clj (.printStackTrace ^Throwable e ^PrintWriter *err*)))
+  (when (instance? #?(:cljs js/Error :clj Throwable) e)
+    #?(:cljs (js/console.error e.stack)  ;(.trace js/console)
+       :clj (.printStackTrace ^Throwable e ^PrintWriter *err*))))
 
 
 (defn wraptee

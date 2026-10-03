@@ -15,7 +15,8 @@
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.method-handler :as mh]
    [plumcp.core.schema.json-rpc :as jr]
-   [plumcp.core.schema.schema-defs :as sd]))
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 
 
 ;; --- Client ---
@@ -86,7 +87,7 @@
   [name ^{:see [eg/make-tool-input-output-schema]} input-schema handler
    & {:as options}]
   (let [call-tool-handler (-> handler
-                              mh/make-call-tool-handler)]
+                              (mh/make-call-tool-handler input-schema))]
     (-> (eg/make-tool name input-schema options)
         (ic/make-tools-capability-item call-tool-handler))))
 
@@ -97,21 +98,51 @@
 ;; Clients
 
 
-(defn make-sampling-handler
+(defn make-sampling-config
   "Make sampling handler fn from the given
-   `(fn [kwargs]) -> sampling-result`."
-  [f]
-  (fn sampling-handler [kwargs]
-    (try
-      (f kwargs)
-      (catch #?(:cljs js/Error
-                :clj Exception) ex
-        (rs/log-mcpcall-failure kwargs ex)
-        (jr/jsonrpc-failure sd/error-code-internal-error
-                            (ex-message ex) (ex-data ex))))))
+   `(fn [kwargs]) -> sampling-result` and return the following:
+   {:handler sampling-handler-fn
+    :tools   sampling-tools-declaration}."
+  [f & {:keys [mcp-sampling-tools]}]
+  {:handler (fn sampling-handler [kwargs]
+              (try
+                (f kwargs)
+                (catch #?(:cljs js/Error
+                          :clj Exception) ex
+                  (rs/log-mcpcall-failure kwargs ex)
+                  (jr/jsonrpc-failure sd/error-code-internal-error
+                                      (ex-message ex) (ex-data ex)))))
+   :tools mcp-sampling-tools})
 
 
-(defn make-elicitation-handler
+(defn ^{:see [sd/ElicitRequest
+              sd/ElicitRequestParams
+              sd/ElicitRequestFormParams
+              sd/ElicitRequestURLParams
+              sd/ElicitResult]} make-elicitation-routing-handler
+  "Make elicitation handler function (fn [kwargs])->elicitation-result
+   from given :elicitation-form and :elicitation-url handler functions
+   that return a 'unimplemented' error response by default.
+   Options:
+   :form-handler - receives sd/ElicitRequestFormParams kwargs as a map
+   :url-handler  - receives sd/ElicitRequestURLParams kwargs as a map"
+  [{:keys [form-handler url-handler]}]
+  (let [fallback (fn [token]
+                   (let [msg (-> "Elicitation %s-handling is unimplemented"
+                                 (format token))]
+                     (fn [kwargs]
+                       (jr/jsonrpc-failure sd/error-code-internal-error
+                                           msg kwargs))))
+        form-handler (or form-handler (fallback "Form"))
+        url-handler (or url-handler (fallback "URL"))]
+    (fn [kwargs]
+      (case (:mode kwargs)
+        "form" ^{:see sd/ElicitRequestFormParams} (form-handler kwargs)
+        "url" ^{:see sd/ElicitRequestURLParams} (url-handler kwargs)
+        (form-handler kwargs)))))
+
+
+(defn ^{:see [make-elicitation-routing-handler]} make-elicitation-handler
   "Make elicitation handler fn from the given
    `(fn [kwargs]) -> elicitation-result`."
   [f]
@@ -133,11 +164,13 @@
                    - deref'able vector of root items (e.g. atom)
                    - arity-0 function returning a vector of root items
     :sampling    - sampling-handler
+                 - OR {:handler sampling-handler} with optional keys
+                   - optional key `:tools` (sampling tools declaration)
     :elicitation - elicitation-handler}
    See:
    `vars->client-primitives`"
   [{:keys [^{:see [make-root-item]} roots
-           ^{:see [make-sampling-handler]} sampling
+           ^{:see [make-sampling-config]} sampling
            ^{:see [make-elicitation-handler]} elicitation]}]
   (let [cap-roots (some-> roots
                           ic/make-roots-capability)
@@ -188,6 +221,7 @@
                  - vector of tool items
                  - deref'able vector of tool items (e.g. atom)
                  - arity-0 function returning a vector of tool items
+    :tasks     - tasks capability
     :completion-prompt-refs - vector of prompt ref items
     :completion-resource-refs - vector of resource ref items}"
   [{:keys [^{:see [make-prompt-item]} prompts
@@ -200,7 +234,7 @@
                             ic/make-prompts-capability)
         cap-resources (when (or resources resource-templates)
                         (ic/make-resources-capability resources
-                                                       resource-templates))
+                                                      resource-templates))
         cap-tools (some-> tools
                           ic/make-tools-capability)
         cap-completion (when (or completion-prompt-refs

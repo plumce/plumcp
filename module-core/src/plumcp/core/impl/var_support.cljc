@@ -265,7 +265,10 @@
    - Attributes `:tool-name` and (arg) `:name` are optional - when not
      specified, names are inferred from the symbols.
    - Attribute `:required?` is optional for args, assumed true when not
-     specified. When specified, must be a boolean value."
+     specified. When specified, must be a boolean value.
+   - Following optional tool attributes may be specified as follows:
+     - :annotations as :mcp-annotations
+     - :execution   as :mcp-execution"
   [var-instance & {:keys [var-handler]
                    :or {var-handler identity}}]
   (when-not (var? var-instance)
@@ -280,8 +283,9 @@
         arg-syms (validate-var-arglists var-instance tool-opts)
         properties (zipmap (->> arg-syms
                                 (map (fn [sym]
-                                       (or (:name (meta sym))
-                                           (str sym)))))
+                                       (-> (or (:name (meta sym))
+                                               (str sym))
+                                           keyword))))
                            (->> arg-syms
                                 (map meta)
                                 (map #(-> {:type (:type %)
@@ -291,34 +295,46 @@
                                                           :maximum])))))
         required (->> arg-syms
                       (remove (fn [sym]
-                                (false? (:required? (meta sym)))))
-                      (mapv str))
+                                (let [smeta (meta sym)]
+                                  (or
+                                   ;; unless `:required? false` specified
+                                   (false? (:required? smeta))
+                                   ;; :default implies `:required? false`
+                                   (contains? smeta :default)))))
+                      (mapv str)
+                      (mapv keyword))
         inschema {:type "object"
                   :properties properties
                   :required required}
         handler  (-> var-instance
                      var-handler
-                     mh/make-call-tool-handler)]
-    (-> (eg/make-tool mcp-name inschema
-                      {:description tool-doc})
-        (ic/make-tools-capability-item handler))))
+                     (mh/make-call-tool-handler inschema))]
+    (as-> {:description tool-doc} $
+      (u/assoc-some $
+                    :annotations (:mcp-annotations vm)
+                    :execution (:mcp-execution vm))
+      (eg/make-tool mcp-name inschema $)
+      (ic/make-tools-capability-item $ handler))))
 
 
 ;; ----- Sampling -----
 
 
 (defn ^{:see [sd/CreateMessageRequest
-              sd/CreateMessageResult]} make-sampling-handler-from-var
+              sd/CreateMessageResult]} make-sampling-config-from-var
   "Given a var instance of a sampling function, extract metadata and
    construct MCP sampling details. Example below:
    ```
-   (defn ^{:mcp-type :sampling} sample-llm
+   (defn ^{:mcp-type :sampling
+           :mcp-sampling-tools {}} sample-llm
      \"Accept (sampling) CreateMessageRequest, return CreateMessageResult.\"
      [{messages :messages
        max-tokens :maxTokens}]
      ;; return an instance of CreateMessageResult
      ,,,)
-   ```"
+   ```
+   Return {:handler handler-fn
+           :tools metadata-value-of-:mcp-sampling-tools}"
   [var-instance & {:keys [var-handler]
                    :or {var-handler identity}}]
   (when-not (var? var-instance)
@@ -326,7 +342,7 @@
   (validate-var-arglists var-instance no-arg-keys-opts)
   (-> var-instance
       var-handler
-      cap/make-sampling-handler))
+      (cap/make-sampling-config (meta var-instance))))
 
 
 ;; ----- Elicitation -----
@@ -337,7 +353,7 @@
   "Given a var instance of an elicitation function, extract metadata and
    construct MCP elicitation details. Example below:
    ```
-   (defn ^{:mcp-type :sampling} user-elicitation
+   (defn ^{:mcp-type :elicitation} user-elicitation
      \"Accept (elicitation) ElicitRequest, return ElicitResult.\"
      [{message :message
        requested-schema :requestedSchema}]
@@ -374,7 +390,7 @@
                (let [mcp-type (-> (meta each-var)
                                   (get :mcp-type))]
                  (case mcp-type
-                   :sampling {:sampling (make-sampling-handler-from-var
+                   :sampling {:sampling (make-sampling-config-from-var
                                          each-var opts)}
                    :elicitation {:elicitation (make-elicitation-handler-from-var
                                                each-var opts)}

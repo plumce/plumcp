@@ -64,11 +64,19 @@
 
 
 (deftest sampling-capability-test
-  (let [sampling-cap (ic/make-sampling-capability identity)]
-    (is (= {}
-           (p/get-capability-declaration sampling-cap)))
-    (is (= :foo
-           (p/get-sampling-response sampling-cap :foo)))))
+  (testing "sampling capability without tools"
+    (let [sampling-cap (ic/make-sampling-capability identity)]
+      (is (= {}
+             (p/get-capability-declaration sampling-cap)))
+      (is (= :foo
+             (p/get-sampling-response sampling-cap :foo)))))
+  (testing "sampling capability with tools"
+    (let [sampling-cap (ic/make-sampling-capability {:handler identity
+                                                     :tools {}})]
+      (is (= {:tools {}}
+             (p/get-capability-declaration sampling-cap)))
+      (is (= :foo
+             (p/get-sampling-response sampling-cap :foo))))))
 
 
 (deftest elicitation-capability-test
@@ -79,10 +87,22 @@
            (p/get-elicitation-response elicitation-cap :foo)))))
 
 
+(deftest client-tasks-capability-test
+  (let [tasks-cap ic/default-client-tasks-capability]
+    (is (= {:list {}
+            ;:cancel {}  ; disabled by default
+            :requests {:sampling {:createMessage {}}
+                       :elicitation {:create {}}}}
+           (p/get-capability-declaration tasks-cap)))))
+
+
 (deftest client-capabilities-test
   (testing "default capabilities"
     (let [default-caps ic/default-client-capabilities]
-      (is (= {}
+      (is (= {:tasks {:list {}
+                      ;:cancel {}  ; disabled by default
+                      :requests {:sampling {:createMessage {}}
+                                 :elicitation {:create {}}}}}
              (ic/get-client-capability-declaration default-caps)))))
   (testing "all capabilities"
     (let [all-caps {:roots (-> [root-one]
@@ -143,7 +163,7 @@
                                 (es/prompt-message->get-prompt-result)))
           prompt2 (cap/make-prompt-item prompt2-name prompt2-handler)
           prompts-cap (ic/make-prompts-capability [prompt1
-                                                    prompt2])
+                                                   prompt2])
           handler-map (p/find-handler prompts-cap prompt2-name)
           handler (:handler handler-map)]
       (is (fn? handler) "prompt2 handler is a function")
@@ -243,9 +263,9 @@
 
 (def tool-add
   (cap/make-tool-item "add"
-                      (-> {"a" {:type "number" :description "first number"}
-                           "b" {:type "number" :description "second number"}}
-                          (eg/make-tool-input-output-schema ["a" "b"]))
+                      (-> {:a {:type "number" :description "first number"}
+                           :b {:type "number" :description "second number"}}
+                          (eg/make-tool-input-output-schema [:a :b]))
                       tool-add-handler))
 
 
@@ -256,9 +276,9 @@
 
 (def tool-mul
   (cap/make-tool-item "add"
-                      (-> {"a" {:type "number" :description "first number"}
-                           "b" {:type "number" :description "second number"}}
-                          (eg/make-tool-input-output-schema ["a" "b"]))
+                      (-> {:a {:type "number" :description "first number"}
+                           :b {:type "number" :description "second number"}}
+                          (eg/make-tool-input-output-schema [:a :b]))
                       tool-mul-handler))
 
 
@@ -314,19 +334,33 @@
            (p/completion-complete cap resource-ref-item :foo)))))
 
 
+(deftest server-tasks-capability-test
+  (let [tasks-cap ic/default-server-tasks-capability]
+    (is (= {:list {}
+            ;:cancel {}  ; disabled by default
+            :requests {:tools {:call {}}}}
+           (p/get-capability-declaration tasks-cap)))))
+
+
 (deftest server-capabilities-test
   (testing "default capabilities"
     (let [default-caps ic/default-server-capabilities]
-      (is (= {:logging {}}
+      (is (= {:logging {}
+              :tasks {:list {}
+                      ;:cancel {}  ; disabled by default
+                      :requests {:tools {:call {}}}}}
              (ic/get-server-capability-declaration default-caps)))))
   (testing "all capabilities"
     (let [all-caps (merge ic/default-server-capabilities
                           {:prompts (ic/make-prompts-capability [])
                            :resources (ic/make-resources-capability []
-                                                                     [])
+                                                                    [])
                            :tools (-> [tool-add]
                                       (ic/make-tools-capability))})]
       (is (= {:logging {}
+              :tasks {:list {}
+                      ;:cancel {}  ; disabled by default
+                      :requests {:tools {:call {}}}}
               :prompts {:listChanged true}
               :resources {:listChanged true :subscribe true}
               :tools {:listChanged true}}
@@ -342,7 +376,7 @@
         cap (deref-cap-maker mlist)
         received (atom [])
         notifier (ic/run-list-changed-notifier {list-method cap}
-                                                #(swap! received conj %))]
+                                               #(swap! received conj %))]
     (tu/until-done [done! 10]
       (tu/sleep-millis 100)
       (swap! mlist conj item2)

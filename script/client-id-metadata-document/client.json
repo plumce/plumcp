@@ -1,0 +1,14 @@
+{
+  "client_id": "https://your-public-host.<fixme>.com/client.json",
+  "client_name": "PluMCP Test Client",
+  "redirect_uris": [
+    "http://localhost:6277/"
+  ],
+  "grant_types": [
+    "authorization_code"
+  ],
+  "response_types": [
+    "code"
+  ],
+  "token_endpoint_auth_method": "none"
+}

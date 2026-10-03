@@ -12,8 +12,7 @@
   (:require
    ["jose" :as jose]
    [clojure.string :as str]
-   [plumcp.core.util :as u]
-   [plumcp.core.util.async-bridge :as uab]))
+   [plumcp.core.util :as u]))
 
 
 ;; Adapted from:
@@ -51,7 +50,7 @@
 
 ;; Adapted from:
 ;; https://github.com/scalekit-inc/scalekit-sdk-node/blob/v2.1.6/src/scalekit.ts#L340
-(defn validate-jwt
+(defn ^:async validate-jwt
   "Given JSON Web keys (JWKS) as a JSON string and JWT, return the
    decoded claims as a map if the JWT is valid, throw exception
    otherwise."
@@ -64,16 +63,18 @@
                                                     (get "keys")
                                                     clj->js)})]
     (try
-      (uab/let-await
-        [result (.jwtVerify jose jwt jwks
-                            (-> {}
-                                (u/assoc-some :issuer issuer
-                                              :audience audience)
-                                clj->js))]
-        (let [payload (aget result "payload")]  ; payload is claims
-          (when (seq required-scopes)
-            (verify-scopes jwt required-scopes))
-          payload))
+      (let [result (-> jose
+                       (.jwtVerify jwt jwks
+                                   (-> {}
+                                       (u/assoc-some :issuer issuer
+                                                     :audience audience)
+                                       clj->js))
+                       u/do-await)
+            ;; payload is claims
+            payload (aget result "payload")]
+        (when (seq required-scopes)
+          (verify-scopes jwt required-scopes))
+        (js->clj payload))
       (catch js/Error error
         (throw (ex-info (str "Failed to validate token and get claims: "
                              (ex-message error))
