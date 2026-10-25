@@ -70,6 +70,44 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
+## [0.4.0] - 2026-???-??
+
+### Highlight
+
+- [WIP] Dual-Era MCP spec 2026-07-28 and spec 2025-11-25 support
+  - `Era26` denotes 2026-07-28 (Modern)
+  - `Era25` (or unspecified) denotes 2025-11-25 (Legacy)
+
+### Added
+
+- Era26 Schema definition delta
+- [Todo] Era26 Entity generators using named parameter
+- [Todo] Era26 Server Capability
+  - [Todo] Regular server capabilities
+  - [Todo] Server Extension support
+    - [Todo] Weave Tasks server support in
+    - [Todo] Add Skills server support
+- [Todo] Era26 Client Capability
+  - [Todo] Regular client capabilities
+  - [Todo] Client Extension support
+    - [Todo] Weave Tasks client support in
+    - [Todo] Add Skills client support
+- [Todo] Era26 Transport
+  - [Todo] Era26 Zero server and client
+  - [Todo] Era26 STDIO server and client
+  - [Todo] Era26 Streamable HTTP server and client
+
+### Changed
+
+- [Todo] [BREAKING] Replace Imperative server-to-client request sending
+  as a declarative DAG
+- [Todo] [BREAKING] Replace Imperative client-to-server response sending
+  as an implementation detail of Era25
+- [Todo] [BREAKING] MCP Server API for Dual-Era support
+- [Todo] [BREAKING] MCP Client API for Dual-Era support
+
+### Fixed
+
 ## [0.3.0] - 2026-Oct-03
 
 ### Added
