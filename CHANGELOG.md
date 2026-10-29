@@ -70,6 +70,18 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
+## [0.3.1] - 2026-Oct-??
+
+### Changed
+
+- Update dependency (Module: `core-dev`)
+  - Bump dependency `metosin/malli` from version `0.20.2` to `0.20.3`
+
+### Fixed
+
+- #15 Modern Era MCP (`2027-07-28` spec) client cannot connect to PluMCP
+  server in auto mode
+
 ## [0.3.0] - 2026-Oct-03
 
 ### Added
