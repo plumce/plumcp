@@ -144,7 +144,7 @@
                      retval))
             {:jsonrpc sd/jsonrpc-version
              :id id
-             :error {:code sd/error-code-internal-error
+             :error {:code sd/error-code-method-not-found
                      :message (format emt method)
                      :data {}}})
           (u/dotee (fn [sora-jr-response]  ; SORA: Sync-OR-Async
