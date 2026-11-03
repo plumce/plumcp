@@ -26,6 +26,11 @@
 (def protocol-version-max (first protocol-versions-supported))
 
 
+;; Era definitions for APIs
+(def mcp-era25 :mcp-era25)  ; legacy
+(def mcp-era26 :mcp-era26)  ; modern
+
+
 ;; MCP Methods
 (def method-server-discover "server/discover")
 (def method-subscriptions-listen "subscriptions/listen")
@@ -97,13 +102,13 @@
    ;; @example Sampling — tool use support
    ;;
    ;; @example Sampling — context inclusion support (deprecated)
-   :sampling {;; Whether the client supports context inclusion via
-              ;; `includeContext` parameter. If not declared, servers
-              ;; SHOULD only use `includeContext: "none"` (or omit it).
-              :context? sd/attr-map
-              ;; Whether the client supports tool use via `tools` and
-              ;; `toolChoice` parameters.
-              :tools? sd/attr-map}
+   :sampling? {;; Whether the client supports context inclusion via
+               ;; `includeContext` parameter. If not declared, servers
+               ;; SHOULD only use `includeContext: "none"` (or omit it).
+               :context? sd/attr-map
+               ;; Whether the client supports tool use via `tools` and
+               ;; `toolChoice` parameters.
+               :tools? sd/attr-map}
    ;; Present if the client supports elicitation from the server.
    ;;
    ;; @example Elicitation — form and URL mode support

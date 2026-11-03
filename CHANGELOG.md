@@ -81,7 +81,7 @@ All notable changes to this project will be documented in this file. This change
 ### Added
 
 - Era26 Schema definition delta
-- [Todo] Era26 Entity generators using named parameter
+- Era26 Entity generators using named parameter
 - [Todo] Era26 Server Capability
   - [Todo] Regular server capabilities
   - [Todo] Server Extension support
