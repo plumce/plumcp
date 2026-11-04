@@ -567,14 +567,28 @@
       (make-jsonrpc-notification)))
 
 
+(defn ^{:see [e26sd/CompleteResult]} make-complete-result
+  [{:keys [;; -- required --
+           values
+           ;; -- optional --
+           total
+           has-more?]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:values])
+  (-> {:completion (-> {:values values}
+                       (u/assoc-some
+                        :total total
+                        :hasMore has-more?))}
+      (merge (make-result (-> {:result-type e26sd/result-type-complete}
+                              (merge kwargs))))))
+
+
 (defn ^{:see [e26sd/CompleteResultResponse
               make-jsonrpc-result-response]}
   make-complete-result-response
-  [{:keys [values]
-    :as kwargs}]
-  (u/expected-keys! kwargs [:values])
+  [{:as kwargs}]
   (-> kwargs
-      (assoc :result (eg/make-complete-result values kwargs))
+      (assoc :result (make-complete-result kwargs))
       (make-jsonrpc-result-response)))
 
 

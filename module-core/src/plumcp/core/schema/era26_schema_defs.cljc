@@ -1228,6 +1228,28 @@
 ;; ------------------
 
 
+(def CompleteResult
+  "The result returned by the server for a {@link CompleteRequest | completion/complete} request.
+
+   @category `completion/complete`
+
+   @example Single completion value
+
+   @example Multiple completion values with more available"
+  (su/ts-extends
+   [Result]
+   :completion {;; An array of completion values. Must not exceed 100 items.
+                ;; @maxItems 100
+                :values [:vector :string]
+                ;; The total number of completion options available. This can
+                ;; exceed the number of values actually sent in the response.
+                :total? number?
+                ;; Indicates whether there are additional completion options
+                ;; beyond those provided in the current response, even if the
+                ;; exact total is unknown.
+                :hasMore? :boolean}))
+
+
 (def CompleteResultResponse
   "A successful response from the server for a
    {@link CompleteRequest | completion/complete} request.
@@ -1237,7 +1259,7 @@
    @category `completion/complete`"
   (su/ts-extends
    [JSONRPCResultResponse]
-   :result sd/CompleteResult))
+   :result CompleteResult))
 
 
 (def ElicitRequestURLParams
