@@ -1120,13 +1120,25 @@
    :params GetPromptRequestParams))
 
 
+(def GetPromptResult
+  "The result returned by the server for a {@link GetPromptRequest | prompts/get} request.
+
+   @example Code review prompt
+
+   @category `prompts/get`"
+  (su/ts-extends
+   [Result]
+   ;; An optional description for the prompt.
+   :description? :string
+   :messages [:vector sd/PromptMessage]))
+
+
 (def GetPromptResultResponse
-  "* A successful response from the server for a {@link GetPromptRequest | prompts/get} request.
- *
- * @example Get prompt result response
- * {@includeCode ./examples/GetPromptResultResponse/get-prompt-result-response.json}
- *
- * @category `prompts/get`"
+  "A successful response from the server for a {@link GetPromptRequest | prompts/get} request.
+
+   @example Get prompt result response
+
+   @category `prompts/get`"
   (su/ts-extends
    [JSONRPCResultResponse]
    :result [:or

@@ -495,14 +495,28 @@
       (make-jsonrpc-request)))
 
 
+(defn ^{:see [e26sd/GetPromptResult]} make-get-prompt-result
+  [{:keys [;; -- required --
+           messages
+           ;; -- optional --
+           description]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:messages])
+  (-> {:messages messages}
+      (u/assoc-some
+       :description description)
+      (merge (make-result (-> {:result-type e26sd/result-type-complete}
+                              (merge kwargs))))))
+
+
 (defn ^{:see [e26sd/GetPromptResultResponse
               make-jsonrpc-result-response]}
   make-get-prompt-result-response
-  [{:as kwargs}]
-  (u/expected-keys! kwargs [:prompt-messages])
+  [^{:see [make-get-prompt-result
+           make-jsonrpc-result-response]}
+   {:as kwargs}]
   (-> kwargs
-      (assoc :result (eg/make-get-prompt-result (:prompt-messages kwargs)
-                                                kwargs))
+      (assoc :result (make-get-prompt-result kwargs))
       (make-jsonrpc-result-response)))
 
 
