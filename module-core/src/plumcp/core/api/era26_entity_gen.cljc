@@ -547,14 +547,28 @@
       (make-jsonrpc-request)))
 
 
+(defn ^{:see [e26sd/CallToolResult]} make-call-tool-result
+  [{:keys [;; -- required --
+           content
+           ;; -- optional --
+           structured-content
+           error?]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:content])
+  (-> {:content content}
+      (u/assoc-some
+       :structuredContent structured-content
+       :isError error?)
+      (merge (make-result (-> {:result-type e26sd/result-type-complete}
+                              (merge kwargs))))))
+
+
 (defn ^{:see [e26sd/CallToolResultResponse
               make-jsonrpc-result-response]}
   make-call-tool-result-response
-  [{:keys [contents]
-    :as kwargs}]
-  (u/expected-keys! kwargs [:contents])
+  [{:as kwargs}]
   (-> kwargs
-      (assoc :result (eg/make-call-tool-result contents kwargs))
+      (assoc :result (make-call-tool-result kwargs))
       (make-jsonrpc-result-response)))
 
 

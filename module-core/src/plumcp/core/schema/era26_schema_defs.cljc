@@ -1160,6 +1160,38 @@
    :result ListToolsResult))
 
 
+(def CallToolResult
+  "The result returned by the server for a {@link CallToolRequest | tools/call} request.
+
+   @example Result with unstructured text
+   @example Result with structured content
+   @example Invalid tool input error
+
+   @category `tools/call`"
+  (su/ts-extends
+   [Result]
+   ;; A list of content objects that represent the unstructured result of the tool call.
+   :content [:vector sd/ContentBlock]
+   ;; An optional JSON value that represents the structured result of the tool call.
+   ;;
+   ;; This can be any JSON value (object, array, string, number, boolean, or null)
+   ;; that conforms to the tool's outputSchema if one is defined.
+   :structuredContent? :any
+   ;; Whether the tool call ended in an error.
+   ;;
+   ;; If not set, this is assumed to be false (the call was successful).
+   ;;
+   ;; Any errors that originate from the tool SHOULD be reported inside the result
+   ;; object, with `isError` set to true, _not_ as an MCP protocol-level error
+   ;; response. Otherwise, the LLM would not be able to see that an error occurred
+   ;; and self-correct.
+   ;;
+   ;; However, any errors in _finding_ the tool, an error indicating that the
+   ;; server does not support tool calls, or any other exceptional conditions,
+   ;; should be reported as an MCP error response.
+   :isError? :boolean))
+
+
 (def CallToolResultResponse
   "A successful response from the server for a
    {@link CallToolRequest | tools/call} request.
