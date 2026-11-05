@@ -157,7 +157,7 @@
     (testing "full response"
       (is (malli-validate e26sd/ReadResourceResultResponse
                           (e26eg/make-read-resource-result-response
-                           {:request-id "aa"
+                           {:id "aa"
                             :contents contents}))))))
 
 
@@ -238,7 +238,7 @@
   (testing "full response"
     (is (malli-validate e26sd/ListPromptsResultResponse
                         (e26eg/make-list-prompts-result-response
-                         {:request-id "aa"
+                         {:id "aa"
                           :prompts [(eg/make-prompt "prompt1")]})))))
 
 
@@ -269,7 +269,7 @@
       (is (malli-validate e26sd/GetPromptResultResponse
                           (e26eg/make-get-prompt-result-response
                            {:messages prompt-messages
-                            :request-id "one"}))))))
+                            :id "one"}))))))
 
 
 (deftest test-make-list-tools-result
@@ -283,7 +283,7 @@
       (is (malli-validate e26sd/ListToolsResultResponse
                           (e26eg/make-list-tools-result-response
                            {:tools [tool-1]
-                            :request-id "aa"}))))))
+                            :id "aa"}))))))
 
 
 (deftest test-make-call-tool-request-params
@@ -311,7 +311,7 @@
     (is (malli-validate e26sd/CallToolResultResponse
                         (e26eg/make-call-tool-result-response
                          {:content [(eg/make-text-content "test")]
-                          :request-id "aa"})))))
+                          :id "aa"})))))
 
 
 (deftest test-make-tool-list-changed-notification
@@ -328,7 +328,7 @@
     (is (malli-validate e26sd/CompleteResultResponse
                         (e26eg/make-complete-result-response
                          {:values ["foo" "bar"]
-                          :request-id "aa"})))))
+                          :id "aa"})))))
 
 
 (deftest test-make-elicit-request

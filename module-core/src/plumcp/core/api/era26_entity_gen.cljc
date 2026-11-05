@@ -185,14 +185,14 @@
 
 (defn ^{:see e26sd/JSONRPCResultResponse} make-jsonrpc-result-response
   [{:keys [^{:see [sd/RequestId]}
-           request-id
+           id
            ^{:see [e26sd/Result]}
            result]
     :as kwargs}]
-  (u/expected-keys! kwargs [:request-id
+  (u/expected-keys! kwargs [:id
                             :result])
   {:jsonrpc sd/jsonrpc-version
-   :id request-id
+   :id id
    :result result})
 
 
