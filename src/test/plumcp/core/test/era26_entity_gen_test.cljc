@@ -259,11 +259,17 @@
 
 
 (deftest test-make-get-prompt-result-response
-  (is (malli-validate e26sd/GetPromptResultResponse
-                      (e26eg/make-get-prompt-result-response
-                       {:prompt-messages [(eg/make-prompt-message sd/role-user
-                                                                  (eg/make-text-content "test"))]
-                        :request-id "one"}))))
+  (let [prompt-messages [(eg/make-prompt-message sd/role-user
+                                                 (eg/make-text-content "test"))]]
+    (testing "result only"
+      (is (malli-validate e26sd/GetPromptResult
+                          (e26eg/make-get-prompt-result
+                           {:messages prompt-messages}))))
+    (testing "full response"
+      (is (malli-validate e26sd/GetPromptResultResponse
+                          (e26eg/make-get-prompt-result-response
+                           {:messages prompt-messages
+                            :request-id "one"}))))))
 
 
 (deftest test-make-list-tools-result
@@ -297,10 +303,15 @@
 
 
 (deftest test-make-call-tool-result-response
-  (is (malli-validate e26sd/CallToolResultResponse
-                      (e26eg/make-call-tool-result-response
-                       {:contents [(eg/make-text-content "test")]
-                        :request-id "aa"}))))
+  (testing "only result"
+    (is (malli-validate e26sd/CallToolResult
+                        (e26eg/make-call-tool-result
+                         {:content [(eg/make-text-content "test")]}))))
+  (testing "full response"
+    (is (malli-validate e26sd/CallToolResultResponse
+                        (e26eg/make-call-tool-result-response
+                         {:content [(eg/make-text-content "test")]
+                          :request-id "aa"})))))
 
 
 (deftest test-make-tool-list-changed-notification
@@ -309,10 +320,15 @@
 
 
 (deftest test-make-complete-result-response
-  (is (malli-validate e26sd/CompleteResultResponse
-                      (e26eg/make-complete-result-response
-                       {:values ["foo" "bar"]
-                        :request-id "aa"}))))
+  (testing "only result"
+    (is (malli-validate e26sd/CompleteResult
+                        (e26eg/make-complete-result
+                         {:values ["foo" "bar"]}))))
+  (testing "full response"
+    (is (malli-validate e26sd/CompleteResultResponse
+                        (e26eg/make-complete-result-response
+                         {:values ["foo" "bar"]
+                          :request-id "aa"})))))
 
 
 (deftest test-make-elicit-request
