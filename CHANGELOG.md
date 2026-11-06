@@ -108,6 +108,18 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+## [0.3.1] - 2026-Oct-29
+
+### Changed
+
+- Update dependency (Module: `core-dev`)
+  - Bump dependency `metosin/malli` from version `0.20.2` to `0.20.3`
+
+### Fixed
+
+- #15 Modern Era MCP (`2027-07-28` spec) client cannot connect to PluMCP
+  server in auto mode
+
 ## [0.3.0] - 2026-Oct-03
 
 ### Added
