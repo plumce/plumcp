@@ -299,7 +299,7 @@
    result will be unused, so any associated processing SHOULD cease.
    A client MUST NOT attempt to cancel its `initialize` request."
   (su/ts-extends
-   [Notification]
+   [JSONRPCNotification]
    :method [:= method-notifications-cancelled]
    :params CancelledNotificationParams))
 
@@ -1368,9 +1368,6 @@
   (su/ts-object
    :role Role
    :content [:or
-             TextContent
-             ImageContent
-             AudioContent
              SamplingMessageContentBlock
              [:vector SamplingMessageContentBlock]]
    ;; See [General fields: `_meta`](/specification/2025-11-25/basic/index#meta)

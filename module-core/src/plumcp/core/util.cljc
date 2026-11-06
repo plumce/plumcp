@@ -393,11 +393,28 @@
    {:found <found>} data. The `enum-set-or-map` argument must be a
    set or a map."
   [found enum-set-or-map]
+  (expected! enum-set-or-map #(and (or (set? %) (map? %))
+                                   (not-empty %))
+             "a non-empty set or a map")
   (expected! found
              #(contains? enum-set-or-map %)
              (str "value to be either of " (if (map? enum-set-or-map)
                                              (keys enum-set-or-map)
                                              enum-set-or-map))))
+
+
+(defn expected-keys!
+  "Throw an 'Expected keys to be present <...>' exception with
+   {:found <found>} data. The `set-or-map` argument must be a
+   set or a map."
+  [set-or-map expected-ks]
+  (when-let [missing-ks (->> expected-ks
+                             (remove #(contains? set-or-map %))
+                             seq)]
+    (->> (map pr-str missing-ks)
+         (str/join ", ")
+         (str "keys to be present ")
+         (expected! set-or-map))))
 
 
 ;; --- Time tracking ---
