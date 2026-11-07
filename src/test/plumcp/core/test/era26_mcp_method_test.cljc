@@ -11,13 +11,15 @@
   (:require
    [clojure.test :refer [deftest is testing]]
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.api.entity-support :as es]
    [plumcp.core.api.era26-entity-gen :as e26eg]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.era26-impl-method :as e26im]
-   [plumcp.core.schema.era26-schema-defs :as e26sd]))
+   [plumcp.core.schema.era26-schema-defs :as e26sd]
+   [plumcp.core.util :as u]))
 
 
-(deftest discover-test
+(deftest ^:async discover-test
   (let [client-capabilities (e26eg/make-client-capabilities)
         server-capabilities (e26eg/make-server-capabilities)
         request-meta-object (e26eg/make-request-meta-object
@@ -28,14 +30,18 @@
                           {:id request-id
                            :request-meta-object request-meta-object})
         discover-result (-> discover-request
+                            (rt/?server-info (es/make-info "Test server" "0.1.0"))
                             (rt/?server-capabilities server-capabilities)
-                            (rt/?server-instructions "Test server")
-                            e26im/server-discover)]
+                            (rt/?server-instructions "Test server instructions")
+                            e26im/server-discover
+                            u/do-await)]
     (testing "server/discover"
-      (is (= {:ttlMs 3600000,
-              :cacheScope "public",
-              :supportedVersions ["2026-07-28"],
-              :capabilities {},
-              :resultType "complete",
-              :instructions "Test server"}
+      (is (= {:result {:ttlMs 3600000,
+                       :cacheScope "public",
+                       :supportedVersions ["2026-07-28"],
+                       :capabilities {},
+                       :resultType "complete",
+                       :instructions "Test server instructions"
+                       :_meta {:io.modelcontextprotocol/serverInfo {:name "Test server"
+                                                                    :version "0.1.0"}}}}
              discover-result)))))

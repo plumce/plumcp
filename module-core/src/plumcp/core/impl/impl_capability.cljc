@@ -13,8 +13,9 @@
    [clojure.set :as set]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.protocol :as p]
-   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.json-rpc :as jr]
+   [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]))
 
 
@@ -637,19 +638,33 @@
    :roots
    :sampling
    :elicitation
+   :tasks
    ```"
-  [client-capabilities]
+  [client-capabilities & {:keys [mcp-era]
+                          :or {mcp-era e26sd/mcp-era25}}]
   (let [{:keys [experimental
                 tasks
                 roots
                 sampling
                 elicitation]} client-capabilities]
-    (u/assoc-some {}
-                  :experimental (capability->declaration experimental)
-                  :tasks        (capability->declaration tasks)
-                  :roots        (capability->declaration roots)
-                  :sampling     (capability->declaration sampling)
-                  :elicitation  (capability->declaration elicitation))))
+    (if (= mcp-era e26sd/mcp-era26)
+      ;; Era26 - Modern era
+      (->> (u/assoc-some {}
+                         :tasks (capability->declaration tasks))
+           (u/only-when not-empty)
+           (u/assoc-some {}  ; extensions
+                         :experimental (capability->declaration experimental)
+                         :roots        (capability->declaration roots)
+                         :sampling     (capability->declaration sampling)
+                         :elicitation  (capability->declaration elicitation)
+                         :extensions))
+      ;; Era25 - Legacy era
+      (u/assoc-some {}
+                    :experimental (capability->declaration experimental)
+                    :tasks        (capability->declaration tasks)
+                    :roots        (capability->declaration roots)
+                    :sampling     (capability->declaration sampling)
+                    :elicitation  (capability->declaration elicitation)))))
 
 
 (defn get-server-capability-declaration
@@ -662,8 +677,10 @@
    :prompts
    :resources
    :tools
+   :tasks
    ```"
-  [server-capabilities]
+  [server-capabilities & {:keys [mcp-era]
+                          :or {mcp-era e26sd/mcp-era25}}]
   (let [{:keys [experimental
                 logging
                 tasks
@@ -671,11 +688,25 @@
                 prompts
                 resources
                 tools]} server-capabilities]
-    (u/assoc-some {}
-                  :experimental (capability->declaration experimental)
-                  :logging      (capability->declaration logging)
-                  :tasks        (capability->declaration tasks)
-                  :completions  (capability->declaration completions)
-                  :prompts      (capability->declaration prompts)
-                  :resources    (capability->declaration resources)
-                  :tools        (capability->declaration tools))))
+    (if (= mcp-era e26sd/mcp-era26)
+      ;; Era26 - Modern era
+      (->> (u/assoc-some {}  ; extensions
+                         :tasks (capability->declaration tasks))
+           (u/only-when not-empty)
+           (u/assoc-some {}
+                         :experimental (capability->declaration experimental)
+                         :logging      (capability->declaration logging)
+                         :completions  (capability->declaration completions)
+                         :prompts      (capability->declaration prompts)
+                         :resources    (capability->declaration resources)
+                         :tools        (capability->declaration tools)
+                         :extensions))
+      ;; Era25 - Legacy era
+      (u/assoc-some {}
+                    :experimental (capability->declaration experimental)
+                    :logging      (capability->declaration logging)
+                    :tasks        (capability->declaration tasks)
+                    :completions  (capability->declaration completions)
+                    :prompts      (capability->declaration prompts)
+                    :resources    (capability->declaration resources)
+                    :tools        (capability->declaration tools)))))

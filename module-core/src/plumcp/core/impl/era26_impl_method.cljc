@@ -13,6 +13,7 @@
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.api.era26-entity-gen :as e26eg]
    [plumcp.core.deps.runtime :as rt]
+   [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-method :as im]
    [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.json-rpc :as jr]
@@ -38,7 +39,7 @@
 ;; --- Handshake ---
 
 
-(defn server-discover
+(defn ^:async server-discover
   "Server allowing to be discovered by a client. Check for allowed
    protocol version and respond accordingly."
   [^{:see [e26sd/DiscoverRequest
@@ -54,12 +55,17 @@
     (if (contains? e26sd/protocol-versions-supported-set
                    request-protocol-version)
       ;; protocol version is a match
-      (let [server-capabilities (rt/?server-capabilities jsonrpc-request)
+      (let [server-capabilities (-> (rt/?server-capabilities jsonrpc-request)
+                                    (ic/get-server-capability-declaration
+                                     {:mcp-era e26sd/mcp-era26}))
             server-instructions (rt/?server-instructions jsonrpc-request)]
-        (e26eg/make-discover-result
-         {:supported-versions supported-versions
-          :server-capabilities server-capabilities
-          :instructions server-instructions}))
+        (-> (e26eg/make-discover-result
+             {:supported-versions supported-versions
+              :server-capabilities server-capabilities
+              :instructions server-instructions})
+            im/make-result
+            (make-e26result jsonrpc-request)
+            u/do-await))
       ;; error response
       (eg/make-jsonrpc-error-response
        request-id

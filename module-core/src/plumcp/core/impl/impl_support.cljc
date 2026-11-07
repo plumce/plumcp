@@ -12,7 +12,9 @@
   (:require
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.impl.era26-impl-method :as eim]
    [plumcp.core.impl.impl-method :as im]
+   [plumcp.core.schema.era26-schema-defs :as esd]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
@@ -76,6 +78,7 @@
   {;; common
    sd/method-ping       im/ping
    ;; server-specific
+   esd/method-server-discover eim/server-discover
    sd/method-initialize im/initialize})
 
 
