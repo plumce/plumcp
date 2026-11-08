@@ -14,6 +14,7 @@
    [plumcp.core.api.era26-entity-gen :as e26eg]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.impl-capability :as ic]
+   [plumcp.core.schema.schema-support :as ss]
    [plumcp.core.impl.impl-method :as im]
    [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.json-rpc :as jr]
@@ -45,15 +46,11 @@
   [^{:see [e26sd/DiscoverRequest
            e26sd/DiscoverResult
            e26sd/DiscoverResultResponse]}
-   {params :params
-    request-id :id
+   {request-id :id
     :as jsonrpc-request}]
-  (let [request-protocol-version (get-in params [:_meta
-                                                 e26sd/key-protocol-version])
-        supported-versions e26sd/protocol-versions-supported]
+  (let [supported-versions e26sd/protocol-versions-supported]
     ;; check whether the client protocol version is an allowed one
-    (if (contains? e26sd/protocol-versions-supported-set
-                   request-protocol-version)
+    (if (ss/era26-request? jsonrpc-request)
       ;; protocol version is a match
       (let [server-capabilities (-> (rt/?server-capabilities jsonrpc-request)
                                     (ic/get-server-capability-declaration
