@@ -103,6 +103,9 @@ All notable changes to this project will be documented in this file. This change
 
 ### Changed
 
+- Era26 request/response handling
+  - Allow Era26 request without a session (unlike Era25)
+  - Return Era26 Response for Era26 Request
 - [Todo] [BREAKING] Replace Imperative server-to-client request sending
   as a declarative DAG
 - [Todo] [BREAKING] Replace Imperative client-to-server response sending

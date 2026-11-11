@@ -12,7 +12,9 @@
   (:require
    [plumcp.core.deps.session-mem :as sm]
    [plumcp.core.impl.impl-capability :as ic]
+   [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.schema.schema-support :as ss]
    [plumcp.core.support.traffic-logger :as stl]
    [plumcp.core.util :as u]
    [plumcp.core.util.key-lookup :as kl])
@@ -177,7 +179,9 @@
 
 (defrtkey ?traffic-logger      {:default stl/nop-traffic-logger})
 (defrtkey ?client-capabilities {:default ic/default-client-capabilities})
+(defrtkey ?client-mcp-era-set  {:default e26sd/mcp-era-set})
 (defrtkey ?server-capabilities {:default ic/default-server-capabilities})
+(defrtkey ?server-mcp-era-set  {:default e26sd/mcp-era-set})
 (defrtkey ?notification-handlers
   {:default (zipmap
              [;; received by both client and server
@@ -249,6 +253,15 @@
    `session-missing-response` if request doesn't contain a session."
   [handler session-missing-response]
   (fn session-key-checker [request]
-    (if (has-session? request)
+    (cond
+      ;; Era26 request?
+      (and (contains? (?server-mcp-era-set request) e26sd/mcp-era26)
+           (ss/era26-request? request))
       (handler request)
+      ;; Era25 request
+      (and (contains? (?server-mcp-era-set request) e26sd/mcp-era25)
+           (has-session? request))
+      (handler request)
+      ;; fallback
+      :else
       session-missing-response)))

@@ -14,11 +14,40 @@
    [plumcp.core.api.era26-entity-gen :as e26eg]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.impl-capability :as ic]
-   [plumcp.core.schema.schema-support :as ss]
    [plumcp.core.impl.impl-method :as im]
    [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.json-rpc :as jr]
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.schema.schema-support :as ss]
    [plumcp.core.util :as u]))
+
+
+(def default-cacheable-result (e26eg/make-cacheable-result))
+
+
+(def cacheable-result-methods
+  #{^{:see [e26sd/DiscoverResult]} e26sd/method-server-discover
+    ^{:see [e26sd/ListPromptsResult]} sd/method-prompts-list
+    ^{:see [e26sd/ListResourcesResult]} sd/method-resources-list
+    ^{:see [e26sd/ListResourceTemplatesResult]} sd/method-resources-templates-list
+    ^{:see [e26sd/ListToolsResult]} sd/method-tools-list
+    ^{:see [e26sd/ReadResourceResult]} sd/method-resources-read})
+
+
+(defn as-e26-result
+  "Given a (potentially Era25) result add the missing bits to make it
+   Era26 compliant."
+  [result jsonrpc-request]
+  (let [e26-result (u/assoc-missing
+                    result
+                    :resultType e26sd/result-type-complete
+                    :_meta (let [server-info (rt/?server-info jsonrpc-request)]
+                             (e26eg/make-result-meta-object
+                              {:server-info server-info})))]
+    (if (contains? cacheable-result-methods (:method jsonrpc-request))
+      (merge default-cacheable-result
+             e26-result)
+      e26-result)))
 
 
 (defn ^{:async true
@@ -30,11 +59,7 @@
                                        u/do-await)]
     (or (u/only-when jr/jsonrpc-response? result-or-jsonrpc-response)
         (update result-or-jsonrpc-response :result
-                u/assoc-missing
-                :resultType e26sd/result-type-complete
-                :_meta (let [server-info (rt/?server-info jsonrpc-request)]
-                         (e26eg/make-result-meta-object
-                          {:server-info server-info}))))))
+                as-e26-result jsonrpc-request))))
 
 
 ;; --- Handshake ---

@@ -29,6 +29,7 @@
 ;; Era definitions for APIs
 (def mcp-era25 :mcp-era25)  ; legacy
 (def mcp-era26 :mcp-era26)  ; modern
+(def mcp-era-set #{mcp-era25 mcp-era26})  ; auto
 
 
 ;; MCP Methods
