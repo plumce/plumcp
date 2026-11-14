@@ -12,9 +12,12 @@
   (:require
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.impl.era26-impl-method :as e26im]
    [plumcp.core.impl.impl-method :as im]
+   [plumcp.core.schema.era26-schema-defs :as esd]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.schema.schema-support :as ss]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]))
 
@@ -76,6 +79,7 @@
   {;; common
    sd/method-ping       im/ping
    ;; server-specific
+   esd/method-server-discover e26im/server-discover
    sd/method-initialize im/initialize})
 
 
@@ -138,7 +142,10 @@
           method (:method jsonrpc-request)]
       (rs/log-incoming-jsonrpc-request jsonrpc-request)
       (-> (if-let [f (get request-method-handler-map method)]
-            (uab/may-await [retval (f jsonrpc-request)]
+            (uab/may-await [retval (f jsonrpc-request)
+                            retval (if (ss/era26-request? jsonrpc-request)
+                                     (e26im/make-e26result retval jsonrpc-request)
+                                     retval)]
               (merge {:jsonrpc sd/jsonrpc-version
                       :id id}
                      retval))

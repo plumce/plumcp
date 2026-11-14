@@ -22,12 +22,7 @@
 
 
 (defn cli-session-request [request msg-pusher]
-  (let [session (or (rs/get-server-session request default-session-id)
-                    (rs/set-server-session request default-session-id
-                                           msg-pusher))]
-    (-> request
-        (rt/?session-id default-session-id)
-        (rt/?session session))))
+  (rs/populate-server-session request default-session-id msg-pusher))
 
 
 (defn wrap-json-processing

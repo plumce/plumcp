@@ -18,6 +18,7 @@
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.schema.schema-support :as ss]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.util.async-bridge :as uab]))
 
@@ -103,6 +104,7 @@
     (if (or (contains? #{"roots" "sampling" "elicitation"}
                        capability-name)  ; client capability?
             (= "tasks" capability-name)
+            (ss/era26-request? context)
             (and (= "logging" capability-name)
                  (rt/has-session? context))  ; before initialized notification
             (and (contains? #{"completions" "prompts" "resources" "tools"}
