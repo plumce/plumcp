@@ -70,11 +70,11 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
-## [0.4.0] - 2026-???-??
+## [0.4.0-alpha1] - 2026-Nov-15
 
 ### Highlight
 
-- [WIP] Dual-Era MCP spec 2026-07-28 and spec 2025-11-25 support
+- [WIP] Dual-Era MCP spec 2026-07-28 and 2025-11-25 support
   - `Era26` denotes 2026-07-28 (Modern)
   - `Era25` (or unspecified) denotes 2025-11-25 (Legacy)
 
@@ -82,24 +82,16 @@ All notable changes to this project will be documented in this file. This change
 
 - Era26 Schema definition delta
 - Era26 Entity generators using named parameter
-- Era26 methods
-  - server/discover
-  - [Todo] subscriptions/listen
-  - [Todo] notifications/subscriptions/acknowledged
+- Era26 Server methods
+  - `server/discover`
+  - [Todo] `subscriptions/listen`
+  - [Todo] `notifications/subscriptions/acknowledged`
 - [Todo] Era26 Server Capability
-  - [Todo] Regular server capabilities
   - [Todo] Server Extension support
-    - [Todo] Weave Tasks server support in
     - [Todo] Add Skills server support
 - [Todo] Era26 Client Capability
-  - [Todo] Regular client capabilities
   - [Todo] Client Extension support
-    - [Todo] Weave Tasks client support in
     - [Todo] Add Skills client support
-- [Todo] Era26 Transport
-  - [Todo] Era26 Zero server and client
-  - [Todo] Era26 STDIO server and client
-  - [Todo] Era26 Streamable HTTP server and client
 
 ### Changed
 
@@ -111,10 +103,8 @@ All notable changes to this project will be documented in this file. This change
     - Emits notifications and logs to the client without a session
 - [Todo] [BREAKING] Replace Imperative server-to-client request sending
   as a declarative DAG
-- [Todo] [BREAKING] Replace Imperative client-to-server response sending
-  as an implementation detail of Era25
-- [Todo] [BREAKING] MCP Server API for Dual-Era support
-- [Todo] [BREAKING] MCP Client API for Dual-Era support
+- [Todo] Client Era26 handling
+  - [Todo] [BREAKING] Replace Imperative client-to-server response
 
 ### Fixed
 
