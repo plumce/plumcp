@@ -16,6 +16,7 @@
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.schema.schema-support :as ss]
    [plumcp.core.server.http-ring-stream :as hrs]
    [plumcp.core.server.http-ring-transport-auth :as hrta]
    [plumcp.core.util :as u :refer [#?(:cljs format)]]
@@ -504,20 +505,18 @@
         (-> request
             (rt/?session-id session-id)
             (rt/?session session-or-nil))))
-    (if (= sd/method-initialize
-           (get-in request [:body :method]))  ; method is 'initialize'
+    (if (let [jsonrpc-request (:body request)]
+          (or (= sd/method-initialize
+                 (:method jsonrpc-request))  ; method is 'initialize'
+              (ss/era26-request? jsonrpc-request)))
       ;; attach a removable session
       (let [session-id (u/uuid-v4)
             streams (rs/make-server-streams request)]
-        (rs/set-server-session request
-                               session-id
-                               streams
-                               hrs/push-msg-receiver)
-        (let [session (rs/get-server-session request session-id)]
-          (-> request
-              (rt/?session session)
-              (assoc-in [:headers
-                         sd/mcp-session-id-header-lower] session-id))))
+        (-> request
+            (rs/populate-server-session session-id streams
+                                        hrs/push-msg-receiver)
+            (assoc-in [:headers
+                       sd/mcp-session-id-header-lower] session-id)))
       ;; let it process without a session
       request)))
 

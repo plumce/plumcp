@@ -18,11 +18,8 @@
 (defn zero-session-request
   "Add session to a request. Arg msg-pusher: `(fn [context message])`"
   [request msg-pusher]
-  (let [sess-id (rt/?session-id request)
-        session (or (rs/get-server-session request sess-id)
-                    (rs/set-server-session request sess-id
-                                           msg-pusher))]
-    (rt/?session request session)))
+  (let [session-id (rt/?session-id request)]
+    (rs/populate-server-session request session-id msg-pusher)))
 
 
 (defn make-zero-handler

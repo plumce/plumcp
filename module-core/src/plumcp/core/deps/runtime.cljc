@@ -209,6 +209,7 @@
 
 (defrtkey ?whoami {})  ; {:role :server #_or #_:client}
 
+(defrtkey ?push-msg-receiver {})
 (defrtkey ?session-id {})
 (defrtkey ?session {})
 (defrtkey ?callback-context {})

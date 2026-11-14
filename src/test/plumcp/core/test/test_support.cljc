@@ -31,14 +31,14 @@
 (defn make-runtime-server-session
   ([seed-runtime]
    (let [context {}
-         server-session (rs/set-server-session context :test-session-id
-                                               (fn [context message]
-                                                 #_(u/eprintln "->Client:"
-                                                               message)))
+         msg-pusher (fn [context message]
+                      #_(u/eprintln "->Client:"
+                                    message))
          context (-> context
                      (rt/upsert-runtime seed-runtime)
                      (rt/?whoami rs/default-whoami-server)
-                     (rt/?session server-session))]
+                     (rs/populate-server-session :test-session-id
+                                                 msg-pusher))]
      (rs/set-initialized-timestamp context)
      (rt/get-runtime context)))
   ([]
