@@ -99,6 +99,8 @@ All notable changes to this project will be documented in this file. This change
 
 ### Fixed
 
+- Fix `server/discover` method response to include namespaced extensions
+
 ## [0.4.0-alpha1] - 2026-Nov-15
 
 ### Highlight

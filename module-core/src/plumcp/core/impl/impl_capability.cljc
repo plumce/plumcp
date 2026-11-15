@@ -691,7 +691,7 @@
     (if (= mcp-era e26sd/mcp-era26)
       ;; Era26 - Modern era
       (->> (u/assoc-some {}  ; extensions
-                         :tasks (capability->declaration tasks))
+                         e26sd/key-extension-tasks (capability->declaration tasks))
            (u/only-when not-empty)
            (u/assoc-some {}
                          :experimental (capability->declaration experimental)

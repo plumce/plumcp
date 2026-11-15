@@ -192,6 +192,10 @@
    :extensions? sd/attr-map))
 
 
+(def key-extension-tasks  :io.modelcontextprotocol/tasks)
+(def key-extension-skills :io.modelcontextprotocol/skills)
+
+
 (def key-protocol-version :io.modelcontextprotocol/protocolVersion)
 (def key-client-info :io.modelcontextprotocol/clientInfo)
 (def key-client-capabilities :io.modelcontextprotocol/clientCapabilities)
