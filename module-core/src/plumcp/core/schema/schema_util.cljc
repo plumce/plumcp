@@ -11,48 +11,10 @@
   "Utility functions for constructing schema components."
   (:require
    [clojure.string :as str]
-   [clojure.zip :as z]
    [plumcp.core.util :as u]))
 
 
 ;; ----- in-schema utility -----
-
-
-(defn find-schema-node
-  "Find node in a schema using given predicate. Helper function."
-  [location pred]
-  (loop [loc location]
-    (cond
-      (nil? loc) nil
-      (pred (z/node loc)) loc
-      (z/end? loc) nil
-      :else (recur (z/next loc)))))
-
-
-(defn find-schema-location
-  "Find zipper location for given key in the schema. Helper function."
-  [schema k]
-  (find-schema-node
-   (z/vector-zip schema)
-   #(and (vector? %)
-         (= k (first %)))))
-
-
-(defn find-schema-entry
-  "Find a (map) entry in a schema, defined as a vector and first element
-   matches the given key."
-  [schema k]
-  (when-let [loc (find-schema-location schema k)]
-    (z/node loc)))
-
-
-(defn update-schema-entry
-  "Update (map) entry identified by specified key, using given function
-   (fn [old-entry])->new-entry."
-  [schema k f]
-  (if-let [loc (find-schema-location schema k)]
-    (z/root (z/replace loc (f (z/node loc))))
-    schema))
 
 
 (defn optkey

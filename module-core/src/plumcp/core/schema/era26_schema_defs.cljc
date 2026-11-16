@@ -10,9 +10,10 @@
 (ns plumcp.core.schema.era26-schema-defs
   "MCP JSON-RPC Schema - exclusive bits (delta) for MCP 2026-07-28 spec.
    Era 2026-07-28:
-   https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts"
+   https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2026-07-28/schema.ts
+   Skills:
+   https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx#skill-entries"
   (:require
-   [plumcp.core.util :as u :refer [#?(:cljs format)]]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.schema.schema-util :as su]))
 
@@ -37,6 +38,12 @@
 (def method-subscriptions-listen "subscriptions/listen")
 (def method-notifications-subscriptions-acknowledged
   "notifications/subscriptions/acknowledged")
+
+
+;; MCP Extension methods
+(def method-skills-list "skills/list")
+(def method-skills-get "skills/get")
+(def method-resources-directory-read "resources/directory/read")
 
 
 (def MetaObject
@@ -684,19 +691,26 @@
    :requestState? :string))
 
 
-(def DiscoverRequest
-  "A request from the client asking the server to advertise its supported
-   protocol versions, capabilities, and other metadata. Servers **MUST**
-   implement `server/discover`. Clients **MAY** call it but are not required
-   to — version negotiation can also happen inline via per-request `_meta`.
+(def PaginatedRequestParams
+  (su/ts-extends
+   [RequestParams]
+   ;; An opaque token representing the current pagination position. If
+   ;; provided, the server should return results starting after this cursor.
+   :cursor? sd/Cursor))
 
-   @example Discover request
 
-   @category `server/discover`"
+(def PaginatedRequest
   (su/ts-extends
    [JSONRPCRequest]
-   :method [:= method-server-discover]
-   :params RequestParams))
+   :params? PaginatedRequestParams))
+
+
+(def PaginatedResult
+  (su/ts-extends
+   [Result]
+   ;; An opaque token representing the pagination position after the last
+   ;; returned result. If present, there may be more results available.
+   :nextCursor? sd/Cursor))
 
 
 (def CacheableResult
@@ -725,6 +739,21 @@
    ;;   authorization contexts (e.g., a different access token requires a
    ;;   different cache).
    :cacheScope [:enum "public" "private"]))
+
+
+(def DiscoverRequest
+  "A request from the client asking the server to advertise its supported
+   protocol versions, capabilities, and other metadata. Servers **MUST**
+   implement `server/discover`. Clients **MAY** call it but are not required
+   to — version negotiation can also happen inline via per-request `_meta`.
+
+   @example Discover request
+
+   @category `server/discover`"
+  (su/ts-extends
+   [JSONRPCRequest]
+   :method [:= method-server-discover]
+   :params RequestParams))
 
 
 (def DiscoverResult
@@ -762,20 +791,6 @@
    :result DiscoverResult))
 
 
-(defn update-meta
-  "Patch :_meta into (older) destination schema from source schema."
-  [into-schema from-schema from-schema-name]
-  (if-let [new-meta (su/find-schema-entry from-schema :_meta)]
-    (let [new-entity (->> (constantly new-meta)
-                          (su/update-schema-entry into-schema :_meta))]
-      ;(u/dprint (format "Haystack ():" from-schema-name) from-schema)
-      ;(u/dprint "Needle:" new-meta)
-      ;(u/dprint "Grafted:" new-entity)
-      new-entity)
-    (u/expected! from-schema (format ":_meta in %s to be found"
-                                     from-schema-name))))
-
-
 (def ListResourcesResult
   "The result returned by the server for a
    {@link ListResourcesRequest | resources/list} request.
@@ -784,8 +799,7 @@
 
    @category `resources/list`"
   (su/ts-extends
-   [(update-meta sd/PaginatedResult
-                 #_<-from- CacheableResult "CacheableResult")
+   [PaginatedResult
     CacheableResult]
    :resources [:vector sd/Resource]))
 
@@ -810,8 +824,7 @@
 
    @category `resources/templates/list`"
   (su/ts-extends
-   [(update-meta sd/PaginatedResult
-                 #_<-from- CacheableResult "CacheableResult")
+   [PaginatedResult
     CacheableResult]
    :resourceTemplates [:vector sd/ResourceTemplate]))
 
@@ -1080,8 +1093,7 @@
 
    @category `prompts/list`"
   (su/ts-extends
-   [(update-meta sd/PaginatedResult
-                 #_<-from- CacheableResult "CacheableResult")
+   [PaginatedResult
     CacheableResult]
    :prompts [:vector sd/Prompt]))
 
@@ -1159,8 +1171,7 @@
 
    @category `tools/list`"
   (su/ts-extends
-   [(update-meta sd/PaginatedResult
-                 #_<-from- CacheableResult "CacheableResult")
+   [PaginatedResult
     CacheableResult]
    :tools [:vector sd/Tool]))
 
@@ -1352,6 +1363,114 @@
    :params ElicitRequestParams))
 
 
+;; ----- Extension: SKILLS - Definition -----
+
+
+(def SkillResource
+  "A file belonging to a skill, with the digest and size of its content."
+  (su/ts-object
+   ;; Resource URI of the file.
+   :uri :string
+   ;; SHA-256 digest of the file's raw bytes, formatted as `sha256:{hex}`
+   ;; where {hex} is 64 lowercase hexadecimal characters.
+   :digest :string
+   ;; Length in bytes of the file's raw content (the same bytes that
+   ;; `digest` covers).
+   :size number?))
+
+
+(def Skill
+  "The entry for a single skill."
+  (su/ts-object
+   ;; Resource URI of the skill's SKILL.md, readable via resources/read.
+   :uri :string
+   ;; The skill's SKILL.md YAML frontmatter, rendered verbatim as a JSON object.
+   ;; `name` and `description` are always present; every other field the author
+   ;; wrote passes through unchanged.
+   :frontmatter {:name :string
+                 :description :string}
+   ;; The skill's files: a complete enumeration of SKILL.md and every supporting
+   ;; file, or the string "dynamic" when the skill's content is generated such
+   ;; that stable digests cannot be published.
+   :resources [:or [:vector SkillResource] [:= "dynamic"]]
+   ;; See the base protocol's notes on `_meta` usage. Keys defined by this
+   ;; extension use the `io.modelcontextprotocol.skills/` prefix.
+   :_meta? MetaObject))
+
+
+(def ListSkillsRequest
+  (su/ts-extends
+   [PaginatedRequest]
+   :method [:= method-skills-list]))
+
+
+(def ListSkillsResult
+  (su/ts-extends
+   [PaginatedResult
+    CacheableResult]
+   :skills [:vector Skill]))
+
+
+(def ListSkillsResultResponse
+  (su/ts-extends
+   [JSONRPCResultResponse]
+   :result ListSkillsResult))
+
+
+(def GetSkillRequestParams
+  (su/ts-extends
+   [RequestParams]
+   ;; URI of the skill's SKILL.md.
+   :uri :string))
+
+
+(def GetSkillRequest
+  (su/ts-extends
+   [JSONRPCRequest]
+   :method [:= method-skills-get]
+   :params GetSkillRequestParams))
+
+
+(def GetSkillResult
+  (su/ts-extends
+   [CacheableResult]
+   :skill Skill))
+
+
+(def GetSkillResultResponse
+  (su/ts-extends
+   [JSONRPCResultResponse]
+   :result GetSkillResult))
+
+
+(def ReadResourceDirectoryRequestParams
+  (su/ts-extends
+   [PaginatedRequestParams]
+   ;; URI of the directory resource to read.
+   :uri :string))
+
+
+(def ReadResourceDirectoryRequest
+  (su/ts-extends
+   [PaginatedRequest]
+   :method [:= method-resources-directory-read]
+   :params ReadResourceDirectoryRequestParams))
+
+
+(def ReadResourceDirectoryResult
+  (su/ts-extends
+   [PaginatedResult
+    CacheableResult]
+   ;; Resource metadata of the directory's direct children.
+   :resources [:vector sd/Resource]))
+
+
+(def ReadResourceDirectoryResultResponse
+  (su/ts-extends
+   [JSONRPCResultResponse]
+   :result ReadResourceDirectoryResult))
+
+
 ;; ----- Client messages -----
 
 
@@ -1366,7 +1485,13 @@
    ReadResourceRequest
    SubscriptionsListenRequest
    CallToolRequest
-   sd/ListToolsRequest])
+   sd/ListToolsRequest
+   ;; Skills
+   ListSkillsRequest
+   GetSkillRequest
+   ReadResourceDirectoryRequest
+   ;;
+   ])
 
 
 (def ClientNotification
@@ -1405,7 +1530,13 @@
    SubscriptionsListenResult
    sd/CallToolResult
    ListToolsResult
-   InputRequiredResult])
+   InputRequiredResult
+   ;; Skills
+   ListSkillsResult
+   GetSkillResult
+   ReadResourceDirectoryResult
+   ;;
+   ])
 
 
 ;; ----- Method-names and Schema -----
@@ -1454,5 +1585,12 @@
    sd/method-notifications-prompts-list_changed [sd/PromptListChangedNotification]
    sd/method-notifications-tools-list_changed [ToolListChangedNotification]
    #_deprecated sd/method-notifications-message [sd/LoggingMessageNotification]
+   ;; Skills
+   method-skills-list [ListSkillsRequest
+                       ListSkillsResultResponse]
+   method-skills-get [GetSkillRequest
+                      GetSkillResultResponse]
+   method-resources-directory-read [ReadResourceDirectoryRequest
+                                    ReadResourceDirectoryResultResponse]
    ;;
    })

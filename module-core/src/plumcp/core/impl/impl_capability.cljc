@@ -288,6 +288,25 @@
     (get-capability-declaration [_] {})))
 
 
+(defn make-skills-capability
+  [& {:keys [directory-read?]}]
+  (let [declaration (-> {}
+                        (u/assoc-some :directoryRead directory-read?))]
+    (reify
+      p/IMcpCapability
+      (get-capability-declaration [_] declaration))))
+
+
+(def default-client-skills-capability
+  "Default client capability for skills."
+  (make-skills-capability {}))
+
+
+(def default-server-skills-capability
+  "Default server capability for skills, which enables directory reads."
+  (make-skills-capability {:directory-read? true}))
+
+
 (defn make-tasks-capability
   [& {:keys [list
              cancel
@@ -521,6 +540,7 @@
 
 
 (def default-client-capabilities {:experimental nil
+                                  :skills       default-client-skills-capability
                                   :tasks        default-client-tasks-capability
                                   :roots        nil
                                   :sampling     nil
@@ -528,6 +548,7 @@
 
 
 (def default-server-capabilities {:experimental nil
+                                  :skills       default-server-skills-capability
                                   :tasks        default-server-tasks-capability
                                   :logging      logging-capability
                                   :completions  nil
@@ -638,19 +659,22 @@
    :roots
    :sampling
    :elicitation
+   :skills
    :tasks
    ```"
   [client-capabilities & {:keys [mcp-era]
                           :or {mcp-era e26sd/mcp-era25}}]
   (let [{:keys [experimental
-                tasks
                 roots
                 sampling
-                elicitation]} client-capabilities]
+                elicitation
+                skills
+                tasks]} client-capabilities]
     (if (= mcp-era e26sd/mcp-era26)
       ;; Era26 - Modern era
       (->> (u/assoc-some {}
-                         :tasks (capability->declaration tasks))
+                         e26sd/key-extension-skills (capability->declaration skills)
+                         e26sd/key-extension-tasks  (capability->declaration tasks))
            (u/only-when not-empty)
            (u/assoc-some {}  ; extensions
                          :experimental (capability->declaration experimental)
@@ -677,21 +701,27 @@
    :prompts
    :resources
    :tools
+   :skills
    :tasks
    ```"
   [server-capabilities & {:keys [mcp-era]
                           :or {mcp-era e26sd/mcp-era25}}]
   (let [{:keys [experimental
                 logging
-                tasks
                 completions
                 prompts
                 resources
-                tools]} server-capabilities]
+                tools
+                skills
+                tasks]} server-capabilities]
+    (when (some? skills)
+      (u/expected! resources some?
+                   "resources capability to be present skills support"))
     (if (= mcp-era e26sd/mcp-era26)
       ;; Era26 - Modern era
       (->> (u/assoc-some {}  ; extensions
-                         e26sd/key-extension-tasks (capability->declaration tasks))
+                         e26sd/key-extension-skills (capability->declaration skills)
+                         e26sd/key-extension-tasks  (capability->declaration tasks))
            (u/only-when not-empty)
            (u/assoc-some {}
                          :experimental (capability->declaration experimental)
