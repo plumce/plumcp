@@ -346,3 +346,99 @@
                            {:message "test"
                             :url "test://url"
                             :request-meta-object request-meta-object}))))))
+
+
+(deftest test-make-list-skills-request
+  (let [client-capabilities (e26eg/make-client-capabilities)
+        request-meta-object (e26eg/make-request-meta-object
+                             {:client-capabilities client-capabilities})]
+    (testing "skills request"
+      (is (malli-validate e26sd/ListSkillsRequest
+                          (e26eg/make-list-skills-request
+                           {:request-meta-object request-meta-object}))))))
+
+
+(deftest test-make-list-skills-result
+  (let [resource-1 (e26eg/make-skill-resource
+                    {:uri "skill://hello"
+                     :digest "a591a6d40bf420404a011733cfb7b190"
+                     :size 10})
+        frontmatter (e26eg/make-skill-frontmatter
+                     {:name "Hello world"
+                      :description "Greeting skill - Hello World"})
+        skill-1 (e26eg/make-skill
+                 {:uri "skill://greeting"
+                  :frontmatter frontmatter
+                  :resources [resource-1]})]
+    (testing "skill"
+      (is (malli-validate e26sd/SkillResource
+                          resource-1))
+      (is (malli-validate e26sd/SkillFrontmatter
+                          frontmatter))
+      (is (malli-validate e26sd/Skill
+                          skill-1)))
+    (testing "skills result"
+      (is (malli-validate e26sd/ListSkillsResult
+                          (e26eg/make-list-skills-result
+                           {:skills [skill-1]}))))
+    (testing "skills response"
+      (is (malli-validate e26sd/ListSkillsResultResponse
+                          (e26eg/make-list-skills-result-response
+                           {:skills [skill-1]
+                            :id "aa"}))))))
+
+
+(deftest test-make-get-skill-request
+  (let [client-capabilities (e26eg/make-client-capabilities)
+        request-meta-object (e26eg/make-request-meta-object
+                             {:client-capabilities client-capabilities})]
+    (is (malli-validate e26sd/GetSkillRequest
+                        (e26eg/make-get-skill-request
+                         {:uri "skill://test"
+                          :request-meta-object request-meta-object})))))
+
+
+(deftest test-make-get-skill-result
+  (let [resource-1 (e26eg/make-skill-resource
+                    {:uri "skill://hello"
+                     :digest "a591a6d40bf420404a011733cfb7b190"
+                     :size 10})
+        frontmatter (e26eg/make-skill-frontmatter
+                     {:name "Hello world"
+                      :description "Greeting skill - Hello World"})
+        skill-1 (e26eg/make-skill
+                 {:uri "skill://greeting"
+                  :frontmatter frontmatter
+                  :resources [resource-1]})]
+    (testing "result only"
+      (is (malli-validate e26sd/GetSkillResult
+                          (e26eg/make-get-skill-result
+                           {:skill skill-1}))))
+    (testing "full response"
+      (is (malli-validate e26sd/GetSkillResultResponse
+                          (e26eg/make-get-skill-result-response
+                           {:skill skill-1
+                            :id "aa"}))))))
+
+
+(deftest test-make-read-resource-directory-request
+  (let [client-capabilities (e26eg/make-client-capabilities)
+        request-meta-object (e26eg/make-request-meta-object
+                             {:client-capabilities client-capabilities})]
+    (is (malli-validate e26sd/ReadResourceDirectoryRequest
+                        (e26eg/make-read-resource-directory-request
+                         {:uri "skill://test"
+                          :request-meta-object request-meta-object})))))
+
+
+(deftest test-make-read-resource-directory-result
+  (let [skill-resource (eg/make-resource "skill://test" "test-skill")]
+    (testing "just result"
+      (is (malli-validate e26sd/ReadResourceDirectoryResult
+                          (e26eg/make-read-resource-directory-result
+                           {:resources [skill-resource]}))))
+    (testing "full response"
+      (is (malli-validate e26sd/ReadResourceDirectoryResultResponse
+                          (e26eg/make-read-resource-directory-result-response
+                           {:resources [skill-resource]
+                            :id "aa"}))))))

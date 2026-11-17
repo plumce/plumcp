@@ -11,6 +11,7 @@
   "Schema entity generator functions - exclusive bits (delta) for
    MCP 2026-07-28 spec."
   (:require
+   [clojure.string :as str]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.schema-defs :as sd]
@@ -219,18 +220,46 @@
 
 (defn ^{:see e26sd/InputResponseRequestParams}
   make-input-response-request-params
-  [{:keys [;; -- required --
-           ^{:see [e26sd/RequestMetaObject
-                   make-request-meta-object]} request-meta-object
-           ;; -- optional --
+  [{:keys [;; -- optional --
            ^{:see e26sd/InputResponses} input-responses
            ^String request-state]
     :as kwargs}]
   (u/expected-keys! kwargs [:request-meta-object])
-  (-> {:_meta request-meta-object}
+  (-> (make-request-params kwargs)
       (u/assoc-some
        :inputResponses input-responses
        :requestState request-state)))
+
+
+(defn ^{:see [e26sd/PaginatedRequestParams]}
+  make-paginated-request-params
+  [{:keys [;; -- optional --
+           ^{:see [sd/Cursor
+                   eg/make-cursor]} cursor]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:request-meta-object])
+  (-> (make-request-params kwargs)
+      (u/assoc-some
+       :cursor cursor)))
+
+
+(defn ^{:see [e26sd/PaginatedRequest]} make-paginated-request
+  [{:keys [params]
+    :as kwargs}]
+  (-> kwargs
+      (u/assoc-some
+       :params (or params
+                   (make-paginated-request-params kwargs)))
+      make-jsonrpc-request))
+
+
+(defn ^{:see [e26sd/PaginatedResult]} make-paginated-result
+  [{:keys [^{:see [sd/Cursor
+                   eg/make-cursor]} next-cursor]
+    :as kwargs}]
+  (-> (make-result kwargs)
+      (u/assoc-some
+       :nextCursor next-cursor)))
 
 
 (defn ^{:see [e26sd/CacheableResult]} make-cacheable-result
@@ -281,13 +310,17 @@
            ]
     :as kwargs}]
   (u/expected-keys! kwargs [:resources])
-  (-> {:resources resources}
-      (merge (eg/make-paginated-result kwargs))
-      (merge (make-cacheable-result kwargs))))
+  (let [kwargs (merge {:result-type e26sd/result-type-complete
+                       ;; assume complete to be cacheable by default
+                       }
+                      kwargs)]
+    (-> {:resources resources}
+        (merge (make-paginated-result kwargs))
+        (merge (make-cacheable-result kwargs)))))
 
 
 (defn ^{:see [e26sd/ListResourceTemplatesResult
-              eg/make-paginated-result
+              make-paginated-result
               make-cacheable-result]}
   make-list-resource-templates-result
   [{:keys [;; -- required --
@@ -296,9 +329,13 @@
            ]
     :as kwargs}]
   (u/expected-keys! kwargs [:resource-templates])
-  (-> {:resourceTemplates resource-templates}
-      (merge (eg/make-paginated-result kwargs))
-      (merge (make-cacheable-result kwargs))))
+  (let [kwargs (merge {:result-type e26sd/result-type-complete
+                       ;; assume complete to be cacheable by default
+                       }
+                      kwargs)]
+    (-> {:resourceTemplates resource-templates}
+        (merge (make-paginated-result kwargs))
+        (merge (make-cacheable-result kwargs)))))
 
 
 (defn ^{:see [e26sd/ResourceRequestParams]} make-resource-request-params
@@ -638,3 +675,145 @@
        :params (make-elicit-request-url-params kwargs)}
       (merge kwargs)
       (make-jsonrpc-request)))
+
+
+;; ----- Skills extension -----
+
+
+(defn ^{:see [e26sd/SkillResource]} make-skill-resource
+  [{:keys [uri
+           digest
+           size]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:uri :digest :size])
+  {:uri uri
+   :digest (if (str/starts-with? digest "sha256:")
+             digest
+             (str "sha256:" digest))
+   :size size})
+
+
+(defn ^{:see [e26sd/SkillFrontmatter]} make-skill-frontmatter
+  [{:keys [name
+           description]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:name :description])
+  kwargs)
+
+
+(defn ^{:see [e26sd/Skill]} make-skill
+  [{:keys [uri
+           ^{:see [make-skill-frontmatter]} frontmatter
+           ^{:see [make-skill-resource]} resources
+           meta-object]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:uri :frontmatter :resources])
+  (-> {:uri uri
+       :frontmatter frontmatter
+       :resources resources}
+      (u/assoc-some
+       :_meta meta-object)))
+
+
+(defn ^{:see [e26sd/ListSkillsRequest]} make-list-skills-request
+  [{:as kwargs}]
+  (-> {:method e26sd/method-skills-list}
+      (merge kwargs)
+      make-paginated-request))
+
+
+(defn ^{:see [e26sd/ListSkillsResult]} make-list-skills-result
+  [{:keys [^{:see [e26sd/Skill
+                   make-skill]} skills]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:skills])
+  (let [kwargs (merge {:result-type e26sd/result-type-complete
+                       ;; assume complete to be cacheable by default
+                       }
+                      kwargs)]
+    (-> {:skills skills}
+        (merge (make-paginated-result kwargs))
+        (merge (make-cacheable-result kwargs)))))
+
+
+(defn ^{:see [e26sd/ListSkillsResultResponse]}
+  make-list-skills-result-response
+  [{:as kwargs}]
+  (-> kwargs
+      (assoc :result (make-list-skills-result kwargs))
+      (make-jsonrpc-result-response)))
+
+
+(defn ^{:see [e26sd/GetSkillRequestParams]}
+  make-get-skill-request-params
+  [{:keys [uri]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:uri])
+  (-> {:uri uri}
+      (merge (make-request-params kwargs))))
+
+
+(defn ^{:see [e26sd/GetSkillRequest]} make-get-skill-request
+  [{:as kwargs}]
+  (-> {:method e26sd/method-skills-get
+       :params (make-get-skill-request-params kwargs)}
+      (merge kwargs)
+      make-jsonrpc-request))
+
+
+(defn ^{:see [e26sd/GetSkillResult]} make-get-skill-result
+  [{:keys [skill]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:skill])
+  (-> {:skill skill}
+      (merge (make-cacheable-result kwargs))))
+
+
+(defn ^{:see [e26sd/GetSkillResultResponse]}
+  make-get-skill-result-response
+  [{:as kwargs}]
+  (-> {:result (make-get-skill-result kwargs)}
+      (merge kwargs)
+      make-jsonrpc-result-response))
+
+
+(defn ^{:see [e26sd/ReadResourceDirectoryRequestParams]}
+  make-read-resource-directory-request-params
+  [{:keys [uri]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:uri])
+  (-> {:uri uri}
+      (merge (make-paginated-request-params kwargs))))
+
+
+(defn ^{:see [e26sd/ReadResourceDirectoryRequest]}
+  make-read-resource-directory-request
+  [{:as kwargs}]
+  (-> {:method e26sd/method-resources-directory-read
+       :params (make-read-resource-directory-request-params kwargs)}
+      (merge kwargs)
+      make-paginated-request))
+
+
+(defn ^{:see [e26sd/ReadResourceDirectoryResult]}
+  make-read-resource-directory-result
+  [{:keys [^{:see [sd/Resource
+                   eg/make-resource]} resources]
+    :as kwargs}]
+  (u/expected-keys! kwargs [:resources])
+  (let [kwargs (merge {:result-type e26sd/result-type-complete
+                       ;; assume complete to be cacheable by default
+                       }
+                      kwargs)]
+    (-> {:resources resources}
+        (merge (make-paginated-result kwargs))
+        (merge (make-cacheable-result kwargs)))))
+
+
+(defn ^{:see [e26sd/ReadResourceDirectoryResultResponse]}
+  make-read-resource-directory-result-response
+  [{:keys []
+    :as kwargs}]
+  (-> {:result (make-read-resource-directory-result kwargs)}
+      (merge kwargs)
+      make-jsonrpc-result-response))
