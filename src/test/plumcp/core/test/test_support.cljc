@@ -10,9 +10,11 @@
 (ns plumcp.core.test.test-support
   "Support infra for tests."
   (:require
+   [malli.core :as mc]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.deps.session-mem :as sm]))
+   [plumcp.core.deps.session-mem :as sm]
+   [plumcp.core.dev.schema-malli :as smalli]))
 
 
 (defn make-runtime-client-session
@@ -31,15 +33,23 @@
 (defn make-runtime-server-session
   ([seed-runtime]
    (let [context {}
-         server-session (rs/set-server-session context :test-session-id
-                                               (fn [context message]
-                                                 #_(u/eprintln "->Client:"
-                                                               message)))
+         msg-pusher (fn [context message]
+                      #_(u/eprintln "->Client:"
+                                    message))
          context (-> context
                      (rt/upsert-runtime seed-runtime)
                      (rt/?whoami rs/default-whoami-server)
-                     (rt/?session server-session))]
+                     (rs/populate-server-session :test-session-id
+                                                 msg-pusher))]
      (rs/set-initialized-timestamp context)
      (rt/get-runtime context)))
   ([]
    (make-runtime-server-session {})))
+
+
+(defn malli-validate
+  [schema data]
+  (or (mc/validate schema data)
+      (do
+        (smalli/bling-explain schema data)
+        nil)))

@@ -70,6 +70,75 @@ All notable changes to this project will be documented in this file. This change
     - Java: https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_a_WebSocket_server_in_Java
     - Node: https://blog.stackademic.com/native-websocket-support-in-node-js-24-2aa17c6026ea
 
+## [0.4.0-alpha2] - 2026-???-??
+
+### Highlight
+
+- [WIP] Dual-Era MCP spec 2026-07-28 and 2025-11-25 support
+  - `Era26` denotes 2026-07-28 (Modern)
+  - `Era25` (or unspecified) denotes 2025-11-25 (Legacy)
+
+### Added
+
+- Era26 Server methods
+  - [Todo] `subscriptions/listen`
+  - [Todo] `notifications/subscriptions/acknowledged`
+- Era26 Server extensions
+  - [WIP] Skills
+    - [Todo] Filesystem based Skills support
+- [Todo] Era26 Client Capability
+  - [Todo] Client Extension support
+    - [Todo] Add Skills client support
+
+### Changed
+
+- [Todo] [BREAKING] Replace Imperative server-to-client request sending
+  as a declarative DAG
+- [Todo] Client Era26 handling
+  - [Todo] [BREAKING] Replace Imperative client-to-server response
+
+### Fixed
+
+- Fix `server/discover` method response to include namespaced extensions
+
+## [0.4.0-alpha1] - 2026-Nov-15
+
+### Highlight
+
+- [WIP] Dual-Era MCP spec 2026-07-28 and 2025-11-25 support
+  - `Era26` denotes 2026-07-28 (Modern)
+  - `Era25` (or unspecified) denotes 2025-11-25 (Legacy)
+
+### Added
+
+- Era26 Schema definition delta
+- Era26 Entity generators using named parameter - `p.c.a.entity-gen` ns
+- Era26 Server methods
+  - `server/discover`
+  - [Todo] `subscriptions/listen`
+  - [Todo] `notifications/subscriptions/acknowledged`
+- [Todo] Era26 Server Capability
+  - [Todo] Server Extension support
+    - [Todo] Add Skills server support
+- [Todo] Era26 Client Capability
+  - [Todo] Client Extension support
+    - [Todo] Add Skills client support
+
+### Changed
+
+- Server Era26 handling
+  - Request/Response
+    - Allow Era26 request without a session (unlike Era25)
+    - Return Era26 Response for Era26 Request
+  - Notifications and Logging
+    - Emits notifications and logs to the client without a session
+- [Todo] [BREAKING] Replace Imperative server-to-client request sending
+  as a declarative DAG
+- [Todo] Client Era26 handling
+  - [Todo] [BREAKING] Replace Imperative client-to-server response
+
+### Fixed
+
 ## [0.3.1] - 2026-Oct-29
 
 ### Changed

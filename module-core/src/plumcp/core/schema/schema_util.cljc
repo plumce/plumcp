@@ -14,11 +14,31 @@
    [plumcp.core.util :as u]))
 
 
+;; ----- in-schema utility -----
+
+
+(defn optkey
+  "Turn given keyword into an optional key with '?' suffix."
+  [k]
+  (u/expected! k keyword? "a keyword to make optional key")
+  (let [q-suffix "?"
+        the-name (name k)]
+    (if (str/ends-with? the-name q-suffix)
+      k
+      (keyword (namespace k) (str the-name q-suffix)))))
+
+
+;; ----- rebindable -----
+
+
 (defn ^:redef validate-schema
   "Function (fn [spec])->spec that validates the Malli schema before it
    is returned. Modules with Malli dependency should modify it in dev."
   [spec]
   spec)
+
+
+;; ----- schema definition -----
 
 
 (defn map->kv-seq

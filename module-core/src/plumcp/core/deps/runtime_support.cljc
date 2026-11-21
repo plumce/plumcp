@@ -14,6 +14,7 @@
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.schema.schema-support :as ss]
    [plumcp.core.util :as u]))
 
 
@@ -38,6 +39,25 @@
   ([context session-id push-msg-receiver]
    (set-server-session context session-id
                        p/nop-server-streams push-msg-receiver)))
+
+
+(defn populate-server-session
+  "Set the server session along with push-msg-receiver (required for
+   session-less Era26 requests) and other request attributes.
+   Return context populated with the session."
+  ([request session-id server-streams push-msg-receiver]
+   (let [session (or (get-server-session request session-id)
+                     (set-server-session request session-id server-streams
+                                         push-msg-receiver))]
+     (-> request
+         (rt/?request-id (:id request))
+         (rt/?request-params-meta (get-in request [:params :_meta]))
+         (rt/?push-msg-receiver push-msg-receiver)
+         (rt/?session-id session-id)
+         (rt/?session session))))
+  ([context session-id push-msg-receiver]
+   (populate-server-session context session-id
+                            p/nop-server-streams push-msg-receiver)))
 
 
 (defn remove-server-session [context session-id]
@@ -125,23 +145,47 @@
       (p/log-mcp-sse-message message)))
 
 
+;; --- Messages to the client ---
+
+
+(defn send-to-client
+  [context payload]
+  (if (rt/has-session? context)
+    (-> (rt/?session context)
+        (p/send-message-to-client context payload))
+    (-> (rt/?push-msg-receiver context)
+        (u/invoke context payload))))
+
+
 ;; --- MCP Logger ---
 
 
 (defn log
-  "Log given message or data into the session at specified level."
+  "Log given message or data at specified level."
   [context log-level log-msg-or-data]
-  (let [session (rt/?session context)
-        mcp-logger (rt/?mcp-logger context)]
-    (when (p/can-log-level? session log-level)
+  (let [rp-meta (rt/?request-params-meta context)]
+    (when-let [do-log (if (ss/era26-request-params-meta? rp-meta)
+                        ;; request based
+                        (when (-> (ss/era26-log-level rp-meta)
+                                  (ss/can-log? log-level))
+                          (fn [payload]
+                            (-> (rt/?push-msg-receiver context)
+                                (u/invoke context payload))))
+                        ;; session based
+                        (when (-> (rt/?session context)
+                                  (p/can-log-level? log-level))
+                          (fn [payload]
+                            (-> (rt/?session context)
+                                (p/send-message-to-client context payload)))))]
       ;; minor chance of a race condition here (when another thread
-      ;; resets log-level) - accptable for efficiency
-      (->> (if (some? mcp-logger)
-             {:logger mcp-logger}
-             {})
-           (eg/make-logging-message-notification log-level
-                                                 log-msg-or-data)
-           (p/send-message-to-client session context)))))
+      ;; resets log-level) for legacy Era25 - accptable for efficiency
+      (let [mcp-logger (rt/?mcp-logger context)]
+        (->> (if (some? mcp-logger)
+               {:logger mcp-logger}
+               {})
+             (eg/make-logging-message-notification log-level
+                                                   log-msg-or-data)
+             (do-log))))))
 
 
 ;; --- Session ---
@@ -222,8 +266,7 @@
 
 (defn send-notification-to-client
   [context notification]
-  (-> (rt/?session context)
-      (p/send-message-to-client context notification)))
+  (send-to-client context notification))
 
 
 ;; Server-sent messages
@@ -231,8 +274,7 @@
 
 (defn send-message-to-client
   [context message]
-  (-> (rt/?session context)
-      (p/send-message-to-client context message)))
+  (send-to-client context message))
 
 
 ;; Client roots
