@@ -10,9 +10,11 @@
 (ns plumcp.core.test.test-support
   "Support infra for tests."
   (:require
+   [malli.core :as mc]
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.deps.runtime-support :as rs]
-   [plumcp.core.deps.session-mem :as sm]))
+   [plumcp.core.deps.session-mem :as sm]
+   [plumcp.core.dev.schema-malli :as smalli]))
 
 
 (defn make-runtime-client-session
@@ -43,3 +45,11 @@
      (rt/get-runtime context)))
   ([]
    (make-runtime-server-session {})))
+
+
+(defn malli-validate
+  [schema data]
+  (or (mc/validate schema data)
+      (do
+        (smalli/bling-explain schema data)
+        nil)))

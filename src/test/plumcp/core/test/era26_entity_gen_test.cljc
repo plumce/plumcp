@@ -11,21 +11,12 @@
   "Era26 Entity generation tests"
   (:require
    [clojure.test :refer [deftest is testing]]
-   [malli.core :as mc]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.api.era26-entity-gen :as e26eg]
-   [plumcp.core.dev.schema-malli :as sm]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.schema.era26-schema-defs :as e26sd]
-   [plumcp.core.schema.schema-defs :as sd]))
-
-
-(defn malli-validate
-  [schema data]
-  (or (mc/validate schema data)
-      (do
-        (sm/bling-explain schema data)
-        nil)))
+   [plumcp.core.schema.schema-defs :as sd]
+   [plumcp.core.test.test-support :as ts]))
 
 
 (def test-capability-declaration
@@ -38,16 +29,17 @@
     (let [client-capabilities (e26eg/make-client-capabilities)
           request-meta-object (e26eg/make-request-meta-object
                                {:client-capabilities client-capabilities})]
-      (is (malli-validate e26sd/RequestMetaObject
-                          request-meta-object)))))
+      (is (ts/malli-validate e26sd/RequestMetaObject
+                             request-meta-object)))))
 
 
 (deftest test-input-required-result
   (testing "minimal"
     (let [result-meta-object (e26eg/make-result-meta-object)]
-      (is (mc/validate e26sd/InputRequiredResult
-                       (e26eg/make-input-required-result
-                        {:result-meta-object result-meta-object})))))
+      (is (ts/malli-validate
+           e26sd/InputRequiredResult
+           (e26eg/make-input-required-result
+            {:result-meta-object result-meta-object})))))
   (testing "maximal"
     (let [server-info (eg/make-implementation "test" "0.1")
           result-meta-object (e26eg/make-result-meta-object
@@ -64,12 +56,13 @@
                           "bbb" (eg/make-elicit-url-request "message"
                                                             "elicit-id"
                                                             "elicit://test")}]
-      (is (mc/validate e26sd/InputRequiredResult
-                       (e26eg/make-input-required-result
-                        {:result-meta-object result-meta-object
-                         :input-requests input-requests
-                         :request-state "state1"
-                         :result-type e26sd/result-type-input-required}))))))
+      (is (ts/malli-validate
+           e26sd/InputRequiredResult
+           (e26eg/make-input-required-result
+            {:result-meta-object result-meta-object
+             :input-requests input-requests
+             :request-state "state1"
+             :result-type e26sd/result-type-input-required}))))))
 
 
 (deftest test-make-input-response-request-params
@@ -77,112 +70,128 @@
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
     (testing "minimal"
-      (is (malli-validate e26sd/InputResponseRequestParams
-                          (e26eg/make-input-response-request-params
-                           {:request-meta-object request-meta-object}))))
+      (is (ts/malli-validate
+           e26sd/InputResponseRequestParams
+           (e26eg/make-input-response-request-params
+            {:request-meta-object request-meta-object}))))
     (testing "maximal"
       (let [input-responses {"aa" (eg/make-create-message-result
                                    "model1"
                                    sd/role-user
                                    (eg/make-text-content "aa"))}]
-        (is (malli-validate e26sd/InputResponseRequestParams
-                            (e26eg/make-input-response-request-params
-                             {:request-meta-object request-meta-object
-                              :input-responses input-responses
-                              :request-state "some-state"})))))))
+        (is (ts/malli-validate
+             e26sd/InputResponseRequestParams
+             (e26eg/make-input-response-request-params
+              {:request-meta-object request-meta-object
+               :input-responses input-responses
+               :request-state "some-state"})))))))
 
 
 (deftest test-make-cacheable-result
   (testing "minimal"
-    (is (malli-validate e26sd/CacheableResult
-                        (e26eg/make-cacheable-result))))
+    (is (ts/malli-validate
+         e26sd/CacheableResult
+         (e26eg/make-cacheable-result))))
   (testing "maximal"
-    (is (malli-validate e26sd/CacheableResult
-                        (e26eg/make-cacheable-result {:ttl-ms 300
-                                                      :cache-scope "public"})))))
+    (is (ts/malli-validate
+         e26sd/CacheableResult
+         (e26eg/make-cacheable-result {:ttl-ms 300
+                                       :cache-scope "public"})))))
 
 
 (deftest test-make-discover-request
   (let [client-capabilities (e26eg/make-client-capabilities)
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
-    (is (malli-validate e26sd/DiscoverRequest
-                        (e26eg/make-discover-request
-                         {:request-meta-object request-meta-object})))))
+    (is (ts/malli-validate
+         e26sd/DiscoverRequest
+         (e26eg/make-discover-request
+          {:request-meta-object request-meta-object})))))
 
 
 (deftest test-make-discover-result
   (let [server-capabilities (e26eg/make-server-capabilities)]
     (testing "minimal"
-      (is (malli-validate e26sd/DiscoverResult
-                          (e26eg/make-discover-result
-                           {:server-capabilities server-capabilities}))))
+      (is (ts/malli-validate
+           e26sd/DiscoverResult
+           (e26eg/make-discover-result
+            {:server-capabilities server-capabilities}))))
     (testing "maximal"
-      (is (malli-validate e26sd/DiscoverResult
-                          (e26eg/make-discover-result
-                           {:server-capabilities server-capabilities
-                            :supported-versions ["just one"]
-                            :instructions "Test instructions"}))))))
+      (is (ts/malli-validate
+           e26sd/DiscoverResult
+           (e26eg/make-discover-result
+            {:server-capabilities server-capabilities
+             :supported-versions ["just one"]
+             :instructions "Test instructions"}))))))
 
 
 (deftest test-make-list-resources-result
-  (is (malli-validate e26sd/ListResourcesResult
-                      (e26eg/make-list-resources-result
-                       {:resources []}))))
+  (is (ts/malli-validate
+       e26sd/ListResourcesResult
+       (e26eg/make-list-resources-result
+        {:resources []}))))
 
 
 (deftest test-make-list-resources-templates-result
-  (is (malli-validate e26sd/ListResourceTemplatesResult
-                      (e26eg/make-list-resource-templates-result
-                       {:resource-templates []}))))
+  (is (ts/malli-validate
+       e26sd/ListResourceTemplatesResult
+       (e26eg/make-list-resource-templates-result
+        {:resource-templates []}))))
 
 
 (deftest test-make-read-resource-request
   (let [client-capabilities (e26eg/make-client-capabilities)
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
-    (is (malli-validate e26sd/ReadResourceRequest
-                        (e26eg/make-read-resource-request
-                         {:uri "test://uri"
-                          :request-meta-object request-meta-object})))))
+    (is (ts/malli-validate
+         e26sd/ReadResourceRequest
+         (e26eg/make-read-resource-request
+          {:uri "test://uri"
+           :request-meta-object request-meta-object})))))
 
 
 (deftest test-make-read-resource-result-and-response
   (let [contents (eg/make-text-resource-contents
                   "test://uri" "test-text")]
     (testing "just result"
-      (is (malli-validate e26sd/ReadResourceResult
-                          (e26eg/make-read-resource-result
-                           {:contents contents}))))
+      (is (ts/malli-validate
+           e26sd/ReadResourceResult
+           (e26eg/make-read-resource-result
+            {:contents contents}))))
     (testing "full response"
-      (is (malli-validate e26sd/ReadResourceResultResponse
-                          (e26eg/make-read-resource-result-response
-                           {:id "aa"
-                            :contents contents}))))))
+      (is (ts/malli-validate
+           e26sd/ReadResourceResultResponse
+           (e26eg/make-read-resource-result-response
+            {:id "aa"
+             :contents contents}))))))
 
 
 (deftest test-make-resource-list-changed-notification
   (testing "minimal"
-    (is (malli-validate e26sd/ResourceListChangedNotification
-                        (e26eg/make-resource-list-changed-notification))))
+    (is (ts/malli-validate
+         e26sd/ResourceListChangedNotification
+         (e26eg/make-resource-list-changed-notification))))
   (testing "maximal"
-    (is (malli-validate e26sd/ResourceListChangedNotification
-                        (e26eg/make-resource-list-changed-notification
-                         {:notification-meta-object (e26eg/make-notification-meta-object)
-                          :params {}})))))
+    (is (ts/malli-validate
+         e26sd/ResourceListChangedNotification
+         (e26eg/make-resource-list-changed-notification
+          {:notification-meta-object (e26eg/make-notification-meta-object)
+           :params {}})))))
 
 
 (deftest test-make-subscription-filter
   (testing "minimal"
-    (is (malli-validate e26sd/SubscriptionFilter
-                        (e26eg/make-subscription-filter))))
+    (is (ts/malli-validate
+         e26sd/SubscriptionFilter
+         (e26eg/make-subscription-filter))))
   (testing "maximal"
-    (is (malli-validate e26sd/SubscriptionFilter
-                        (e26eg/make-subscription-filter
-                         {:tools-list-changed? true
-                          :prompts-list-changed? true
-                          :resources-list-changed? true
-                          :resource-subscriptions ["res1"]})))))
+    (is (ts/malli-validate
+         e26sd/SubscriptionFilter
+         (e26eg/make-subscription-filter
+          {:tools-list-changed? true
+           :prompts-list-changed? true
+           :resources-list-changed? true
+           :resource-subscriptions ["res1"]})))))
 
 
 (deftest test-make-subscriptions-listen-request-params
@@ -190,56 +199,66 @@
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
     (testing "request params"
-      (is (malli-validate e26sd/SubscriptionsListenRequestParams
-                          (e26eg/make-subscriptions-listen-request-params
-                           {:request-meta-object request-meta-object}))))
+      (is (ts/malli-validate
+           e26sd/SubscriptionsListenRequestParams
+           (e26eg/make-subscriptions-listen-request-params
+            {:request-meta-object request-meta-object}))))
     (testing "the request"
-      (is (malli-validate e26sd/SubscriptionsListenRequest
-                          (e26eg/make-subscriptions-listen-request
-                           {:request-meta-object request-meta-object}))))))
+      (is (ts/malli-validate
+           e26sd/SubscriptionsListenRequest
+           (e26eg/make-subscriptions-listen-request
+            {:request-meta-object request-meta-object}))))))
 
 
 (deftest test-make-subscriptions-listen-result
   (testing "result meta-object"
-    (is (malli-validate e26sd/SubscriptionsListenResultMetaObject
-                        (e26eg/make-subscriptions-listen-result-meta-object
-                         {:subscription-id "aa"}))))
+    (is (ts/malli-validate
+         e26sd/SubscriptionsListenResultMetaObject
+         (e26eg/make-subscriptions-listen-result-meta-object
+          {:subscription-id "aa"}))))
   (testing "the result itself"
-    (is (malli-validate e26sd/SubscriptionsListenResult
-                        (e26eg/make-subscriptions-listen-result
-                         {:subscription-id "aa"})))))
+    (is (ts/malli-validate
+         e26sd/SubscriptionsListenResult
+         (e26eg/make-subscriptions-listen-result
+          {:subscription-id "aa"})))))
 
 
 (deftest test-make-subscriptions-acknowledged-notification
   (testing "notification params"
-    (is (malli-validate e26sd/SubscriptionsAcknowledgedNotificationParams
-                        (e26eg/make-subscriptions-acknowledged-notification-params))))
+    (is (ts/malli-validate
+         e26sd/SubscriptionsAcknowledgedNotificationParams
+         (e26eg/make-subscriptions-acknowledged-notification-params))))
   (testing "the notification"
-    (is (malli-validate e26sd/SubscriptionsAcknowledgedNotification
-                        (e26eg/make-subscriptions-acknowledged-notification)))))
+    (is (ts/malli-validate
+         e26sd/SubscriptionsAcknowledgedNotification
+         (e26eg/make-subscriptions-acknowledged-notification)))))
 
 
 (deftest test-make-resource-updated-notification
   (testing "notification params"
-    (is (malli-validate e26sd/ResourceUpdatedNotificationParams
-                        (e26eg/make-resource-updated-notification-params
-                         {:uri "test://uri"}))))
+    (is (ts/malli-validate
+         e26sd/ResourceUpdatedNotificationParams
+         (e26eg/make-resource-updated-notification-params
+          {:uri "test://uri"}))))
   (testing "the notification"
-    (is (malli-validate e26sd/ResourceUpdatedNotification
-                        (e26eg/make-resource-updated-notification
-                         {:uri "test://uri"})))))
+    (is (ts/malli-validate
+         e26sd/ResourceUpdatedNotification
+         (e26eg/make-resource-updated-notification
+          {:uri "test://uri"})))))
 
 
 (deftest test-make-list-prompts-result
   (testing "just result"
-    (is (malli-validate e26sd/ListPromptsResult
-                        (e26eg/make-list-prompts-result
-                         {:prompts [(eg/make-prompt "prompt1")]}))))
+    (is (ts/malli-validate
+         e26sd/ListPromptsResult
+         (e26eg/make-list-prompts-result
+          {:prompts [(eg/make-prompt "prompt1")]}))))
   (testing "full response"
-    (is (malli-validate e26sd/ListPromptsResultResponse
-                        (e26eg/make-list-prompts-result-response
-                         {:id "aa"
-                          :prompts [(eg/make-prompt "prompt1")]})))))
+    (is (ts/malli-validate
+         e26sd/ListPromptsResultResponse
+         (e26eg/make-list-prompts-result-response
+          {:id "aa"
+           :prompts [(eg/make-prompt "prompt1")]})))))
 
 
 (deftest test-make-get-prompt-request
@@ -247,29 +266,33 @@
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
     (testing "request params"
-      (is (malli-validate e26sd/GetPromptRequestParams
-                          (e26eg/make-get-prompt-request-params
-                           {:name "prompt1"
-                            :request-meta-object request-meta-object}))))
+      (is (ts/malli-validate
+           e26sd/GetPromptRequestParams
+           (e26eg/make-get-prompt-request-params
+            {:name "prompt1"
+             :request-meta-object request-meta-object}))))
     (testing "full request"
-      (is (malli-validate e26sd/GetPromptRequest
-                          (e26eg/make-get-prompt-request
-                           {:name "prompt1"
-                            :request-meta-object request-meta-object}))))))
+      (is (ts/malli-validate
+           e26sd/GetPromptRequest
+           (e26eg/make-get-prompt-request
+            {:name "prompt1"
+             :request-meta-object request-meta-object}))))))
 
 
 (deftest test-make-get-prompt-result-response
   (let [prompt-messages [(eg/make-prompt-message sd/role-user
                                                  (eg/make-text-content "test"))]]
     (testing "result only"
-      (is (malli-validate e26sd/GetPromptResult
-                          (e26eg/make-get-prompt-result
-                           {:messages prompt-messages}))))
+      (is (ts/malli-validate
+           e26sd/GetPromptResult
+           (e26eg/make-get-prompt-result
+            {:messages prompt-messages}))))
     (testing "full response"
-      (is (malli-validate e26sd/GetPromptResultResponse
-                          (e26eg/make-get-prompt-result-response
-                           {:messages prompt-messages
-                            :id "one"}))))))
+      (is (ts/malli-validate
+           e26sd/GetPromptResultResponse
+           (e26eg/make-get-prompt-result-response
+            {:messages prompt-messages
+             :id "one"}))))))
 
 
 (deftest test-make-list-tools-result
@@ -277,13 +300,15 @@
                              (eg/make-tool-input-output-schema
                               {} []))]
     (testing "result only"
-      (is (malli-validate e26sd/ListToolsResult
-                          (e26eg/make-list-tools-result {:tools [tool-1]}))))
+      (is (ts/malli-validate
+           e26sd/ListToolsResult
+           (e26eg/make-list-tools-result {:tools [tool-1]}))))
     (testing "full response"
-      (is (malli-validate e26sd/ListToolsResultResponse
-                          (e26eg/make-list-tools-result-response
-                           {:tools [tool-1]
-                            :id "aa"}))))))
+      (is (ts/malli-validate
+           e26sd/ListToolsResultResponse
+           (e26eg/make-list-tools-result-response
+            {:tools [tool-1]
+             :id "aa"}))))))
 
 
 (deftest test-make-call-tool-request-params
@@ -291,44 +316,51 @@
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
     (testing "request params"
-      (is (malli-validate e26sd/CallToolRequestParams
-                          (e26eg/make-call-tool-request-params
-                           {:name "foo"
-                            :request-meta-object request-meta-object}))))
+      (is (ts/malli-validate
+           e26sd/CallToolRequestParams
+           (e26eg/make-call-tool-request-params
+            {:name "foo"
+             :request-meta-object request-meta-object}))))
     (testing "full request"
-      (is (malli-validate e26sd/CallToolRequest
-                          (e26eg/make-call-tool-request
-                           {:name "foo"
-                            :request-meta-object request-meta-object}))))))
+      (is (ts/malli-validate
+           e26sd/CallToolRequest
+           (e26eg/make-call-tool-request
+            {:name "foo"
+             :request-meta-object request-meta-object}))))))
 
 
 (deftest test-make-call-tool-result-response
   (testing "only result"
-    (is (malli-validate e26sd/CallToolResult
-                        (e26eg/make-call-tool-result
-                         {:content [(eg/make-text-content "test")]}))))
+    (is (ts/malli-validate
+         e26sd/CallToolResult
+         (e26eg/make-call-tool-result
+          {:content [(eg/make-text-content "test")]}))))
   (testing "full response"
-    (is (malli-validate e26sd/CallToolResultResponse
-                        (e26eg/make-call-tool-result-response
-                         {:content [(eg/make-text-content "test")]
-                          :id "aa"})))))
+    (is (ts/malli-validate
+         e26sd/CallToolResultResponse
+         (e26eg/make-call-tool-result-response
+          {:content [(eg/make-text-content "test")]
+           :id "aa"})))))
 
 
 (deftest test-make-tool-list-changed-notification
-  (is (malli-validate e26sd/ToolListChangedNotification
-                      (e26eg/make-tool-list-changed-notification))))
+  (is (ts/malli-validate
+       e26sd/ToolListChangedNotification
+       (e26eg/make-tool-list-changed-notification))))
 
 
 (deftest test-make-complete-result-response
   (testing "only result"
-    (is (malli-validate e26sd/CompleteResult
-                        (e26eg/make-complete-result
-                         {:values ["foo" "bar"]}))))
+    (is (ts/malli-validate
+         e26sd/CompleteResult
+         (e26eg/make-complete-result
+          {:values ["foo" "bar"]}))))
   (testing "full response"
-    (is (malli-validate e26sd/CompleteResultResponse
-                        (e26eg/make-complete-result-response
-                         {:values ["foo" "bar"]
-                          :id "aa"})))))
+    (is (ts/malli-validate
+         e26sd/CompleteResultResponse
+         (e26eg/make-complete-result-response
+          {:values ["foo" "bar"]
+           :id "aa"})))))
 
 
 (deftest test-make-elicit-request
@@ -336,16 +368,18 @@
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
     (testing "request params"
-      (is (malli-validate e26sd/ElicitRequestURLParams
-                          (e26eg/make-elicit-request-url-params
-                           {:message "test"
-                            :url "test://url"}))))
+      (is (ts/malli-validate
+           e26sd/ElicitRequestURLParams
+           (e26eg/make-elicit-request-url-params
+            {:message "test"
+             :url "test://url"}))))
     (testing "full request"
-      (is (malli-validate e26sd/ElicitRequest
-                          (e26eg/make-elicit-request
-                           {:message "test"
-                            :url "test://url"
-                            :request-meta-object request-meta-object}))))))
+      (is (ts/malli-validate
+           e26sd/ElicitRequest
+           (e26eg/make-elicit-request
+            {:message "test"
+             :url "test://url"
+             :request-meta-object request-meta-object}))))))
 
 
 (deftest test-make-list-skills-request
@@ -353,9 +387,10 @@
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
     (testing "skills request"
-      (is (malli-validate e26sd/ListSkillsRequest
-                          (e26eg/make-list-skills-request
-                           {:request-meta-object request-meta-object}))))))
+      (is (ts/malli-validate
+           e26sd/ListSkillsRequest
+           (e26eg/make-list-skills-request
+            {:request-meta-object request-meta-object}))))))
 
 
 (deftest test-make-list-skills-result
@@ -371,31 +406,32 @@
                   :frontmatter frontmatter
                   :resources [resource-1]})]
     (testing "skill"
-      (is (malli-validate e26sd/SkillResource
-                          resource-1))
-      (is (malli-validate e26sd/SkillFrontmatter
-                          frontmatter))
-      (is (malli-validate e26sd/Skill
-                          skill-1)))
+      (is (ts/malli-validate e26sd/SkillResource
+                             resource-1))
+      (is (ts/malli-validate e26sd/SkillFrontmatter
+                             frontmatter))
+      (is (ts/malli-validate e26sd/Skill
+                             skill-1)))
     (testing "skills result"
-      (is (malli-validate e26sd/ListSkillsResult
-                          (e26eg/make-list-skills-result
-                           {:skills [skill-1]}))))
+      (is (ts/malli-validate e26sd/ListSkillsResult
+                             (e26eg/make-list-skills-result
+                              {:skills [skill-1]}))))
     (testing "skills response"
-      (is (malli-validate e26sd/ListSkillsResultResponse
-                          (e26eg/make-list-skills-result-response
-                           {:skills [skill-1]
-                            :id "aa"}))))))
+      (is (ts/malli-validate e26sd/ListSkillsResultResponse
+                             (e26eg/make-list-skills-result-response
+                              {:skills [skill-1]
+                               :id "aa"}))))))
 
 
 (deftest test-make-get-skill-request
   (let [client-capabilities (e26eg/make-client-capabilities)
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
-    (is (malli-validate e26sd/GetSkillRequest
-                        (e26eg/make-get-skill-request
-                         {:uri "skill://test"
-                          :request-meta-object request-meta-object})))))
+    (is (ts/malli-validate
+         e26sd/GetSkillRequest
+         (e26eg/make-get-skill-request
+          {:uri "skill://test"
+           :request-meta-object request-meta-object})))))
 
 
 (deftest test-make-get-skill-result
@@ -411,34 +447,36 @@
                   :frontmatter frontmatter
                   :resources [resource-1]})]
     (testing "result only"
-      (is (malli-validate e26sd/GetSkillResult
-                          (e26eg/make-get-skill-result
-                           {:skill skill-1}))))
+      (is (ts/malli-validate e26sd/GetSkillResult
+                             (e26eg/make-get-skill-result
+                              {:skill skill-1}))))
     (testing "full response"
-      (is (malli-validate e26sd/GetSkillResultResponse
-                          (e26eg/make-get-skill-result-response
-                           {:skill skill-1
-                            :id "aa"}))))))
+      (is (ts/malli-validate e26sd/GetSkillResultResponse
+                             (e26eg/make-get-skill-result-response
+                              {:skill skill-1
+                               :id "aa"}))))))
 
 
 (deftest test-make-read-resource-directory-request
   (let [client-capabilities (e26eg/make-client-capabilities)
         request-meta-object (e26eg/make-request-meta-object
                              {:client-capabilities client-capabilities})]
-    (is (malli-validate e26sd/ReadResourceDirectoryRequest
-                        (e26eg/make-read-resource-directory-request
-                         {:uri "skill://test"
-                          :request-meta-object request-meta-object})))))
+    (is (ts/malli-validate
+         e26sd/ReadResourceDirectoryRequest
+         (e26eg/make-read-resource-directory-request
+          {:uri "skill://test"
+           :request-meta-object request-meta-object})))))
 
 
 (deftest test-make-read-resource-directory-result
   (let [skill-resource (eg/make-resource "skill://test" "test-skill")]
     (testing "just result"
-      (is (malli-validate e26sd/ReadResourceDirectoryResult
-                          (e26eg/make-read-resource-directory-result
-                           {:resources [skill-resource]}))))
+      (is (ts/malli-validate e26sd/ReadResourceDirectoryResult
+                             (e26eg/make-read-resource-directory-result
+                              {:resources [skill-resource]}))))
     (testing "full response"
-      (is (malli-validate e26sd/ReadResourceDirectoryResultResponse
-                          (e26eg/make-read-resource-directory-result-response
-                           {:resources [skill-resource]
-                            :id "aa"}))))))
+      (is (ts/malli-validate
+           e26sd/ReadResourceDirectoryResultResponse
+           (e26eg/make-read-resource-directory-result-response
+            {:resources [skill-resource]
+             :id "aa"}))))))
