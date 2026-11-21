@@ -11,6 +11,7 @@
   "Convenience functions for building MCP capability."
   (:require
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.api.era26-entity-gen :as e26eg]
    [plumcp.core.deps.runtime-support :as rs]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.method-handler :as mh]
@@ -90,6 +91,19 @@
                               (mh/make-call-tool-handler input-schema))]
     (-> (eg/make-tool name input-schema options)
         (ic/make-tools-capability-item call-tool-handler))))
+
+
+(defn ^{:see [e26eg/make-skill
+              ic/make-skills-capability]}  make-skill-item
+  "Make a skills capability item. A collection of such items is used
+   to make skills capability. The `handler` is an arity-1 function
+   accepting skill kwargs, returning skills-get result."
+  [^{:see [e26eg/make-skill]} skill
+   ^{:see [e26eg/make-get-skill-request
+           e26eg/make-get-skill-result]} handler]
+  (let [skills-get-handler (-> handler
+                               mh/make-get-skill-handler)]
+    (ic/make-skills-capability-item skill skills-get-handler)))
 
 
 ;; --- Primitives ---
@@ -223,13 +237,19 @@
                  - arity-0 function returning a vector of tool items
     :tasks     - tasks capability
     :completion-prompt-refs - vector of prompt ref items
-    :completion-resource-refs - vector of resource ref items}"
+    :completion-resource-refs - vector of resource ref items
+    ;; --- extensions ---
+    :skills    - skill capability items (either of the following)
+                 - vector of skill items
+                 - deref'able vector of skill items (e.g. atom)
+                 - arity-0 function returning a vector of skill items}"
   [{:keys [^{:see [make-prompt-item]} prompts
            ^{:see [make-tool-item]} tools
            ^{:see [make-resource-item]} resources
            ^{:see [make-resource-template-item]} resource-templates
            ^{:see [make-completions-reference-item]} completion-prompt-refs
-           ^{:see [make-completions-reference-item]} completion-resource-refs]}]
+           ^{:see [make-completions-reference-item]} completion-resource-refs
+           ^{:see [make-skill-item]} skills]}]
   (let [cap-prompts (some-> prompts
                             ic/make-prompts-capability)
         cap-resources (when (or resources resource-templates)
@@ -241,9 +261,16 @@
                                  completion-resource-refs)
                          (ic/make-completions-capability
                           (or completion-prompt-refs [])
-                          (or completion-resource-refs [])))]
+                          (or completion-resource-refs [])))
+        ;; extensions
+        cap-skills (some-> skills
+                           ic/make-skills-capability)]
     (-> ic/default-server-capabilities
         (ic/update-prompts-capability cap-prompts)
         (ic/update-resources-capability cap-resources)
         (ic/update-tools-capability cap-tools)
-        (ic/update-completions-capability cap-completion))))
+        (ic/update-completions-capability cap-completion)
+        ;; --- extensions ---
+        (ic/update-skills-capability cap-skills)
+        ;;
+        )))

@@ -13,6 +13,7 @@
    [clojure.string :as str]
    [plumcp.core.api.entity-gen :as eg]
    [plumcp.core.deps.runtime-support :as rs]
+   [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
    [plumcp.core.util :as u]
@@ -217,3 +218,32 @@
          (make-call-tool-result [(-> (ex-message ex)
                                      eg/make-text-content)]
                                 true))))))
+
+
+;; -- Skills --
+
+
+(defn ^{:see e26sd/GetSkillResult} get-skill-result?
+  [x]
+  (and (map? x)
+       (contains? x :skill)))
+
+
+(defn ^{:see e26sd/GetSkillResult} as-get-skill-result
+  [sora-retval]  ; SORA: Sync-OR-Async
+  (uab/may-await [x sora-retval]
+    (condp u/invoke x
+      jr/jsonrpc-response?  x
+      get-skill-result?     x
+      (u/expected!
+       x
+       "argument to be either of get-skill-result/content-vector"))))
+
+
+(defn make-get-skill-handler
+  "Make get-skill handler fn from the given
+   `(fn [kwargs]) -> get-skill-result`."
+  [f]
+  (fn call-skill-handler [kwargs]
+    (-> (f kwargs)
+        as-get-skill-result)))

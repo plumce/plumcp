@@ -83,11 +83,9 @@ All notable changes to this project will be documented in this file. This change
 - Era26 Server methods
   - [Todo] `subscriptions/listen`
   - [Todo] `notifications/subscriptions/acknowledged`
-- [Todo] Era26 Server Capability
-  - [Todo] Server Extension support
-    - [WIP] Add Skills server support
-      - Schema definition
-      - [Todo] Methods implementation
+- Era26 Server extensions
+  - [WIP] Skills
+    - [Todo] Filesystem based Skills support
 - [Todo] Era26 Client Capability
   - [Todo] Client Extension support
     - [Todo] Add Skills client support

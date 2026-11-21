@@ -15,6 +15,7 @@
    [plumcp.core.deps.runtime :as rt]
    [plumcp.core.impl.impl-capability :as ic]
    [plumcp.core.impl.impl-method :as im]
+   [plumcp.core.protocol :as p]
    [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.json-rpc :as jr]
    [plumcp.core.schema.schema-defs :as sd]
@@ -31,7 +32,13 @@
     ^{:see [e26sd/ListResourcesResult]} sd/method-resources-list
     ^{:see [e26sd/ListResourceTemplatesResult]} sd/method-resources-templates-list
     ^{:see [e26sd/ListToolsResult]} sd/method-tools-list
-    ^{:see [e26sd/ReadResourceResult]} sd/method-resources-read})
+    ^{:see [e26sd/ReadResourceResult]} sd/method-resources-read
+    ;; skills
+    ^{:see [e26sd/ListSkillsResult]} e26sd/method-skills-list
+    ^{:see [e26sd/GetSkillResult]} e26sd/method-skills-get
+    ^{:see [e26sd/ReadResourceDirectoryResult]} e26sd/method-resources-directory-read
+    ;;
+    })
 
 
 (defn as-e26-result
@@ -94,3 +101,62 @@
        e26sd/error-code-unsupported-protocol-version
        (str "Allowed protocol versions: "
             supported-versions)))))
+
+
+;; --- Skills ---
+
+
+(defn with-skills-capability [request f]
+  (let [skills-capability (-> (rt/?server-capabilities request)
+                              (ic/get-capability-skills))]
+    (im/with-capability request "skills" skills-capability f)))
+
+
+(defn skills-list
+  [^{:see [e26sd/ListSkillsRequest
+           e26sd/ListSkillsResult
+           e26sd/ListSkillsResultResponse]}
+   {:as jsonrpc-request}]
+  (with-skills-capability
+    jsonrpc-request
+    (fn [skills-capability]
+      (-> {:skills (p/obtain-list skills-capability
+                                  e26sd/method-skills-list)}
+          im/make-result
+          (make-e26result jsonrpc-request)))))
+
+
+(defn ^{:async true
+        :see [e26sd/GetSkillRequest
+              e26sd/GetSkillResult
+              e26sd/GetSkillResultResponse]} skills-get
+  [{params :params
+    :as jsonrpc-request}]
+  (with-skills-capability
+    jsonrpc-request
+    (^:async fn [skills-capability]
+      (let [uri (:uri params)]
+        (if-let [{:keys [handler params]} (p/find-handler skills-capability
+                                                          uri)]
+          (-> {:uri uri
+               :params params}
+              (im/copy-deps jsonrpc-request)
+              handler
+              im/make-result
+              (make-e26result jsonrpc-request)
+              u/do-await)
+          (jr/jsonrpc-failure sd/error-code-invalid-params
+                              "Requested invalid resource URI"
+                              {:uri uri}))))))
+
+
+(defn ^{:async true
+        :see [e26sd/ReadResourceDirectoryRequest
+              e26sd/ReadResourceDirectoryResult
+              e26sd/ReadResourceDirectoryResultResponse]} resources-directory-read
+  [{params :params
+    :as jsonrpc-request}]
+  :FIXME
+  (jr/jsonrpc-failure sd/error-code-method-not-found
+                      "Not implemented yet"
+                      {:uri (:uri params)}))

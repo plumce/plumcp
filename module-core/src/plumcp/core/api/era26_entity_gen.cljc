@@ -49,6 +49,7 @@
              tools        ; map
              tools-list-changed?     ; boolean
              extensions   ; map
+             skills       ; ...
              ]}]
   (-> {}
       (u/assoc-some
@@ -66,7 +67,8 @@
                        :listChanged resources-list-changed?))
        :tools (-> (or tools (when (some? tools-list-changed?) {}))
                   (u/assoc-some :listChanged tools-list-changed?))
-       :extensions extensions)))
+       :extensions extensions
+       :skills skills)))
 
 
 (defn ^{:se e26sd/RequestMetaObject} make-request-meta-object

@@ -12,6 +12,7 @@
   (:require
    [clojure.set :as set]
    [plumcp.core.api.entity-gen :as eg]
+   [plumcp.core.api.era26-entity-gen :as e26eg]
    [plumcp.core.protocol :as p]
    [plumcp.core.schema.era26-schema-defs :as e26sd]
    [plumcp.core.schema.json-rpc :as jr]
@@ -288,23 +289,11 @@
     (get-capability-declaration [_] {})))
 
 
-(defn make-skills-capability
-  [& {:keys [directory-read?]}]
-  (let [declaration (-> {}
-                        (u/assoc-some :directoryRead directory-read?))]
-    (reify
-      p/IMcpCapability
-      (get-capability-declaration [_] declaration))))
-
-
 (def default-client-skills-capability
   "Default client capability for skills."
-  (make-skills-capability {}))
-
-
-(def default-server-skills-capability
-  "Default server capability for skills, which enables directory reads."
-  (make-skills-capability {:directory-read? true}))
+  (reify
+    p/IMcpCapability
+    (get-capability-declaration [_] {})))
 
 
 (defn make-tasks-capability
@@ -450,6 +439,9 @@
                                  :find-handler find-handler}))))
 
 
+(def empty-resources-capability (make-resources-capability [] []))
+
+
 (declare make-tools-capability)
 
 
@@ -536,6 +528,43 @@
                        "prompt or resource reference under :type"))))))
 
 
+(declare make-skills-capability)
+
+
+(defn ^{:see make-skills-capability} make-skills-capability-item
+  "Make a skills capability item. A collection of such items is used to
+   build skills capability. The capability item is made by associating
+   `(fn skills-get-handler [kwargs-map])->skills-get-result` with a
+   skill definition."
+  [^{:see [e26eg/make-skill]} skill-definition
+   ^{:see [e26eg/make-get-skill-request
+           e26eg/make-get-skill-result]} skills-get-handler]
+  (-> skill-definition
+      (assoc :handler skills-get-handler)))
+
+
+(defn make-skills-capability
+  "Make skills capability from given skill capability items coerced as
+   - `(fn [])->skills-capability-items`
+   The arguments allowed are:
+   - skill items (either of the following)
+     - vector of skill items
+     - deref'able vector of skill items (e.g. atom)
+     - arity-0 function returning a vector of skill items"
+  [^{:see [make-skills-capability-item]}
+   get-skills-capability-items
+   & {:keys [declaration
+             find-handler]
+      :or {declaration {:directoryRead true}
+           find-handler find-uri-handler}}]
+  (let [f-resource-items (-> get-skills-capability-items
+                             items->list-applier)]
+    (-> (fn [] {e26sd/method-skills-list
+                (f-resource-items)})
+        (make-listed-capability {:declaration declaration
+                                 :find-handler find-handler}))))
+
+
 ;; --- Client/Server capabilities ---
 
 
@@ -548,7 +577,7 @@
 
 
 (def default-server-capabilities {:experimental nil
-                                  :skills       default-server-skills-capability
+                                  :skills       nil
                                   :tasks        default-server-tasks-capability
                                   :logging      logging-capability
                                   :completions  nil
@@ -573,6 +602,8 @@
 (defn get-capability-prompts     [capabilities] (get capabilities :prompts))
 (defn get-capability-resources   [capabilities] (get capabilities :resources))
 (defn get-capability-tools       [capabilities] (get capabilities :tools))
+
+(defn get-capability-skills      [capabilities] (get capabilities :skills))
 
 ;; Client & Server
 
@@ -641,6 +672,11 @@
 (defn update-experimental-capability
   [capabilities capability]
   (update-capability capabilities :experimental capability))
+
+
+(defn update-skills-capability
+  [capabilities capability]
+  (update-capability capabilities :skills capability))
 
 
 ;; --- Client/Server capability declaration ---
@@ -714,9 +750,6 @@
                 tools
                 skills
                 tasks]} server-capabilities]
-    (when (some? skills)
-      (u/expected! resources some?
-                   "resources capability to be present skills support"))
     (if (= mcp-era e26sd/mcp-era26)
       ;; Era26 - Modern era
       (->> (u/assoc-some {}  ; extensions
@@ -728,7 +761,10 @@
                          :logging      (capability->declaration logging)
                          :completions  (capability->declaration completions)
                          :prompts      (capability->declaration prompts)
-                         :resources    (capability->declaration resources)
+                         :resources    (capability->declaration (if (and (some? skills)
+                                                                         (nil? resources))
+                                                                  empty-resources-capability
+                                                                  resources))
                          :tools        (capability->declaration tools)
                          :extensions))
       ;; Era25 - Legacy era

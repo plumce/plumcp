@@ -79,8 +79,13 @@
   {;; common
    sd/method-ping       im/ping
    ;; server-specific
+   sd/method-initialize im/initialize
+   ;; Era26 specific
    esd/method-server-discover e26im/server-discover
-   sd/method-initialize im/initialize})
+   esd/method-skills-list e26im/skills-list
+   esd/method-skills-get e26im/skills-get
+   ;;
+   })
 
 
 (def mcp-server-methods-with-session
